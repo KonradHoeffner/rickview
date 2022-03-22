@@ -16,18 +16,17 @@ fn prefix_term(prefixes: &Vec<(PrefixBox,IriBox)>, term: &Term<Rc<str>>) -> Stri
         let s = match suffix
         {
             Some(x) => x.0.to_string() +":"+ &x.1.to_string(),
-            None => term.to_string(),
+            None => term.to_string().replace(['<','>'],""),
         };
         return s;
 }
 
-fn add_prefix(prefixes: &Vec<(PrefixBox,IriBox)>, prefix : &str, iri: &str)
+fn add_prefix(mut prefixes: Vec<(PrefixBox,IriBox)>, prefix : &str, iri: &str) -> Vec<(PrefixBox,IriBox)>
 {
-    let hito_prefix: PrefixBox = Prefix::new("hito").unwrap().boxed();
-    let hito_iri: IriBox = Iri::new("http://hitontology.eu/ontology/").unwrap().boxed();
-    let hito_ns = Namespace::new("http://hitontology.eu/ontology/").unwrap();
-    prefixes.push((hito_prefix,hito_iri));
-
+    let prefix_box: PrefixBox = Prefix::new(prefix).unwrap().boxed();
+    let iri_box: IriBox = Iri::new(iri).unwrap().boxed();
+    prefixes.push((prefix_box,iri_box));
+    return prefixes;
 }
 
 fn main() {
@@ -36,15 +35,21 @@ fn main() {
     let graph: FastGraph = turtle::parse_bufread(reader).collect_triples().unwrap();
     
     let mut prefixes: Vec<(PrefixBox,IriBox)> = Vec::new();
-    let hito_prefix: PrefixBox = Prefix::new("hito").unwrap().boxed();
-    let hito_iri: IriBox = Iri::new("http://hitontology.eu/ontology/").unwrap().boxed();
+    prefixes = add_prefix(prefixes,"hito","http://hitontology.eu/ontology/");
+    prefixes = add_prefix(prefixes,"purl","http://purl.org/vocab/vann/");
+    prefixes = add_prefix(prefixes,"rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#");
+    prefixes = add_prefix(prefixes,"rdfs","http://www.w3.org/2000/01/rdf-schema#");
+    prefixes = add_prefix(prefixes,"owl","http://www.w3.org/2002/07/owl#");
+    prefixes = add_prefix(prefixes,"skos","http://www.w3.org/2004/02/skos/core#");
+    prefixes = add_prefix(prefixes,"skos","http://www.w3.org/2004/02/skos/core#");
+    prefixes = add_prefix(prefixes,"sh","http://www.w3.org/ns/shacl#");
+
     let hito_ns = Namespace::new("http://hitontology.eu/ontology/").unwrap();
-    prefixes.push((hito_prefix,hito_iri));
 
     let subject = hito_ns.get("SoftwareProduct").unwrap();
 
     println!("<html><body>");
-    println!("<h1>{}</h1>",subject);
+    println!("<h1>{}</h1>",subject.to_string().replace(['<','>'],""));
     let results = graph.triples_with_s(&subject);
      print!("<ul>");
     for res in results {
@@ -52,13 +57,13 @@ fn main() {
          println!("<li>{} {}</li>",prefix_term(&prefixes,t.p()),prefix_term(&prefixes,t.o()));
     }
     print!("</ul>");
-    /*
-    println!("Inverse");
+    println!("## Inverse");
     let results = graph.triples_with_o(&subject);
+    print!("<ul>");
     for res in results {
         let t = res.unwrap();
-    println!("is {} of {}",t.s(),t.p());
+         println!("<li>is {} of {}</li>",prefix_term(&prefixes,t.p()),prefix_term(&prefixes,t.s()));
     }
-    */
+    print!("</ul>");
     println!("</body></html>");
 }
