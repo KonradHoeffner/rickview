@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 sophia = "0.7.2"
 actix-web = "4"
+lazy_static = "1.4.0"
+multimap = "0.8.3"
