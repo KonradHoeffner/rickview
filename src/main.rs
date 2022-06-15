@@ -3,8 +3,17 @@ extern crate lazy_static;
 
 mod page;
 
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+use actix_files::NamedFile;
+use actix_web::{get, web, App, HttpRequest, HttpResponse, HttpServer, Responder, Result};
 use page::page;
+
+async fn favicon(_req: HttpRequest) -> Result<NamedFile> {
+    Ok(NamedFile::open("favicon.ico")?)
+}
+
+async fn css(_req: HttpRequest) -> Result<NamedFile> {
+    Ok(NamedFile::open("rickview.css")?)
+}
 
 #[get("/ontology/{name}")]
 async fn greet(name: web::Path<String>) -> impl Responder {
@@ -15,8 +24,13 @@ async fn greet(name: web::Path<String>) -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| App::new().service(greet))
-        .bind(("127.0.0.1", 8080))?
-        .run()
-        .await
+    HttpServer::new(|| {
+        App::new()
+            .service(greet)
+            .route("/rickview.css", web::get().to(css))
+            .route("/favicon.ico", web::get().to(favicon))
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
 }

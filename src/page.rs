@@ -4,7 +4,6 @@ use sophia::iri::{Iri, IriBox};
 use sophia::ns::Namespace;
 use sophia::parser::turtle;
 use sophia::prefix::{Prefix, PrefixBox, PrefixMap};
-use sophia::term::SimpleIri;
 use sophia::term::Term;
 use sophia::triple::stream::TripleSource;
 use sophia::triple::Triple;
@@ -57,13 +56,12 @@ fn prefixes() -> Vec<(PrefixBox, IriBox)> {
     prefixes
 }
 
-
 lazy_static! {
     static ref PREFIXES: Vec<(PrefixBox, IriBox)> = prefixes();
     static ref GRAPH: FastGraph = load_graph();
-    static ref HITO_NS: Namespace<&'static str>= Namespace::new("http://hitontology.eu/ontology/").unwrap();
+    static ref HITO_NS: Namespace<&'static str> =
+        Namespace::new("http://hitontology.eu/ontology/").unwrap();
 }
-
 
 enum TableType {
     SUBJECT,
@@ -95,7 +93,7 @@ fn table(tt: &TableType, suffix: &str) -> String {
     for (p, os) in m {
         s.push_str(&format!("<tr><td>{p}</td><td><span>"));
         for o in os {
-            let link = o.replace("hito:","");
+            let link = o.replace("hito:", "");
             s.push_str(&format!("<a href='{link}'>{o}</a><br>"));
         }
         s.push_str("</span></td></tr>");
@@ -108,8 +106,7 @@ pub fn page(suffix: &str) -> String {
     let start = Instant::now();
     let subject = HITO_NS.get(suffix).unwrap();
 
-
-    let mut s: String = "<!DOCTYPE html><html><body><head><style>tr:nth-child(even) { background-color: #ddddff; }</style></head>\n".to_owned();
+    let mut s: String = "<!DOCTYPE html><html><body><head><link rel='stylesheet' href='/rickview.css'></style></head>\n".to_owned();
     s.push_str(&format!(
         "<h1>{}</h1>\n<h2>{}</h2>",
         suffix,
