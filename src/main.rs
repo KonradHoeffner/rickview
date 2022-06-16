@@ -2,13 +2,15 @@
 extern crate lazy_static;
 extern crate tinytemplate;
 
-mod page;
+mod rdf;
+mod resource;
 
 use actix_web::{get, guard, web, App, HttpRequest, HttpResponse, HttpServer, Responder, Result};
-use page::page;
-use serde::{Serialize};
-use tinytemplate::TinyTemplate;
+use rdf::resource;
+use resource::Resource;
+use serde::Serialize;
 use std::sync::Arc;
+use tinytemplate::TinyTemplate;
 
 static TEMPLATE: &str = std::include_str!("../data/template.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
@@ -26,16 +28,11 @@ async fn favicon() -> impl Responder {
         .body(FAVICON.as_ref())
 }
 
-#[derive(Serialize)]
-struct Context {
-    title: String,
-}
-
 #[get("/ontology/{name}")]
 async fn greet(name: web::Path<String>) -> impl Responder {
     let mut tt = TinyTemplate::new();
-    tt.add_template("template",TEMPLATE).unwrap();
-    let body = tt.render("template", &Context {title: "blubb".to_owned()}).unwrap();
+    tt.add_template("template", TEMPLATE).unwrap();
+    let body = tt.render("template", &resource(&name)).unwrap();
     HttpResponse::Ok().content_type("text/html").body(body)
 }
 

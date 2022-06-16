@@ -1,8 +1,20 @@
 <!DOCTYPE html>
 <html>
   <head>
-			<title>{title}</title>
+    <title>{suffix} &mdash; RickView</title>
     <link rel="stylesheet" href="/rickview.css" type="text/css" />
   </head>
-  <body></body>
+  <body>
+    <h1>{suffix}</h1>
+    <h2>{uri}</h2>
+    <table>
+      {{ for direct in directs }}
+      <tr>
+        <td>{direct.0}</td>
+        <td>{direct.1}</td>
+      </tr>
+      {{ endfor }}
+    </table>
+    {duration}
+  </body>
 </html>
