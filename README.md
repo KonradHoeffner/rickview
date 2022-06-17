@@ -2,6 +2,7 @@
 
 A quick RDF viewer (browser).
 Very early prototype written in Rust.
+Layout partially copied from LodView.
 
 ## Problem
 Existing RDF browsers like [LodView](https://github.com/LodLive/LodView/) look great but use too much hardware ressources as they are based on interpreted or garbage collected languages.

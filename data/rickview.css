@@ -1,7 +1,116 @@
+html,
+body,
+div,
+span,
+object,
+iframe,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+blockquote,
+pre,
+abbr,
+address,
+cite,
+code,
+del,
+dfn,
+em,
+img,
+ins,
+kbd,
+q,
+samp,
+small,
+strong,
+sub,
+sup,
+var,
+b,
+i,
+dl,
+dt,
+dd,
+ol,
+ul,
+li,
+fieldset,
+form,
+label,
+legend,
+table,
+caption,
+tbody,
+tfoot,
+thead,
+tr,
+th,
+td,
+article,
+aside,
+canvas,
+details,
+figcaption,
+figure,
+footer,
+header,
+hgroup,
+menu,
+nav,
+section,
+summary,
+time,
+mark,
+audio,
+video {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  font-size: 100%;
+  vertical-align: baseline;
+  background: transparent;
+  background-color: transparent;
+}
+
 tr:nth-child(even) {
   background-color: #ddddff;
 }
 
 body {
   font-family: "Roboto", sans-serif;
+  font-weight: 300;
+  line-height: 20px;
+}
+
+hgroup {
+  display: block;
+  min-height: 210px;
+  color: #fff;
+  padding: 0 24px;
+  background-color: #914848;
+}
+
+hgroup h1 {
+  font-size: 32px;
+  padding-top: 120px;
+  line-height: 32px;
+  font-weight: 300;
+  margin-right: 100px;
+}
+
+hgroup h2 {
+  font-size: 16px;
+  padding: 8px 0 24px 0;
+  font-weight: 300;
+}
+
+header div#abstract {
+  padding: 24px;
+  color: #fff;
+  background-color: #7d3e3e;
 }

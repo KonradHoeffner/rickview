@@ -3,18 +3,46 @@
   <head>
     <title>{suffix} &mdash; RickView</title>
     <link rel="stylesheet" href="/rickview.css" type="text/css" />
+    <link
+      href="//fonts.googleapis.com/css?family=Roboto:100,300,500&amp;subset=latin-ext,latin,greek-ext,greek,cyrillic-ext,vietnamese,cyrillic"
+      rel="stylesheet"
+      type="text/css"
+    />
   </head>
   <body>
-    <h1>{suffix}</h1>
-    <h2>{uri}</h2>
-    <table>
-      {{ for direct in directs }}
-      <tr>
-        <td>{direct.0}</td>
-        <td>{direct.1}</td>
-      </tr>
-      {{ endfor }}
-    </table>
-    {duration}
+    <article>
+      <header>
+        <hgroup>
+          <h1>{suffix}</h1>
+          <h2>{uri}</h2>
+        </hgroup>
+        <div id="abstract">
+          <table>
+            {{ for entry in directs }}
+            <tr>
+              <td>{entry.0}</td>
+              <td>
+                {{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}
+                { value | unescaped } {{ endfor }}
+              </td>
+            </tr>
+            {{ endfor }}
+          </table>
+        </div>
+      </header>
+      <h3>inverse relations</h3>
+      <table>
+        {{ for entry in inverses}}
+        <tr>
+          <td>is {entry.0} of</td>
+          <td>
+            {{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }} {
+            value | unescaped } {{ endfor }}
+          </td>
+        </tr>
+        {{ endfor }}
+      </table>
+      {duration}
+    </article>
   </body>
 </html>

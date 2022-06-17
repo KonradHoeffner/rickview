@@ -34,7 +34,8 @@ fn add_prefix(
 }
 
 fn load_graph() -> FastGraph {
-    let file = File::open("hito.ttl").expect("Unable to open file");
+    const path: &str = "data/hito.ttl";
+    let file = File::open(path).expect(&format!("Unable to open knowledge base file {path}. Execute the prepare script."));
     let reader = BufReader::new(file);
     turtle::parse_bufread(reader).collect_triples().unwrap()
 }
@@ -64,37 +65,42 @@ lazy_static! {
         Namespace::new("http://hitontology.eu/ontology/").unwrap();
 }
 
-enum TableType {
-    SUBJECT,
-    OBJECT,
+enum ConnectionType {
+    DIRECT,
+    INVERSE,
 }
 
-fn directs(tt: &TableType, suffix: &str) -> Vec<(String, String)> {
-    let mut d: Vec<(String, String)> = Vec::new();
+fn linker(object: &String) -> String
+{
+            if object.starts_with('"') {return object.to_owned();}
+            let suffix = object.replace("hito:", "");
+            return format!("<a href='{suffix}'>{object}</a>");
+}
+
+fn connections(tt: &ConnectionType, suffix: &str) -> Vec<(String, Vec<String>)> {
+//fn connection(tt: &ConnectionType, suffix: &str) -> MultiMap<String,String> {
+    let mut map: MultiMap<String, String> = MultiMap::new();
     let iri = HITO_NS.get(suffix).unwrap();
     let results = match tt {
-        TableType::SUBJECT => GRAPH.triples_with_s(&iri),
-        TableType::OBJECT => GRAPH.triples_with_o(&iri),
+        ConnectionType::DIRECT => GRAPH.triples_with_s(&iri),
+        ConnectionType::INVERSE => GRAPH.triples_with_o(&iri),
     };
-    let mut m: MultiMap<String, String> = MultiMap::new();
+    let mut d: Vec<(String, Vec<String>)> = Vec::new();
     for res in results {
         let t = res.unwrap();
-        m.insert(
+        map.insert(
             prefix_term(&PREFIXES, t.p()),
             prefix_term(
                 &PREFIXES,
                 match tt {
-                    TableType::SUBJECT => t.o(),
-                    TableType::OBJECT => t.s(),
+                    ConnectionType::DIRECT => t.o(),
+                    ConnectionType::INVERSE => t.s(),
                 },
             ),
         );
     }
-    for (p, os) in m {
-        for o in os {
-            let link = o.replace("hito:", "");
-            d.push((p.clone(), format!("<a href='{link}'>{o}</a><br>")));
-        }
+    for (key, values) in map.iter_all() {
+        d.push((key.to_owned(),values.iter().map(linker).collect()));
     }
     d
 }
@@ -105,16 +111,17 @@ pub fn resource(suffix: &str) -> Resource {
 
     let uri = subject.to_string().replace(['<', '>'], "");
     /*
-        s.push_str(&table(&TableType::SUBJECT, &suffix));
+        s.push_str(&table(&ConnectionType::DIRECT, &suffix));
 
     s.push_str("<h3>Inverse</h3>");
-    s.push_str(&table(&TableType::OBJECT, &suffix));
+    s.push_str(&table(&ConnectionType::INVERSE, &suffix));
 
     s.push_str(&format!("{:?}", start.elapsed()));*/
     Resource {
         suffix: suffix.to_owned(),
         uri,
         duration: format!("{:?}", start.elapsed()),
-        directs: directs(&TableType::SUBJECT, suffix),
+        directs: connections(&ConnectionType::DIRECT, suffix),
+        inverses: connections(&ConnectionType::INVERSE, suffix),
     }
 }

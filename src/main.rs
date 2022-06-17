@@ -5,11 +5,8 @@ extern crate tinytemplate;
 mod rdf;
 mod resource;
 
-use actix_web::{get, guard, web, App, HttpRequest, HttpResponse, HttpServer, Responder, Result};
+use actix_web::{get, web, App, HttpResponse, HttpServer, Responder };
 use rdf::resource;
-use resource::Resource;
-use serde::Serialize;
-use std::sync::Arc;
 use tinytemplate::TinyTemplate;
 
 static TEMPLATE: &str = std::include_str!("../data/template.html");
