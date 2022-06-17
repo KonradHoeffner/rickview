@@ -1,72 +1,5 @@
-html,
-body,
-div,
-span,
-object,
-iframe,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-p,
-blockquote,
-pre,
-abbr,
-address,
-cite,
-code,
-del,
-dfn,
-em,
-img,
-ins,
-kbd,
-q,
-samp,
-small,
-strong,
-sub,
-sup,
-var,
-b,
-i,
-dl,
-dt,
-dd,
-ol,
-ul,
-li,
-fieldset,
-form,
-label,
-legend,
-table,
-caption,
-tbody,
-tfoot,
-thead,
-tr,
-th,
-td,
-article,
-aside,
-canvas,
-details,
-figcaption,
-figure,
-footer,
-header,
-hgroup,
-menu,
-nav,
-section,
-summary,
-time,
-mark,
-audio,
-video {
+/* taken from LodView */
+html, body, div, span, object, iframe, h1, h2, h3, h4, h5, h6, blockquote, pre, abbr, address, cite, code, del, dfn, em, img, ins, kbd, q, samp, small, strong, sub, sup, var, b, i, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption, tbody, tfoot, thead, tr, th, td, article, aside, canvas, details, figcaption, figure, footer, header, hgroup, menu, nav, section, summary, time, mark, audio, video {
   margin: 0;
   padding: 0;
   border: 0;
@@ -75,10 +8,6 @@ video {
   vertical-align: baseline;
   background: transparent;
   background-color: transparent;
-}
-
-tr:nth-child(even) {
-  background-color: #ddddff;
 }
 
 body {
@@ -113,4 +42,78 @@ header div#abstract {
   padding: 24px;
   color: #fff;
   background-color: #7d3e3e;
+}
+
+aside {
+  display: block;
+  background-color: #eee;
+  color: #fff;
+  padding: 0;
+  font-size: 0px;
+  min-height: 10px;
+}
+
+label a span {
+  font-weight: 500;
+}
+
+h3 {
+  text-transform: uppercase;
+  letter-spacing: 0.7;
+  font-weight: 300;
+  color: #212121;
+  font-size: 11px;
+}
+
+div#directs {
+  padding: 24px;
+  background: #fff;
+  color: #212121;
+  line-height: 20px;
+  font-size: 14px;
+  overflow-x: hidden;
+}
+
+div#inverses {
+  padding: 24px;
+  background: #d4d4d4;
+  color: #212121;
+  line-height: 20px;
+  font-size: 14px;
+}
+
+div#directs a, div#inverses a {
+  color: #212121;
+}
+
+div#directs a:hover, div#inverses a:hover {
+  text-decoration: underline;
+}
+
+table {
+  width: 100%;
+}
+
+a {
+  margin: 0;
+  padding: 0;
+  font-size: 100%;
+  vertical-align: baseline;
+  background: transparent;
+  text-decoration: none;
+  color: #212121
+}
+
+tr .c2 {
+  border-bottom: 1px solid ;
+  padding-bottom: 0.5em;
+  min-width: 70vw;
+}
+
+div#directs tr .c2 {
+ border-bottom: 1px solid #dbdbdb;
+}
+
+div#inverses tr .c2 {
+ border-bottom: 1px solid #b6b6b6;
 }

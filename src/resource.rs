@@ -1,6 +1,12 @@
 use serde::Serialize;
 
 #[derive(Serialize)]
+pub struct Property {
+    pub uri: String,
+    pub tooltip: String,
+}
+
+#[derive(Serialize)]
 pub struct Resource {
     pub uri: String,
     pub suffix: String,

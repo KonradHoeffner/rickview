@@ -3,8 +3,9 @@
   <head>
     <title>{suffix} &mdash; RickView</title>
     <link rel="stylesheet" href="/rickview.css" type="text/css" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link
-      href="//fonts.googleapis.com/css?family=Roboto:100,300,500&amp;subset=latin-ext,latin,greek-ext,greek,cyrillic-ext,vietnamese,cyrillic"
+      href="//fonts.googleapis.com/css?family=Roboto:100,300,500&amp;subset=latin-ext,latin,greek-ext,greek,cyrillic-ext,vietnamese,cyrillic&amp;display=swap"
       rel="stylesheet"
       type="text/css"
     />
@@ -16,12 +17,14 @@
           <h1>{suffix}</h1>
           <h2>{uri}</h2>
         </hgroup>
-        <div id="abstract">
+        <div id="abstract">hier kommt der comment rein</div>
+			  <aside class="empty"></aside>
+        <div id="directs">
           <table>
             {{ for entry in directs }}
             <tr>
-              <td>{entry.0}</td>
-              <td>
+								<td><label class="c1" title="Describe what this property does">{entry.0}</label></td>
+              <td class="c2">
                 {{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}
                 { value | unescaped } {{ endfor }}
               </td>
@@ -30,18 +33,21 @@
           </table>
         </div>
       </header>
-      <h3>inverse relations</h3>
-      <table>
-        {{ for entry in inverses}}
-        <tr>
-          <td>is {entry.0} of</td>
-          <td>
-            {{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }} {
-            value | unescaped } {{ endfor }}
-          </td>
-        </tr>
-        {{ endfor }}
-      </table>
+			<aside class="empty"></aside>
+      <div id="inverses">
+        <h3>inverse relations</h3>
+        <table>
+          {{ for entry in inverses}}
+          <tr>
+						<td><label class="c1" title="Describe what this property does">is {entry.0} of</label></td>
+            <td class="c2">
+              {{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}
+							<p>{ value | unescaped } {{ endfor }}</p>
+            </td>
+          </tr>
+          {{ endfor }}
+        </table>
+      </div>
       {duration}
     </article>
   </body>

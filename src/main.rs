@@ -5,7 +5,7 @@ extern crate tinytemplate;
 mod rdf;
 mod resource;
 
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder };
+use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use rdf::resource;
 use tinytemplate::TinyTemplate;
 

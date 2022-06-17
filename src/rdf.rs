@@ -34,8 +34,10 @@ fn add_prefix(
 }
 
 fn load_graph() -> FastGraph {
-    const path: &str = "data/hito.ttl";
-    let file = File::open(path).expect(&format!("Unable to open knowledge base file {path}. Execute the prepare script."));
+    const PATH: &str = "data/hito.ttl";
+    let file = File::open(PATH).expect(&format!(
+        "Unable to open knowledge base file {PATH}. Execute the prepare script."
+    ));
     let reader = BufReader::new(file);
     turtle::parse_bufread(reader).collect_triples().unwrap()
 }
@@ -70,15 +72,16 @@ enum ConnectionType {
     INVERSE,
 }
 
-fn linker(object: &String) -> String
-{
-            if object.starts_with('"') {return object.to_owned();}
-            let suffix = object.replace("hito:", "");
-            return format!("<a href='{suffix}'>{object}</a>");
+fn linker(object: &String) -> String {
+    if object.starts_with('"') {
+        return object.replace('"', "").to_owned();
+    }
+    let suffix = object.replace("hito:", "");
+    return format!("<a href='{suffix}'>{object}</a>");
 }
 
 fn connections(tt: &ConnectionType, suffix: &str) -> Vec<(String, Vec<String>)> {
-//fn connection(tt: &ConnectionType, suffix: &str) -> MultiMap<String,String> {
+    //fn connection(tt: &ConnectionType, suffix: &str) -> MultiMap<String,String> {
     let mut map: MultiMap<String, String> = MultiMap::new();
     let iri = HITO_NS.get(suffix).unwrap();
     let results = match tt {
@@ -100,7 +103,7 @@ fn connections(tt: &ConnectionType, suffix: &str) -> Vec<(String, Vec<String>)> 
         );
     }
     for (key, values) in map.iter_all() {
-        d.push((key.to_owned(),values.iter().map(linker).collect()));
+        d.push((key.to_owned(), values.iter().map(linker).collect()));
     }
     d
 }
