@@ -12,3 +12,4 @@ tinytemplate = "1"
 serde = { version = "1", features = ["derive"] }
 envy = "0.4"
 dotenv = "0.15"
+toml = "0.5"

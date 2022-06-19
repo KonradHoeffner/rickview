@@ -23,6 +23,7 @@ fn prefix_term(prefixes: &Vec<(PrefixBox, IriBox)>, term: &Term<Arc<str>>) -> St
     return s;
 }
 
+
 fn add_prefix(
     mut prefixes: Vec<(PrefixBox, IriBox)>,
     prefix: &str,
@@ -40,22 +41,13 @@ fn load_graph() -> FastGraph {
     turtle::parse_bufread(reader).collect_triples().unwrap()
 }
 
+const NAMESPACE_PATH: &str = "../data/namespace.toml";
+
 fn prefixes() -> Vec<(PrefixBox, IriBox)> {
-    let mut prefixes: Vec<(PrefixBox, IriBox)> = Vec::new();
-    prefixes = add_prefix(prefixes, "hito", "http://hitontology.eu/ontology/");
-    prefixes = add_prefix(prefixes, "purl", "http://purl.org/vocab/vann/");
-    prefixes = add_prefix(
-        prefixes,
-        "rdf",
-        "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-    );
-    prefixes = add_prefix(prefixes, "rdfs", "http://www.w3.org/2000/01/rdf-schema#");
-    prefixes = add_prefix(prefixes, "owl", "http://www.w3.org/2002/07/owl#");
-    prefixes = add_prefix(prefixes, "skos", "http://www.w3.org/2004/02/skos/core#");
-    prefixes = add_prefix(prefixes, "skos", "http://www.w3.org/2004/02/skos/core#");
-    prefixes = add_prefix(prefixes, "sh", "http://www.w3.org/ns/shacl#");
-    prefixes = add_prefix(prefixes, "ov", "http://open.vocab.org/terms/");
-    prefixes
+    let mut p: Vec<(PrefixBox, IriBox)> = Vec::new();
+    let s: String = std::fs::read_to_string(NAMESPACE_PATH).expect(&format!("Unable to read namespace file {}", NAMESPACE_PATH));
+    let x = toml::from_str(&s);
+    p
 }
 
 lazy_static! {
