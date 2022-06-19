@@ -1,13 +1,14 @@
 #[macro_use]
 extern crate lazy_static;
-extern crate tinytemplate;
 
+mod config;
 mod rdf;
 mod resource;
 
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use rdf::resource;
 use tinytemplate::TinyTemplate;
+use dotenv::dotenv;
 
 static TEMPLATE: &str = std::include_str!("../data/template.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
@@ -35,6 +36,7 @@ async fn greet(name: web::Path<String>) -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    dotenv().ok();
     HttpServer::new(|| App::new().service(css).service(favicon).service(greet))
         .bind(("127.0.0.1", 8080))?
         .run()

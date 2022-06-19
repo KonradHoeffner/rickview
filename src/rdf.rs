@@ -1,4 +1,5 @@
 use crate::resource::Resource;
+use crate::config::CONFIG;
 use multimap::MultiMap;
 use sophia::graph::{inmem::sync::FastGraph, *};
 use sophia::iri::{Iri, IriBox};
@@ -34,10 +35,7 @@ fn add_prefix(
 }
 
 fn load_graph() -> FastGraph {
-    const PATH: &str = "data/hito.ttl";
-    let file = File::open(PATH).expect(&format!(
-        "Unable to open knowledge base file {PATH}. Execute the prepare script."
-    ));
+    let file = File::open(&CONFIG.kb_file).expect(&format!("Unable to open knowledge base file '{}'. Execute the prepare script.",&CONFIG.kb_file));
     let reader = BufReader::new(file);
     turtle::parse_bufread(reader).collect_triples().unwrap()
 }
@@ -64,7 +62,7 @@ lazy_static! {
     static ref PREFIXES: Vec<(PrefixBox, IriBox)> = prefixes();
     static ref GRAPH: FastGraph = load_graph();
     static ref HITO_NS: Namespace<&'static str> =
-        Namespace::new("http://hitontology.eu/ontology/").unwrap();
+        Namespace::new(CONFIG.namespace.as_ref()).unwrap();
 }
 
 enum ConnectionType {
