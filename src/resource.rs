@@ -10,6 +10,7 @@ pub struct Property {
 pub struct Resource {
     pub uri: String,
     pub suffix: String,
+    pub descriptions: Vec<(String, Vec<String>)>,
     pub directs: Vec<(String, Vec<String>)>,
     pub inverses: Vec<(String, Vec<String>)>,
     pub duration: String,

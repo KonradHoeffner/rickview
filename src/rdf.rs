@@ -64,7 +64,6 @@ fn linker(object: &String) -> String {
 }
 
 fn connections(tt: &ConnectionType, suffix: &str) -> Vec<(String, Vec<String>)> {
-    //fn connection(tt: &ConnectionType, suffix: &str) -> MultiMap<String,String> {
     let mut map: MultiMap<String, String> = MultiMap::new();
     let iri = HITO_NS.get(suffix).unwrap();
     let results = match tt {
@@ -96,18 +95,22 @@ pub fn resource(suffix: &str) -> Resource {
     let subject = HITO_NS.get(suffix).unwrap();
 
     let uri = subject.to_string().replace(['<', '>'], "");
-    /*
-        s.push_str(&table(&ConnectionType::DIRECT, &suffix));
-
-    s.push_str("<h3>Inverse</h3>");
-    s.push_str(&table(&ConnectionType::INVERSE, &suffix));
-
-    s.push_str(&format!("{:?}", start.elapsed()));*/
+    let all_directs = connections(&ConnectionType::DIRECT, suffix);
+    let descriptions = all_directs
+        .iter()
+        .cloned()
+        .filter(|c| CONFIG.description_properties.contains(&c.0))
+        .collect();
+    let notdescriptions = all_directs
+        .into_iter()
+        .filter(|c| !CONFIG.description_properties.contains(&c.0))
+        .collect();
     Resource {
         suffix: suffix.to_owned(),
         uri,
         duration: format!("{:?}", start.elapsed()),
-        directs: connections(&ConnectionType::DIRECT, suffix),
+        descriptions,
+        directs: notdescriptions,
         inverses: connections(&ConnectionType::INVERSE, suffix),
     }
 }

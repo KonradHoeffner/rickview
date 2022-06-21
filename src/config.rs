@@ -1,14 +1,14 @@
 use config::{ConfigError, Environment, File, FileFormat};
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
     pub kb_file: String,
     pub namespace: String,
     pub namespaces: HashMap<String, String>,
-    //pub type_properties: Vec<String>,
-    //pub description_properties: Vec<String>
+    pub type_properties: HashSet<String>,
+    pub description_properties: HashSet<String>,
 }
 
 impl Config {
