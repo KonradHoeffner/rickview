@@ -10,6 +10,4 @@ lazy_static = "1.4"
 multimap = "0.8"
 tinytemplate = "1"
 serde = { version = "1", features = ["derive"] }
-envy = "0.4"
-dotenv = "0.15"
-toml = "0.5"
+config = { version = "0.13", default-features = false, features = ["toml"] }

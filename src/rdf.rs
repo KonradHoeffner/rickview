@@ -1,11 +1,11 @@
-use crate::resource::Resource;
 use crate::config::CONFIG;
+use crate::resource::Resource;
 use multimap::MultiMap;
 use sophia::graph::{inmem::sync::FastGraph, *};
-use sophia::iri::{Iri, IriBox};
+use sophia::iri::IriBox;
 use sophia::ns::Namespace;
 use sophia::parser::turtle;
-use sophia::prefix::{Prefix, PrefixBox, PrefixMap};
+use sophia::prefix::{PrefixBox, PrefixMap};
 use sophia::term::Term;
 use sophia::triple::stream::TripleSource;
 use sophia::triple::Triple;
@@ -23,30 +23,23 @@ fn prefix_term(prefixes: &Vec<(PrefixBox, IriBox)>, term: &Term<Arc<str>>) -> St
     return s;
 }
 
-
-fn add_prefix(
-    mut prefixes: Vec<(PrefixBox, IriBox)>,
-    prefix: &str,
-    iri: &str,
-) -> Vec<(PrefixBox, IriBox)> {
-    let prefix_box: PrefixBox = Prefix::new(prefix).unwrap().boxed();
-    let iri_box: IriBox = Iri::new(iri).unwrap().boxed();
-    prefixes.push((prefix_box, iri_box));
-    return prefixes;
-}
-
 fn load_graph() -> FastGraph {
-    let file = File::open(&CONFIG.kb_file).expect(&format!("Unable to open knowledge base file '{}'. Execute the prepare script.",&CONFIG.kb_file));
+    let file = File::open(&CONFIG.kb_file).expect(&format!(
+        "Unable to open knowledge base file '{}'. Make sure that the file exists. You may be able to download it with the prepare script. Configure as kb_file in data/config.toml or using the environment variable RICKVIEW_KB_FILE.",
+        &CONFIG.kb_file
+    ));
     let reader = BufReader::new(file);
     turtle::parse_bufread(reader).collect_triples().unwrap()
 }
 
-const NAMESPACE_PATH: &str = "../data/namespace.toml";
-
 fn prefixes() -> Vec<(PrefixBox, IriBox)> {
     let mut p: Vec<(PrefixBox, IriBox)> = Vec::new();
-    let s: String = std::fs::read_to_string(NAMESPACE_PATH).expect(&format!("Unable to read namespace file {}", NAMESPACE_PATH));
-    let x = toml::from_str(&s);
+    for (prefix, iri) in CONFIG.namespaces.iter() {
+        p.push((
+            PrefixBox::new_unchecked(prefix.to_owned().into_boxed_str()),
+            IriBox::new_unchecked(iri.to_owned().into_boxed_str()),
+        ));
+    }
     p
 }
 
