@@ -13,8 +13,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::sync::Arc;
 use std::time::Instant;
-use std::collections::HashMap;
-use sophia::term::TTerm;
+
 
 fn prefix_term(prefixes: &Vec<(PrefixBox, IriBox)>, term: &Term<Arc<str>>) -> String {
     let suffix = prefixes.get_prefixed_pair(term);
@@ -45,22 +44,8 @@ fn prefixes() -> Vec<(PrefixBox, IriBox)> {
     p
 }
 
-fn titles() -> HashMap<String,String> {
-    let mut titles = HashMap::<String,String>::new();
-    for prop in (&CONFIG.title_properties).iter().rev()
-    {
-    //println!("{}",prop);
-    let term: Term<String> = Term::new_iri::<String>(prop.to_owned()).unwrap();
-    //print!("{}",term);
-    for tt in GRAPH.triples_with_p(&term)
-    {
-        let t = tt.unwrap();
-        let suffix = t.s().value().replace(&CONFIG.namespace, "");
-        //println!("inserting {}, {}", suffix , t.o().value());
-        titles.insert(suffix,t.o().value().to_string());
-    }
-    }
-    titles
+fn labels() -> HashMap<String,String> {
+
 }
 
 lazy_static! {
@@ -68,9 +53,12 @@ lazy_static! {
     static ref GRAPH: FastGraph = load_graph();
     static ref HITO_NS: Namespace<&'static str> =
         Namespace::new(CONFIG.namespace.as_ref()).unwrap();
+<<<<<<< Updated upstream
     static ref RDFS_NS: Namespace<&'static str> =
         Namespace::new("http://www.w3.org/2000/01/rdf-schema#").unwrap();
-    static ref TITLES: HashMap<String,String> = titles();
+=======
+    static ref LABELS: HashMap<String,String> = labels();
+>>>>>>> Stashed changes
 }
 
 enum ConnectionType {
@@ -85,7 +73,7 @@ fn linker(object: &String) -> String {
     let suffix = object.replace(&format!("{}:", &CONFIG.prefix), "");
     return format!(
         "<a href='{suffix}'>{object}</a><br><span>&#8618; {}</span>",
-        TITLES.get(&suffix).unwrap_or(&suffix)
+        simple_resource(&suffix).title
     );
 }
 
@@ -116,7 +104,6 @@ fn connections(tt: &ConnectionType, suffix: &str) -> Vec<(String, Vec<String>)> 
     d
 }
 
-/*
 pub struct SimpleResource {
     pub suffix: String,
     pub title: String,
@@ -138,7 +125,6 @@ pub fn simple_resource(suffix: &str) -> SimpleResource {
         title: title,
     }
 }
-*/
 
 pub fn resource(suffix: &str) -> Resource {
     let start = Instant::now();
@@ -161,7 +147,7 @@ pub fn resource(suffix: &str) -> Resource {
     let notdescriptions = filter(&all_directs, |key| {
         !CONFIG.description_properties.contains(key)
     });
-    /*let titles = filter(&all_directs, |key| CONFIG.title_properties.contains(&key.to_string()));
+    let titles = filter(&all_directs, |key| CONFIG.title_properties.contains(key));
     let title: String = || -> Option<String> {
         Some(
             titles
@@ -173,14 +159,13 @@ pub fn resource(suffix: &str) -> Resource {
                 .next()?
                 .to_owned(),
         )
-    }()*/
-    let title = TITLES.get(suffix).unwrap();
-    //.unwrap_or(&suffix.to_owned());
+    }()
+    .unwrap_or(suffix.to_owned());
     Resource {
         suffix: suffix.to_owned(),
         uri,
         duration: format!("{:?}", start.elapsed()),
-        title: title.to_string(),
+        title,
         //titles,
         descriptions,
         directs: notdescriptions,

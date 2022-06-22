@@ -5,9 +5,11 @@ use std::collections::{HashMap, HashSet};
 #[derive(Deserialize, Debug)]
 pub struct Config {
     pub kb_file: String,
+    pub prefix: String,
     pub namespace: String,
     pub namespaces: HashMap<String, String>,
-    pub type_properties: HashSet<String>,
+    pub title_properties: Vec<String>,
+    pub type_properties: Vec<String>,
     pub description_properties: HashSet<String>,
 }
 

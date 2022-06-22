@@ -7,8 +7,7 @@ mod resource;
 
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use rdf::resource;
-use tinytemplate::TinyTemplate;
-//use dotenv::dotenv;
+use tinytemplate::{TinyTemplate, ValueFormatter};
 
 static TEMPLATE: &str = std::include_str!("../data/template.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
@@ -30,6 +29,13 @@ async fn favicon() -> impl Responder {
 async fn greet(name: web::Path<String>) -> impl Responder {
     let mut tt = TinyTemplate::new();
     tt.add_template("template", TEMPLATE).unwrap();
+    /*
+    tt.add_formatter("title", |v, output| {
+        let o  = || -> Option<String> {Some(v.get(0)?.get(1)?.get(0)?.to_string().split("@").next()?[1..].to_owned())};
+        output.push_str(&o().unwrap_or("label not found".to_owned()));
+        Ok(())
+    });
+    */
     let body = tt.render("template", &resource(&name)).unwrap();
     HttpResponse::Ok().content_type("text/html").body(body)
 }

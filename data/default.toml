@@ -1,7 +1,7 @@
 kb_file = "data/hito.ttl"
 prefix = "hito"
 namespace = "http://hitontology.eu/ontology/"
-title_properties =  [ "dc:title", "dcterms:title", "rdfs:label" ]
+title_properties =  [ "http://purl.org/dc/elements/1.1/title", "http://purl.org/dc/terms/title", "http://www.w3.org/2000/01/rdf-schema#label" ]
 type_properties = ["rdf:type" ]
 description_properties = [ "rdfs:comment" ]
 [namespaces]
