@@ -22,3 +22,8 @@ Implement a basic RDF browser similar to LodView in Rust with the following goal
 * low resource utilization
 * good design
 * option to generate static HTML
+
+## Docker
+
+    docker build . -t rickview
+    docker run --mount "type=bind,src=$PWD/data/kb.ttl,target=/app/data/kb.ttl"  --network="host" rickview

@@ -13,10 +13,12 @@ pub struct Config {
     pub description_properties: HashSet<String>,
 }
 
+static DEFAULT: &str = std::include_str!("../data/default.toml");
+
 impl Config {
     pub fn new() -> Result<Self, ConfigError> {
         config::Config::builder()
-            .add_source(File::new("data/default.toml", FileFormat::Toml))
+            .add_source(File::from_str(DEFAULT, FileFormat::Toml))
             .add_source(File::new("data/config.toml", FileFormat::Toml).required(false))
             .add_source(Environment::with_prefix("rickview"))
             .build()?

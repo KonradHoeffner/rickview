@@ -1,4 +1,5 @@
-kb_file = "data/hito.ttl"
+# don't override kb_file when using docker as it will create a directory instead of a file on bind mount when a file doesn't exist already
+kb_file = "data/kb.ttl"
 prefix = "hito"
 namespace = "http://hitontology.eu/ontology/"
 title_properties =  [ "http://purl.org/dc/elements/1.1/title", "http://purl.org/dc/terms/title", "http://www.w3.org/2000/01/rdf-schema#label" ]

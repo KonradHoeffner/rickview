@@ -13,12 +13,12 @@ static TEMPLATE: &str = std::include_str!("../data/template.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
 static CSS: &str = std::include_str!("../data/rickview.css");
 
-#[get("/rickview.css")]
+#[get("/ontology/rickview.css")]
 async fn css() -> impl Responder {
     HttpResponse::Ok().content_type("text/css").body(CSS)
 }
 
-#[get("/favicon.ico")]
+#[get("/ontology/favicon.ico")]
 async fn favicon() -> impl Responder {
     HttpResponse::Ok()
         .content_type("image/x-icon")
@@ -53,7 +53,7 @@ async fn greet(name: web::Path<String>) -> impl Responder {
 async fn main() -> std::io::Result<()> {
     //dotenv().ok();
     HttpServer::new(|| App::new().service(css).service(favicon).service(greet))
-        .bind(("127.0.0.1", 8080))?
+        .bind(("0.0.0.0", 8080))?
         .run()
         .await
 }
