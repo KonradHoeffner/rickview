@@ -15,7 +15,15 @@
       <header>
         <hgroup>
           <h1>{title }</h1>
-          <h2>{uri}</h2>
+          <h2>
+            {uri}
+            <span class="instance">
+              <a title="<{main_type}>" href="{main_type}" target="_blank">
+                <span class="instanceof">an entity of type:</span>
+                <span>{ main_type | suffix }</span>
+              </a>
+            </span>
+          </h2>
         </hgroup>
         <div id="abstract">
           <table>
@@ -37,7 +45,7 @@
               <td>
                 <label class="c1" title="Describe what this property does">{entry.0}</label>
               </td>
-              <td class="c2">{{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }} { value | unescaped } {{ endfor }}</td>
+              <td>{{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}<span class="c2">{ value | unescaped }</span>{{ endfor }}</td>
             </tr>
             {{ endfor }}
           </table>
@@ -52,10 +60,7 @@
             <td>
               <label class="c1" title="Describe what this property does">is {entry.0} of</label>
             </td>
-            <td class="c2">
-              {{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}
-              <p>{ value | unescaped } {{ endfor }}</p>
-            </td>
+            <td>{{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}<span class="c2">{ value | unescaped }</span>{{ endfor }}</td>
           </tr>
           {{ endfor }}
         </table>

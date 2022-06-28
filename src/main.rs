@@ -29,6 +29,15 @@ async fn favicon() -> impl Responder {
 async fn greet(name: web::Path<String>) -> impl Responder {
     let mut tt = TinyTemplate::new();
     tt.add_template("template", TEMPLATE).unwrap();
+    tt.add_formatter("suffix", |v, output| {
+        let o = || -> Option<String> {
+            let mut s = v.as_str().unwrap().rsplit_once("/").unwrap().1;
+            if s.contains('#') {s = s.rsplit_once("#").unwrap().1;}
+            Some(s.to_owned())
+        };
+        output.push_str(&o().unwrap());
+        Ok(())
+    });
     /*
     tt.add_formatter("title", |v, output| {
         let o  = || -> Option<String> {Some(v.get(0)?.get(1)?.get(0)?.to_string().split("@").next()?[1..].to_owned())};

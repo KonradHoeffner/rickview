@@ -14,6 +14,7 @@ body {
   font-family: "Roboto", sans-serif;
   font-weight: 300;
   line-height: 20px;
+  font-size: 14px; 
 }
 
 hgroup {
@@ -104,15 +105,35 @@ a {
   color: #212121
 }
 
-tr .c2 {
-  padding-bottom: 0.5em;
+td .c2 {
+  padding-bottom: 1em;
   min-width: 70vw;
+  display: inline-block;
 }
 
-div#directs tr .c2 {
+div#directs tr td span.c2 {
  border-bottom: 1px solid #dbdbdb;
 }
 
-div#inverses tr .c2 {
+div#inverses tr td span.c2 {
  border-bottom: 1px solid #b6b6b6;
+}
+
+hgroup h2 .instance {
+  float: right;
+  text-align: right;
+  display: inline-block;
+}
+
+span.instanceof {
+  text-transform: uppercase;
+  font-weight: 300;
+  color: #ffffff;
+  font-size: 11px;
+}
+
+hgroup h2 > span a span {
+  font-weight: 500;
+  color: #ffffff;
+  font-size: 13px;
 }

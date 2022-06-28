@@ -6,23 +6,25 @@ use sophia::iri::IriBox;
 use sophia::ns::Namespace;
 use sophia::parser::turtle;
 use sophia::prefix::{PrefixBox, PrefixMap};
+use sophia::term::TTerm;
 use sophia::term::Term;
 use sophia::triple::stream::TripleSource;
 use sophia::triple::Triple;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::sync::Arc;
 use std::time::Instant;
-use std::collections::HashMap;
-use sophia::term::TTerm;
 
+// if the namespace is known, returns a prefixed term string, for example "rdfs:label"
+// otherwise, returns the full IRI
 fn prefix_term(prefixes: &Vec<(PrefixBox, IriBox)>, term: &Term<Arc<str>>) -> String {
     let suffix = prefixes.get_prefixed_pair(term);
     let s = match suffix {
         Some(x) => x.0.to_string() + ":" + &x.1.to_string(),
         None => term.to_string().replace(['<', '>'], ""),
     };
-    return s;
+    s
 }
 
 fn load_graph() -> FastGraph {
@@ -34,6 +36,7 @@ fn load_graph() -> FastGraph {
     turtle::parse_bufread(reader).collect_triples().unwrap()
 }
 
+// (prefix,iri) pairs from the config
 fn prefixes() -> Vec<(PrefixBox, IriBox)> {
     let mut p: Vec<(PrefixBox, IriBox)> = Vec::new();
     for (prefix, iri) in CONFIG.namespaces.iter() {
@@ -45,22 +48,37 @@ fn prefixes() -> Vec<(PrefixBox, IriBox)> {
     p
 }
 
-fn titles() -> HashMap<String,String> {
-    let mut titles = HashMap::<String,String>::new();
-    for prop in (&CONFIG.title_properties).iter().rev()
-    {
-    //println!("{}",prop);
-    let term: Term<String> = Term::new_iri::<String>(prop.to_owned()).unwrap();
-    //print!("{}",term);
-    for tt in GRAPH.triples_with_p(&term)
-    {
-        let t = tt.unwrap();
-        let suffix = t.s().value().replace(&CONFIG.namespace, "");
-        //println!("inserting {}, {}", suffix , t.o().value());
-        titles.insert(suffix,t.o().value().to_string());
-    }
+// prioritizes title properties earlier in the list
+// language tags are not yet used
+fn titles() -> HashMap<String, String> {
+    let mut titles = HashMap::<String, String>::new();
+    for prop in (&CONFIG.title_properties).iter().rev() {
+        //println!("{}",prop);
+        let term: Term<String> = Term::new_iri::<String>(prop.to_owned()).unwrap();
+        //print!("{}",term);
+        for tt in GRAPH.triples_with_p(&term) {
+            let t = tt.unwrap();
+            let suffix = t.s().value().replace(&CONFIG.namespace, "");
+            //println!("inserting {}, {}", suffix , t.o().value());
+            titles.insert(suffix, t.o().value().to_string());
+        }
     }
     titles
+}
+
+// prioritizes type properties earlier in the list
+fn types() -> HashMap<String, String> {
+    let mut types = HashMap::<String, String>::new();
+    for prop in (&CONFIG.type_properties).iter().rev() {
+        let term: Term<String> = Term::new_iri::<String>(prop.to_owned()).unwrap();
+        for tt in GRAPH.triples_with_p(&term) {
+            let t = tt.unwrap();
+            let suffix = t.s().value().replace(&CONFIG.namespace, "");
+            //println!("inserting {}, {}", suffix , t.o().value());
+            types.insert(suffix, t.o().value().to_string());
+        }
+    }
+    types
 }
 
 lazy_static! {
@@ -70,7 +88,8 @@ lazy_static! {
         Namespace::new(CONFIG.namespace.as_ref()).unwrap();
     static ref RDFS_NS: Namespace<&'static str> =
         Namespace::new("http://www.w3.org/2000/01/rdf-schema#").unwrap();
-    static ref TITLES: HashMap<String,String> = titles();
+    static ref TITLES: HashMap<String, String> = titles();
+    static ref TYPES: HashMap<String, String> = types();
 }
 
 enum ConnectionType {
@@ -174,14 +193,15 @@ pub fn resource(suffix: &str) -> Resource {
                 .to_owned(),
         )
     }()*/
-    let title = TITLES.get(suffix).unwrap();
+    let title = TITLES.get(suffix).unwrap().to_string();
+    let main_type = TYPES.get(suffix).unwrap().to_string();
     //.unwrap_or(&suffix.to_owned());
     Resource {
         suffix: suffix.to_owned(),
         uri,
         duration: format!("{:?}", start.elapsed()),
-        title: title.to_string(),
-        //titles,
+        title,
+        main_type,
         descriptions,
         directs: notdescriptions,
         inverses: connections(&ConnectionType::INVERSE, suffix),
