@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
+    pub base_path: String,
     pub kb_file: String,
     pub prefix: String,
     pub namespace: String,

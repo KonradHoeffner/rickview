@@ -33,7 +33,12 @@ fn load_graph() -> FastGraph {
         &CONFIG.kb_file
     ));
     let reader = BufReader::new(file);
-    turtle::parse_bufread(reader).collect_triples().expect(&format!("Unable to parse knowledge base file {}",&CONFIG.kb_file))
+    turtle::parse_bufread(reader)
+        .collect_triples()
+        .expect(&format!(
+            "Unable to parse knowledge base file {}",
+            &CONFIG.kb_file
+        ))
 }
 
 // (prefix,iri) pairs from the config
