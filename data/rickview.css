@@ -14,7 +14,8 @@ body {
   font-family: "Roboto", sans-serif;
   font-weight: 300;
   line-height: 20px;
-  font-size: 14px; 
+  font-size: 14px;
+  background-color: #212121;
 }
 
 hgroup {
@@ -102,7 +103,7 @@ a {
   vertical-align: baseline;
   background: transparent;
   text-decoration: none;
-  color: #212121
+  #color: #212121
 }
 
 td .c2 {
@@ -136,4 +137,47 @@ hgroup h2 > span a span {
   font-weight: 500;
   color: #ffffff;
   font-size: 13px;
+}
+
+footer {
+  min-height: 176px;
+  color: #fff;
+  padding: 24px;
+}
+
+#download {
+  float: left;
+  margin-bottom: 30px;
+}
+
+#download a#linkGit {
+  margin-top: 20px;
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .7;
+  color: #b4b4b4;
+  text-decoration: none;
+}
+
+#footer-right{
+  float: right;
+  position: relative;
+  top: -7px;
+  font-size: 12px;
+  line-height: 24px;
+}
+
+#footer-right a {
+  color: #fff;
+  cursor: pointer;
+}
+
+#footer-right ul li {
+  min-height: 24px;
+  text-align: right;
+}
+
+#footer-right ul {
+  list-style: none;
 }

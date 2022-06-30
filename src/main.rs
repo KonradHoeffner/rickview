@@ -28,8 +28,18 @@ async fn favicon() -> impl Responder {
 
 #[get("{name}")]
 async fn greet(name: web::Path<String>) -> impl Responder {
+    let s: String;
     let mut tt = TinyTemplate::new();
-    tt.add_template("template", TEMPLATE).unwrap();
+    match &CONFIG.template_file {
+        None => {
+            tt.add_template("template", TEMPLATE).expect("Could not parse default template");
+        }
+        Some(path) => {
+            s = std::fs::read_to_string(path)
+                .expect(&format!("Could not read template file {}", path));
+            tt.add_template("template", &s).expect(&format!("Could not add custom template file {}", path));
+        }
+    };
     tt.add_formatter("suffix", |v, output| {
         let o = || -> Option<String> {
             let mut s = v.as_str().unwrap().rsplit_once("/").unwrap().1;

@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet};
 pub struct Config {
     pub base_path: String,
     pub kb_file: String,
+    pub template_file: Option<String>,
     pub prefix: String,
     pub namespace: String,
     pub namespaces: HashMap<String, String>,
