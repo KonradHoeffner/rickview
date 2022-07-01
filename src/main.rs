@@ -9,10 +9,14 @@ use crate::config::CONFIG;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use rdf::resource;
 use tinytemplate::TinyTemplate;
+use std::fs;
 
 static TEMPLATE: &str = std::include_str!("../data/template.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
 static CSS: &str = std::include_str!("../data/rickview.css");
+lazy_static! {
+    static ref INDEX_BODY: String = fs::read_to_string(&CONFIG.index_file.as_ref().unwrap()).expect(&format!("Unable to load index file {}",&CONFIG.index_file.as_ref().unwrap()));
+}
 
 #[get("rickview.css")]
 async fn css() -> impl Responder {
@@ -35,7 +39,7 @@ async fn greet(name: web::Path<String>) -> impl Responder {
             tt.add_template("template", TEMPLATE).expect("Could not parse default template");
         }
         Some(path) => {
-            s = std::fs::read_to_string(path)
+            s = fs::read_to_string(path)
                 .expect(&format!("Could not read template file {}", path));
             tt.add_template("template", &s).expect(&format!("Could not add custom template file {}", path));
         }
@@ -55,15 +59,27 @@ async fn greet(name: web::Path<String>) -> impl Responder {
     HttpResponse::Ok().content_type("text/html").body(body)
 }
 
+#[get("/")]
+async fn index() -> impl Responder
+{
+   HttpResponse::Ok().content_type("text/html").body(&**INDEX_BODY)
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    //dotenv().ok();
-    HttpServer::new(|| {
+/*    let index_body = fs::read_to_string(&CONFIG.index_file.as_ref().unwrap());
+    let response = HttpResponse::Ok().content_type("text/html");
+    let index_responder = || response;*/
+    HttpServer::new(move || {
         App::new().service(
             web::scope(&CONFIG.base_path)
                 .service(css)
                 .service(favicon)
-                .service(greet),
+                .service(greet)
+                .service(index)
+                //.route("/", web::get().to(HttpResponse::Ok().content_type("text/html").body(index_body)))
+                //.route("/", web::get().to(index_responder))
+                //.service(index(index_body)),
         )
     })
     .bind(("0.0.0.0", 8080))?

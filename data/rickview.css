@@ -84,6 +84,10 @@ div#inverses {
   font-size: 14px;
 }
 
+div#abstract a {
+  color: #ffffff;
+}
+
 div#directs a, div#inverses a {
   color: #212121;
 }
@@ -103,7 +107,6 @@ a {
   vertical-align: baseline;
   background: transparent;
   text-decoration: none;
-  #color: #212121
 }
 
 td .c2 {
