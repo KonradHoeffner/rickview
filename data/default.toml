@@ -5,6 +5,7 @@ namespace = "http://hitontology.eu/ontology/"
 title_properties =  [ "http://purl.org/dc/elements/1.1/title", "http://purl.org/dc/terms/title", "http://www.w3.org/2000/01/rdf-schema#label" ]
 type_properties = ["http://www.w3.org/1999/02/22-rdf-syntax-ns#type" ]
 description_properties = [ "rdfs:comment" ]
+examples = []
 base_path = ""
 [namespaces]
 hito = "http://hitontology.eu/ontology/"

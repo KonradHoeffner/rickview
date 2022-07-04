@@ -206,6 +206,10 @@ pub fn resource(suffix: &str) -> Resource {
         uri,
         duration: format!("{:?}", start.elapsed()),
         title,
+        github_issue_url: CONFIG
+            .github
+            .as_ref()
+            .map(|g| format!("{}/issues/new?title={}", g, suffix)),
         main_type,
         descriptions,
         directs: notdescriptions,
