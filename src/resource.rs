@@ -17,4 +17,5 @@ pub struct Resource {
     pub directs: Vec<(String, Vec<String>)>,
     pub inverses: Vec<(String, Vec<String>)>,
     pub duration: String,
+    pub github_issue_url: Option<String>,
 }

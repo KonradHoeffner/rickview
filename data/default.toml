@@ -1,10 +1,11 @@
-# don't override kb_file when using docker as it will create a directory instead of a file on bind mount when a file doesn't exist already
+# Be careful when bind mounting with docker: data/kb.ttl does not exist by default and might thus get mounted as a directory.
 kb_file = "data/kb.ttl"
 prefix = "hito"
 namespace = "http://hitontology.eu/ontology/"
 title_properties =  [ "http://purl.org/dc/elements/1.1/title", "http://purl.org/dc/terms/title", "http://www.w3.org/2000/01/rdf-schema#label" ]
 type_properties = ["http://www.w3.org/1999/02/22-rdf-syntax-ns#type" ]
 description_properties = [ "rdfs:comment" ]
+examples = []
 base_path = ""
 [namespaces]
 hito = "http://hitontology.eu/ontology/"

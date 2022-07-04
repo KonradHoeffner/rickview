@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>{suffix} &mdash; RickView</title>
+    <title>{suffix}</title>
     <link rel="stylesheet" href="rickview.css" type="text/css" />
     <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link
@@ -67,5 +67,19 @@
       </div>
       {duration}
     </article>
+    <footer>
+      <div id="download">
+        <a href="https://github.com/konradhoeffner/rickview" id="linkGit" target="_blank" title="based on RickView">publish Linked Data with RickView</a>
+      </div>
+      <div id="footer-right">
+        <ul>
+          {{ if github_issue_url }}
+          <li>
+            <a target="_blank" href="{github_issue_url}">create issue on GitHub</a>
+          </li>
+          {{ endif }}
+        </ul>
+      </div>
+    </footer>
   </body>
 </html>
