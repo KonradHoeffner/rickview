@@ -6,7 +6,8 @@ mod rdf;
 mod resource;
 
 use crate::config::CONFIG;
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{get, /*middleware,*/ web, App, HttpResponse, HttpServer, Responder};
+//use actix_web::middleware::TrailingSlash;
 use rdf::resource;
 //use std::fs;
 use tinytemplate::TinyTemplate;
@@ -87,15 +88,17 @@ async fn main() -> std::io::Result<()> {
     let response = HttpResponse::Ok().content_type("text/html");
     let index_responder = || response;*/
     HttpServer::new(move || {
-        App::new().service(
-            web::scope(&CONFIG.base_path)
-                .service(css)
-                .service(favicon)
-                .service(greet)
-                .service(index), //.route("/", web::get().to(HetpResponse::Ok().content_type("text/html").body(index_body)))
-                                 //.route("/", web::get().to(index_responder))
-                                 //.service(index(index_body)),
-        )
+        App::new()
+            //.wrap(middleware::NormalizePath::new(TrailingSlash::Trim))
+            .service(
+                web::scope(&CONFIG.base_path)
+                    .service(css)
+                    .service(favicon)
+                    .service(greet)
+                    .service(index), //.route("/", web::get().to(HetpResponse::Ok().content_type("text/html").body(index_body)))
+                                     //.route("/", web::get().to(index_responder))
+                                     //.service(index(index_body)),
+            )
     })
     .bind(("0.0.0.0", 8080))?
     .run()
