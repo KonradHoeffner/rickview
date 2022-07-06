@@ -1,5 +1,5 @@
 ---
-title: 'RickView---A performant Linked Data browser'
+title: 'RickView---A performant RDF browser'
 #title: 'RickView---A quick RDF viewer written in Rust'
 tags:
   - linked data
@@ -53,12 +53,12 @@ While there are are several existing RDF browsers, they are not optimized for pe
 # Implementation 
 
 The standard backend for LD projects are *SPARQL endpoints*, which allow expressive SQL-like *SPARQL queries*, however they are overengineered for the simple task of browsing.
-For example, the popular Virtuoso Open-Source Edition maps SPARQL to SQL queries on top of a relational database, which is currently faster than native triplestores like Apache Jena or but requires tuning of parameters like memory buffer sizes for optimal resource allocation and the RDF data model can cause large amounts of joins, which negatively impacts query runtime.
+For example, the popular Virtuoso Open-Source Edition maps SPARQL to SQL queries on top of a relational database, which is faster than native triplestores like Apache Jena but requires tuning of parameters like memory buffer sizes for optimal resource allocation and the RDF data model can cause large amounts of joins, which negatively impacts query runtime.
 
 RickView instead follows an alternative approach of directly querying an in-memory dataset bypassing SPARQL.
 RickView is an LD browser written in Rust, which enables a high level of performance comparable to C and C++ while being memory-safe and thread-safe by design. 
-In order to keep the focus on performance and to get a baseline of functionality for performance evaluation, the design is in large parts copied over from LodView [@lodview].
+In order to keep the focus on performance and to get a baseline of functionality for performance evaluation, the web page layout is in large parts copied over from LodView [@lodview].
 
-It is already used in the SNIK [@snik] and HITO [@hito] research projects as a LodView replacement and in LinkedSpending [@linkedspending] as a replacement for Virtuoso SPARQL Endpoint + OntoWiki.
+It is already used in the HITO [@hito] research project as a LodView replacement and will in the near future be used for the same purpose for the SNIK [@snik] project as well as LinkedSpending [@linkedspending] as a replacement for Virtuoso SPARQL Endpoint + OntoWiki.
 
 # References
