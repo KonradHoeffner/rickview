@@ -71,7 +71,10 @@ async fn favicon() -> impl Responder {
 
 #[get("{name}")]
 async fn greet(name: web::Path<String>) -> impl Responder {
-    let body = template().render("resource", &resource(&name)).unwrap();
+    let body = match resource(&name) {
+        Some(res) => template().render("resource", &res).unwrap(),
+        None => format!("Could not display resource {}", name).to_owned(),
+    };
     HttpResponse::Ok().content_type("text/html").body(body)
 }
 

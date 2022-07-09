@@ -164,7 +164,7 @@ pub fn simple_resource(suffix: &str) -> SimpleResource {
 }
 */
 
-pub fn resource(suffix: &str) -> Resource {
+pub fn resource(suffix: &str) -> Option<Resource> {
     let start = Instant::now();
     let subject = HITO_NS.get(suffix).unwrap();
 
@@ -198,10 +198,10 @@ pub fn resource(suffix: &str) -> Resource {
                 .to_owned(),
         )
     }()*/
-    let title = TITLES.get(suffix).unwrap().to_string();
-    let main_type = TYPES.get(suffix).unwrap().to_string();
+    let title = TITLES.get(suffix)?.to_string();
+    let main_type = TYPES.get(suffix)?.to_string();
     //.unwrap_or(&suffix.to_owned());
-    Resource {
+    Some(Resource {
         suffix: suffix.to_owned(),
         uri,
         duration: format!("{:?}", start.elapsed()),
@@ -214,5 +214,5 @@ pub fn resource(suffix: &str) -> Resource {
         descriptions,
         directs: notdescriptions,
         inverses: connections(&ConnectionType::INVERSE, suffix),
-    }
+    })
 }
