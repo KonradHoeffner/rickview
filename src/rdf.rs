@@ -50,6 +50,10 @@ fn prefixes() -> Vec<(PrefixBox, IriBox)> {
             IriBox::new_unchecked(iri.to_owned().into_boxed_str()),
         ));
     }
+    p.push((
+        PrefixBox::new_unchecked(CONFIG.prefix.clone().into_boxed_str()),
+        IriBox::new_unchecked(CONFIG.namespace.clone().into_boxed_str()),
+    ));
     p
 }
 
