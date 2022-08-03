@@ -7,6 +7,7 @@ type_properties = ["http://www.w3.org/1999/02/22-rdf-syntax-ns#type" ]
 description_properties = [ "rdfs:comment" ]
 examples = []
 base_path = ""
+port = 8080
 [namespaces]
 hito = "http://hitontology.eu/ontology/"
 purl = "http://purl.org/vocab/vann/"

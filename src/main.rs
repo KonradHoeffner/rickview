@@ -100,7 +100,7 @@ async fn main() -> std::io::Result<()> {
                                  //.service(index(index_body)),
         )
     })
-    .bind(("0.0.0.0", 8080))?
+    .bind(("0.0.0.0", CONFIG.port))?
     .run()
     .await
 }
