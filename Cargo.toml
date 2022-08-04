@@ -4,10 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sophia = "0.7"
+sophia = "0.7" 
 actix-web = "4"
 lazy_static = "1.4"
 multimap = "0.8"
 tinytemplate = "1"
 serde = { version = "1", features = ["derive"] }
 config = { version = "0.13", default-features = false, features = ["toml"] }
+
+[features]
+default = []
+rdfxml = ["sophia/xml"]

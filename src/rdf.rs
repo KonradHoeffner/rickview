@@ -1,15 +1,22 @@
 use crate::config::CONFIG;
 use crate::resource::Resource;
 use multimap::MultiMap;
-use sophia::graph::{inmem::sync::FastGraph, *};
-use sophia::iri::IriBox;
-use sophia::ns::Namespace;
 use sophia::parser::turtle;
 use sophia::prefix::{PrefixBox, PrefixMap};
-use sophia::term::TTerm;
-use sophia::term::Term;
-use sophia::triple::stream::TripleSource;
-use sophia::triple::Triple;
+#[cfg(feature = "rdfxml")]
+use sophia::serializer::xml::RdfXmlSerializer;
+use sophia::serializer::{
+    nt::NtSerializer,
+    turtle::{TurtleConfig, TurtleSerializer},
+    Stringifier, TripleSerializer,
+};
+use sophia::term::{TTerm, Term};
+use sophia::triple::{stream::TripleSource, Triple};
+use sophia::{
+    graph::{inmem::sync::FastGraph, *},
+    iri::IriBox,
+    ns::Namespace,
+};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
@@ -167,6 +174,42 @@ pub fn simple_resource(suffix: &str) -> SimpleResource {
     }
 }
 */
+
+/*
+pub enum Serializer
+{
+ Turtle, Nt, Xml 
+}
+pub fn serialize(suffix: &str, serializer: Serializer) -> String {
+    let iri = HITO_NS.get(suffix).unwrap();
+    let config = TurtleConfig::new()
+        .with_pretty(true)
+        .with_own_prefix_map((&PREFIXES).to_vec());
+    TurtleSerializer::new_stringifier_with_config(config)
+        .serialize_triples(GRAPH.triples_with_s(&iri))
+        .unwrap()
+        .to_string()
+}
+*/
+
+pub fn serialize_turtle(suffix: &str) -> String {
+    let iri = HITO_NS.get(suffix).unwrap();
+    let config = TurtleConfig::new()
+        .with_pretty(true)
+        .with_own_prefix_map((&PREFIXES).to_vec());
+    TurtleSerializer::new_stringifier_with_config(config)
+        .serialize_triples(GRAPH.triples_with_s(&iri))
+        .unwrap()
+        .to_string()
+}
+
+pub fn serialize_nt(suffix: &str) -> String {
+    let iri = HITO_NS.get(suffix).unwrap();
+    NtSerializer::new_stringifier()
+        .serialize_triples(GRAPH.triples_with_s(&iri))
+        .unwrap()
+        .to_string()
+}
 
 pub fn resource(suffix: &str) -> Option<Resource> {
     let start = Instant::now();

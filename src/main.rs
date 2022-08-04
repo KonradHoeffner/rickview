@@ -6,10 +6,8 @@ mod rdf;
 mod resource;
 
 use crate::config::CONFIG;
-use actix_web::http::header::HeaderValue;
 use actix_web::{get, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 //use std::fs;
-use std::collections::HashSet;
 use tinytemplate::TinyTemplate;
 
 static TEMPLATE: &str = std::include_str!("../data/template.html");
@@ -93,11 +91,16 @@ async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl 
                             ));
                         }
                     }
+                    if accept.contains("application/n-triples") {
+                        return HttpResponse::Ok()
+                            .content_type("application/n-triples")
+                            .body(rdf::serialize_nt(&suffix));
+                    }
                 }
             }
             HttpResponse::Ok()
                 .content_type("text/turtle")
-                .body("todo: turtle representation")
+                .body(rdf::serialize_turtle(&suffix))
         }
     }
 }
