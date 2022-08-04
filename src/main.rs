@@ -6,9 +6,10 @@ mod rdf;
 mod resource;
 
 use crate::config::CONFIG;
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
-use rdf::resource;
+use actix_web::http::header::HeaderValue;
+use actix_web::{get, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 //use std::fs;
+use std::collections::HashSet;
 use tinytemplate::TinyTemplate;
 
 static TEMPLATE: &str = std::include_str!("../data/template.html");
@@ -69,13 +70,36 @@ async fn favicon() -> impl Responder {
         .body(FAVICON.as_ref())
 }
 
-#[get("{name}")]
-async fn greet(name: web::Path<String>) -> impl Responder {
-    let body = match resource(&name) {
-        Some(res) => template().render("resource", &res).unwrap(),
-        None => format!("Could not display resource {}", name).to_owned(),
-    };
-    HttpResponse::Ok().content_type("text/html").body(body)
+#[get("{suffix}")]
+async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
+    match rdf::resource(&suffix) {
+        None => HttpResponse::NotFound()
+            .content_type("text/plain")
+            .body(format!(
+                "No triples found for resource {}",
+                suffix.to_owned()
+            )),
+        Some(res) => {
+            if let Some(a) = request.head().headers().get("Accept") {
+                if let Ok(accept) = a.to_str() {
+                    //println!("{accept}");
+                    if accept.contains("text/html") {
+                        if let Ok(html) = template().render("resource", &res) {
+                            return HttpResponse::Ok().content_type("text/html").body(html);
+                        } else {
+                            return HttpResponse::InternalServerError().body(format!(
+                                "Internal server error. Could not render resource {}.",
+                                suffix.to_owned()
+                            ));
+                        }
+                    }
+                }
+            }
+            HttpResponse::Ok()
+                .content_type("text/turtle")
+                .body("todo: turtle representation")
+        }
+    }
 }
 
 #[get("/")]
@@ -94,10 +118,15 @@ async fn main() -> std::io::Result<()> {
             web::scope(&CONFIG.base_path)
                 .service(css)
                 .service(favicon)
-                .service(greet)
-                .service(index), //.route("/", web::get().to(HetpResponse::Ok().content_type("text/html").body(index_body)))
-                                 //.route("/", web::get().to(index_responder))
-                                 //.service(index(index_body)),
+                .service(resource_html)
+                /*.service(
+                    web::resource("{suffix}")
+                        .guard(guard::fn_guard(|ctx| {
+                            ctx.head().headers().get_all("Accept")
+                        }))
+                        .route(web::get().to(resource_html)),
+                )*/
+                .service(index),
         )
     })
     .bind(("0.0.0.0", CONFIG.port))?
