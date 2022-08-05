@@ -26,10 +26,8 @@ lazy_static! {
 // TODO: reuse existing template
 fn template() -> TinyTemplate<'static> {
     let mut tt = TinyTemplate::new();
-    tt.add_template("resource", TEMPLATE)
-        .expect("Could not parse default resource template");
-    tt.add_template("index", INDEX)
-        .expect("Could not parse default template");
+    tt.add_template("resource", TEMPLATE).expect("Could not parse default resource template");
+    tt.add_template("index", INDEX).expect("Could not parse default template");
     /*
     match &CONFIG.template_file {
         None => {
@@ -63,9 +61,7 @@ async fn css() -> impl Responder {
 
 #[get("favicon.ico")]
 async fn favicon() -> impl Responder {
-    HttpResponse::Ok()
-        .content_type("image/x-icon")
-        .body(FAVICON.as_ref())
+    HttpResponse::Ok().content_type("image/x-icon").body(FAVICON.as_ref())
 }
 
 #[get("{suffix}")]
@@ -73,10 +69,7 @@ async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl 
     match rdf::resource(&suffix) {
         None => HttpResponse::NotFound()
             .content_type("text/plain")
-            .body(format!(
-                "No triples found for resource {}",
-                suffix.to_owned()
-            )),
+            .body(format!("No triples found for resource {}", suffix.to_owned())),
         Some(res) => {
             if let Some(a) = request.head().headers().get("Accept") {
                 if let Ok(accept) = a.to_str() {
@@ -84,28 +77,20 @@ async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl 
                     if accept.contains("text/html") {
                         return match template().render("resource", &res) {
                             Ok(html) => HttpResponse::Ok().content_type("text/html").body(html),
-                            Err(_) => HttpResponse::InternalServerError().body(format!(
-                                "Internal server error. Could not render resource {}.",
-                                suffix.to_owned()
-                            )),
+                            Err(_) => HttpResponse::InternalServerError()
+                                .body(format!("Internal server error. Could not render resource {}.", suffix.to_owned())),
                         };
                     }
                     if accept.contains("application/n-triples") {
-                        return HttpResponse::Ok()
-                            .content_type("application/n-triples")
-                            .body(rdf::serialize_nt(&suffix));
+                        return HttpResponse::Ok().content_type("application/n-triples").body(rdf::serialize_nt(&suffix));
                     }
                     #[cfg(feature = "rdfxml")]
                     if accept.contains("application/rdf+xml") {
-                        return HttpResponse::Ok()
-                            .content_type("application/rdf+xml")
-                            .body(rdf::serialize_rdfxml(&suffix));
+                        return HttpResponse::Ok().content_type("application/rdf+xml").body(rdf::serialize_rdfxml(&suffix));
                     }
                 }
             }
-            HttpResponse::Ok()
-                .content_type("application/turtle")
-                .body(rdf::serialize_turtle(&suffix))
+            HttpResponse::Ok().content_type("application/turtle").body(rdf::serialize_turtle(&suffix))
         }
     }
 }

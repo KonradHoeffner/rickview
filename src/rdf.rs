@@ -42,10 +42,7 @@ fn load_graph() -> FastGraph {
     let reader = BufReader::new(file);
     turtle::parse_bufread(reader)
         .collect_triples()
-        .expect(&format!(
-            "Unable to parse knowledge base file {}",
-            &CONFIG.kb_file
-        ))
+        .expect(&format!("Unable to parse knowledge base file {}", &CONFIG.kb_file))
 }
 
 // (prefix,iri) pairs from the config
@@ -100,10 +97,8 @@ fn types() -> HashMap<String, String> {
 lazy_static! {
     static ref PREFIXES: Vec<(PrefixBox, IriBox)> = prefixes();
     static ref GRAPH: FastGraph = load_graph();
-    static ref HITO_NS: Namespace<&'static str> =
-        Namespace::new(CONFIG.namespace.as_ref()).unwrap();
-    static ref RDFS_NS: Namespace<&'static str> =
-        Namespace::new("http://www.w3.org/2000/01/rdf-schema#").unwrap();
+    static ref HITO_NS: Namespace<&'static str> = Namespace::new(CONFIG.namespace.as_ref()).unwrap();
+    static ref RDFS_NS: Namespace<&'static str> = Namespace::new("http://www.w3.org/2000/01/rdf-schema#").unwrap();
     static ref TITLES: HashMap<String, String> = titles();
     static ref TYPES: HashMap<String, String> = types();
 }
@@ -186,9 +181,7 @@ pub fn serialize_rdfxml(suffix: &str) -> String {
 
 pub fn serialize_turtle(suffix: &str) -> String {
     let iri = HITO_NS.get(suffix).unwrap();
-    let config = TurtleConfig::new()
-        .with_pretty(true)
-        .with_own_prefix_map((&PREFIXES).to_vec());
+    let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map((&PREFIXES).to_vec());
     TurtleSerializer::new_stringifier_with_config(config)
         .serialize_triples(GRAPH.triples_with_s(&iri))
         .unwrap()
@@ -209,21 +202,11 @@ pub fn resource(suffix: &str) -> Option<Resource> {
 
     let uri = subject.to_string().replace(['<', '>'], "");
     let all_directs = connections(&ConnectionType::DIRECT, suffix);
-    fn filter(
-        cons: &Vec<(String, Vec<String>)>,
-        key_predicate: fn(&str) -> bool,
-    ) -> Vec<(String, Vec<String>)> {
-        cons.iter()
-            .cloned()
-            .filter(|c| key_predicate(&c.0))
-            .collect()
+    fn filter(cons: &Vec<(String, Vec<String>)>, key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
+        cons.iter().cloned().filter(|c| key_predicate(&c.0)).collect()
     }
-    let descriptions = filter(&all_directs, |key| {
-        CONFIG.description_properties.contains(key)
-    });
-    let notdescriptions = filter(&all_directs, |key| {
-        !CONFIG.description_properties.contains(key)
-    });
+    let descriptions = filter(&all_directs, |key| CONFIG.description_properties.contains(key));
+    let notdescriptions = filter(&all_directs, |key| !CONFIG.description_properties.contains(key));
     /*let titles = filter(&all_directs, |key| CONFIG.title_properties.contains(&key.to_string()));
     let title: String = || -> Option<String> {
         Some(
@@ -245,10 +228,7 @@ pub fn resource(suffix: &str) -> Option<Resource> {
         uri,
         duration: format!("{:?}", start.elapsed()),
         title,
-        github_issue_url: CONFIG
-            .github
-            .as_ref()
-            .map(|g| format!("{}/issues/new?title={}", g, suffix)),
+        github_issue_url: CONFIG.github.as_ref().map(|g| format!("{}/issues/new?title={}", g, suffix)),
         main_type,
         descriptions,
         directs: notdescriptions,
