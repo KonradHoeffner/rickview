@@ -82,24 +82,29 @@ async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl 
                 if let Ok(accept) = a.to_str() {
                     //println!("{accept}");
                     if accept.contains("text/html") {
-                        if let Ok(html) = template().render("resource", &res) {
-                            return HttpResponse::Ok().content_type("text/html").body(html);
-                        } else {
-                            return HttpResponse::InternalServerError().body(format!(
+                        return match template().render("resource", &res) {
+                            Ok(html) => HttpResponse::Ok().content_type("text/html").body(html),
+                            Err(_) => HttpResponse::InternalServerError().body(format!(
                                 "Internal server error. Could not render resource {}.",
                                 suffix.to_owned()
-                            ));
-                        }
+                            )),
+                        };
                     }
                     if accept.contains("application/n-triples") {
                         return HttpResponse::Ok()
                             .content_type("application/n-triples")
                             .body(rdf::serialize_nt(&suffix));
                     }
+                    #[cfg(feature = "rdfxml")]
+                    if accept.contains("application/rdf+xml") {
+                        return HttpResponse::Ok()
+                            .content_type("application/rdf+xml")
+                            .body(rdf::serialize_rdfxml(&suffix));
+                    }
                 }
             }
             HttpResponse::Ok()
-                .content_type("text/turtle")
+                .content_type("application/turtle")
                 .body(rdf::serialize_turtle(&suffix))
         }
     }

@@ -175,22 +175,14 @@ pub fn simple_resource(suffix: &str) -> SimpleResource {
 }
 */
 
-/*
-pub enum Serializer
-{
- Turtle, Nt, Xml 
-}
-pub fn serialize(suffix: &str, serializer: Serializer) -> String {
+#[cfg(feature = "rdfxml")]
+pub fn serialize_rdfxml(suffix: &str) -> String {
     let iri = HITO_NS.get(suffix).unwrap();
-    let config = TurtleConfig::new()
-        .with_pretty(true)
-        .with_own_prefix_map((&PREFIXES).to_vec());
-    TurtleSerializer::new_stringifier_with_config(config)
+    RdfXmlSerializer::new_stringifier()
         .serialize_triples(GRAPH.triples_with_s(&iri))
         .unwrap()
         .to_string()
 }
-*/
 
 pub fn serialize_turtle(suffix: &str) -> String {
     let iri = HITO_NS.get(suffix).unwrap();

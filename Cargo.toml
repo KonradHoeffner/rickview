@@ -13,5 +13,5 @@ serde = { version = "1", features = ["derive"] }
 config = { version = "0.13", default-features = false, features = ["toml"] }
 
 [features]
-default = []
+default = ["rdfxml"] # ~ 300kb binary increase
 rdfxml = ["sophia/xml"]
