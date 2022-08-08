@@ -15,3 +15,7 @@ config = { version = "0.13", default-features = false, features = ["toml"] }
 [features]
 default = ["rdfxml"] # ~ 300kb binary increase
 rdfxml = ["sophia/xml"]
+
+[profile.release]
+lto = true
+strip = true
