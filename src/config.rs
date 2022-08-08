@@ -22,6 +22,7 @@ pub struct Config {
     pub homepage: Option<String>,
     pub endpoint: Option<String>,
     pub doc: Option<String>,
+    pub log_level: Option<String>,
 }
 
 static DEFAULT: &str = std::include_str!("../data/default.toml");

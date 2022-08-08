@@ -8,6 +8,7 @@ description_properties = [ "rdfs:comment" ]
 examples = []
 base_path = ""
 port = 8080
+log_level = "info" # Equivalent to RUST_LOG="rickview=info". Ignored if env var RUST_LOG is set, for example to configure log levels of dependencies.
 [namespaces]
 hito = "http://hitontology.eu/ontology/"
 purl = "http://purl.org/vocab/vann/"

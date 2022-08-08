@@ -64,14 +64,13 @@ fn prefixes() -> Vec<(PrefixBox, IriBox)> {
 // language tags are not yet used
 fn titles() -> HashMap<String, String> {
     let mut titles = HashMap::<String, String>::new();
+    log::trace!("Title properties {:?}", CONFIG.title_properties);
     for prop in CONFIG.title_properties.iter().rev() {
-        //println!("{}",prop);
         let term = RefTerm::new_iri(prop.as_ref()).unwrap();
         //print!("{}",term);
         for tt in GRAPH.triples_with_p(&term) {
             let t = tt.unwrap();
             let suffix = t.s().value().replace(&CONFIG.namespace, "");
-            //println!("inserting {}, {}", suffix , t.o().value());
             titles.insert(suffix, t.o().value().to_string());
         }
     }
@@ -81,12 +80,12 @@ fn titles() -> HashMap<String, String> {
 // prioritizes type properties earlier in the list
 fn types() -> HashMap<String, String> {
     let mut types = HashMap::<String, String>::new();
+    log::trace!("Type properties {:?}", CONFIG.type_properties);
     for prop in CONFIG.type_properties.iter().rev() {
         let term = RefTerm::new_iri(prop.as_ref()).unwrap();
         for tt in GRAPH.triples_with_p(&term) {
             let t = tt.unwrap();
             let suffix = t.s().value().replace(&CONFIG.namespace, "");
-            //println!("inserting {}, {}", suffix , t.o().value());
             types.insert(suffix, t.o().value().to_string());
         }
     }

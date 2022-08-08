@@ -8,6 +8,7 @@ mod resource;
 use crate::config::CONFIG;
 use actix_web::{get, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 //use std::fs;
+use log::{debug, error, info, trace, warn};
 use tinytemplate::TinyTemplate;
 
 static TEMPLATE: &str = std::include_str!("../data/template.html");
@@ -67,29 +68,46 @@ async fn favicon() -> impl Responder {
 #[get("{suffix}")]
 async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
     match rdf::resource(&suffix) {
-        None => HttpResponse::NotFound()
-            .content_type("text/plain")
-            .body(format!("No triples found for resource {}", suffix.to_owned())),
+        None => {
+            let message = format!("No triples found for resource {}", suffix);
+            warn!("{}", message);
+            HttpResponse::NotFound().content_type("text/plain").body(message)
+        }
         Some(res) => {
-            if let Some(a) = request.head().headers().get("Accept") {
-                if let Ok(accept) = a.to_str() {
-                    //println!("{accept}");
-                    if accept.contains("text/html") {
-                        return match template().render("resource", &res) {
-                            Ok(html) => HttpResponse::Ok().content_type("text/html").body(html),
-                            Err(_) => HttpResponse::InternalServerError()
-                                .body(format!("Internal server error. Could not render resource {}.", suffix.to_owned())),
-                        };
-                    }
-                    if accept.contains("application/n-triples") {
-                        return HttpResponse::Ok().content_type("application/n-triples").body(rdf::serialize_nt(&suffix));
-                    }
-                    #[cfg(feature = "rdfxml")]
-                    if accept.contains("application/rdf+xml") {
-                        return HttpResponse::Ok().content_type("application/rdf+xml").body(rdf::serialize_rdfxml(&suffix));
+            match request.head().headers().get("Accept") {
+                Some(a) => {
+                    if let Ok(accept) = a.to_str() {
+                        trace!("/{} accept header {}", suffix, accept);
+                        if accept.contains("text/html") {
+                            return match template().render("resource", &res) {
+                                Ok(html) => {
+                                    debug!("/{} serve as HTML", suffix);
+                                    HttpResponse::Ok().content_type("text/html").body(html)
+                                }
+                                Err(_) => {
+                                    let message = format!("Internal server error. Could not render resource {}.", suffix);
+                                    error!("{}", message);
+                                    HttpResponse::InternalServerError().body(message)
+                                }
+                            };
+                        }
+                        if accept.contains("application/n-triples") {
+                            debug!("/{} serve as as N-Triples", suffix);
+                            return HttpResponse::Ok().content_type("application/n-triples").body(rdf::serialize_nt(&suffix));
+                        }
+                        #[cfg(feature = "rdfxml")]
+                        if accept.contains("application/rdf+xml") {
+                            debug!("/{} serve as RDF", suffix);
+                            return HttpResponse::Ok().content_type("application/rdf+xml").body(rdf::serialize_rdfxml(&suffix));
+                        }
+                        warn!("/{} accept header {} not recognized, using default", suffix, accept);
                     }
                 }
+                None => {
+                    warn!("/{} accept header missing, using default", suffix);
+                }
             }
+            debug!("/{} serve as RDF Turtle", suffix);
             HttpResponse::Ok().content_type("application/turtle").body(rdf::serialize_turtle(&suffix))
         }
     }
@@ -103,26 +121,27 @@ async fn index() -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    #[cfg(feature = "log")]
+    {
+        if std::env::var("RUST_LOG").is_err() {
+            std::env::set_var("RUST_LOG", format!("rickview={}", CONFIG.log_level.as_ref().unwrap_or(&"info".to_owned())));
+        }
+        env_logger::builder().format_timestamp(None).format_target(false).init();
+    }
     /*    let index_body = fs::read_to_string(&CONFIG.index_file.as_ref().unwrap());
     let response = HttpResponse::Ok().content_type("text/html");
     let index_responder = || response;*/
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
         App::new().service(
             web::scope(&CONFIG.base_path)
                 .service(css)
                 .service(favicon)
                 .service(resource_html)
-                /*.service(
-                    web::resource("{suffix}")
-                        .guard(guard::fn_guard(|ctx| {
-                            ctx.head().headers().get_all("Accept")
-                        }))
-                        .route(web::get().to(resource_html)),
-                )*/
                 .service(index),
         )
     })
     .bind(("0.0.0.0", CONFIG.port))?
-    .run()
-    .await
+    .run();
+    info!("Starting server at http://0.0.0.0:{}", CONFIG.port);
+    server.await
 }
