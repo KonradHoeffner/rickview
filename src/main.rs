@@ -42,9 +42,9 @@ fn template() -> TinyTemplate<'static> {
     */
     tt.add_formatter("suffix", |v, output| {
         let o = || -> Option<String> {
-            let mut s = v.as_str().unwrap().rsplit_once("/").unwrap().1;
+            let mut s = v.as_str().unwrap().rsplit_once('/').unwrap().1;
             if s.contains('#') {
-                s = s.rsplit_once("#").unwrap().1;
+                s = s.rsplit_once('#').unwrap().1;
             }
             Some(s.to_owned())
         };

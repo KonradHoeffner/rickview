@@ -10,7 +10,7 @@ use sophia::serializer::{
     turtle::{TurtleConfig, TurtleSerializer},
     Stringifier, TripleSerializer,
 };
-use sophia::term::{TTerm, Term};
+use sophia::term::{RefTerm, TTerm, Term};
 use sophia::triple::{stream::TripleSource, Triple};
 use sophia::{
     graph::{inmem::sync::FastGraph, *},
@@ -27,22 +27,21 @@ use std::time::Instant;
 // otherwise, returns the full IRI
 fn prefix_term(prefixes: &Vec<(PrefixBox, IriBox)>, term: &Term<Arc<str>>) -> String {
     let suffix = prefixes.get_prefixed_pair(term);
-    let s = match suffix {
+    match suffix {
         Some(x) => x.0.to_string() + ":" + &x.1.to_string(),
         None => term.to_string().replace(['<', '>'], ""),
-    };
-    s
+    }
 }
 
 fn load_graph() -> FastGraph {
-    let file = File::open(&CONFIG.kb_file).expect(&format!(
+    let file = File::open(&CONFIG.kb_file).unwrap_or_else(|_| panic!(
         "Unable to open knowledge base file '{}'. Make sure that the file exists. You may be able to download it with the prepare script. Configure as kb_file in data/config.toml or using the environment variable RICKVIEW_KB_FILE.",
         &CONFIG.kb_file
     ));
     let reader = BufReader::new(file);
     turtle::parse_bufread(reader)
         .collect_triples()
-        .expect(&format!("Unable to parse knowledge base file {}", &CONFIG.kb_file))
+        .unwrap_or_else(|_| panic!("Unable to parse knowledge base file {}", &CONFIG.kb_file))
 }
 
 // (prefix,iri) pairs from the config
@@ -65,9 +64,9 @@ fn prefixes() -> Vec<(PrefixBox, IriBox)> {
 // language tags are not yet used
 fn titles() -> HashMap<String, String> {
     let mut titles = HashMap::<String, String>::new();
-    for prop in (&CONFIG.title_properties).iter().rev() {
+    for prop in CONFIG.title_properties.iter().rev() {
         //println!("{}",prop);
-        let term: Term<String> = Term::new_iri::<String>(prop.to_owned()).unwrap();
+        let term = RefTerm::new_iri(prop.as_ref()).unwrap();
         //print!("{}",term);
         for tt in GRAPH.triples_with_p(&term) {
             let t = tt.unwrap();
@@ -82,8 +81,8 @@ fn titles() -> HashMap<String, String> {
 // prioritizes type properties earlier in the list
 fn types() -> HashMap<String, String> {
     let mut types = HashMap::<String, String>::new();
-    for prop in (&CONFIG.type_properties).iter().rev() {
-        let term: Term<String> = Term::new_iri::<String>(prop.to_owned()).unwrap();
+    for prop in CONFIG.type_properties.iter().rev() {
+        let term = RefTerm::new_iri(prop.as_ref()).unwrap();
         for tt in GRAPH.triples_with_p(&term) {
             let t = tt.unwrap();
             let suffix = t.s().value().replace(&CONFIG.namespace, "");
@@ -104,13 +103,13 @@ lazy_static! {
 }
 
 enum ConnectionType {
-    DIRECT,
-    INVERSE,
+    Direct,
+    Inverse,
 }
 
 fn linker(object: &String) -> String {
     if object.starts_with('"') {
-        return object.replace('"', "").to_owned();
+        return object.replace('"', "");
     }
     let suffix = object.replace(&format!("{}:", &CONFIG.prefix), "");
     return format!(
@@ -123,8 +122,8 @@ fn connections(tt: &ConnectionType, suffix: &str) -> Vec<(String, Vec<String>)> 
     let mut map: MultiMap<String, String> = MultiMap::new();
     let iri = HITO_NS.get(suffix).unwrap();
     let results = match tt {
-        ConnectionType::DIRECT => GRAPH.triples_with_s(&iri),
-        ConnectionType::INVERSE => GRAPH.triples_with_o(&iri),
+        ConnectionType::Direct => GRAPH.triples_with_s(&iri),
+        ConnectionType::Inverse => GRAPH.triples_with_o(&iri),
     };
     let mut d: Vec<(String, Vec<String>)> = Vec::new();
     for res in results {
@@ -134,8 +133,8 @@ fn connections(tt: &ConnectionType, suffix: &str) -> Vec<(String, Vec<String>)> 
             prefix_term(
                 &PREFIXES,
                 match tt {
-                    ConnectionType::DIRECT => t.o(),
-                    ConnectionType::INVERSE => t.s(),
+                    ConnectionType::Direct => t.o(),
+                    ConnectionType::Inverse => t.s(),
                 },
             ),
         );
@@ -201,8 +200,8 @@ pub fn resource(suffix: &str) -> Option<Resource> {
     let subject = HITO_NS.get(suffix).unwrap();
 
     let uri = subject.to_string().replace(['<', '>'], "");
-    let all_directs = connections(&ConnectionType::DIRECT, suffix);
-    fn filter(cons: &Vec<(String, Vec<String>)>, key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
+    let all_directs = connections(&ConnectionType::Direct, suffix);
+    fn filter(cons: &[(String, Vec<String>)], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
         cons.iter().cloned().filter(|c| key_predicate(&c.0)).collect()
     }
     let descriptions = filter(&all_directs, |key| CONFIG.description_properties.contains(key));
@@ -232,6 +231,6 @@ pub fn resource(suffix: &str) -> Option<Resource> {
         main_type,
         descriptions,
         directs: notdescriptions,
-        inverses: connections(&ConnectionType::INVERSE, suffix),
+        inverses: connections(&ConnectionType::Inverse, suffix),
     })
 }
