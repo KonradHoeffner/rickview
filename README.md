@@ -55,6 +55,11 @@ Compile and run with `cargo run` and then open <http://localhost:8080>` in your 
           - "127.0.0.1:8104:8080"
         restart: unless-stopped
 
+## Logging
+The default log level is "info" for RickView and "error" for libraries.
+Change the log level of RickView with the log_level configuration key or the RICKVIEW_LOG_LEVEL environment variable.
+Override this setting using the RUST_LOG env var to configure the log levels of dependencies, see the [env_logger documentation](https://docs.rs/env_logger/latest/env_logger/).
+
 ## Motivation
 Existing RDF browsers like [LodView](https://github.com/LodLive/LodView/) look great but use too much hardware ressources as they are based on interpreted or garbage collected languages.
 This leads to long wait times and out of memory errors on typical small scale research VMs with dozens of docker containers for longtime archival of finished research projects, whose results should still be available to enable reproducible science.

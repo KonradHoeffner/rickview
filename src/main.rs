@@ -67,9 +67,10 @@ async fn favicon() -> impl Responder {
 
 #[get("{suffix}")]
 async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
+    let prefixed = CONFIG.prefix.clone() + ":" + &suffix;
     match rdf::resource(&suffix) {
         None => {
-            let message = format!("No triples found for resource {}", suffix);
+            let message = format!("No triples found for resource {}", prefixed);
             warn!("{}", message);
             HttpResponse::NotFound().content_type("text/plain").body(message)
         }
@@ -77,37 +78,37 @@ async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl 
             match request.head().headers().get("Accept") {
                 Some(a) => {
                     if let Ok(accept) = a.to_str() {
-                        trace!("/{} accept header {}", suffix, accept);
+                        trace!("{} accept header {}", prefixed, accept);
                         if accept.contains("text/html") {
                             return match template().render("resource", &res) {
                                 Ok(html) => {
-                                    debug!("/{} serve as HTML", suffix);
+                                    debug!("{} serve as HTML", prefixed);
                                     HttpResponse::Ok().content_type("text/html").body(html)
                                 }
                                 Err(_) => {
-                                    let message = format!("Internal server error. Could not render resource {}.", suffix);
+                                    let message = format!("Internal server error. Could not render resource {}.", prefixed);
                                     error!("{}", message);
                                     HttpResponse::InternalServerError().body(message)
                                 }
                             };
                         }
                         if accept.contains("application/n-triples") {
-                            debug!("/{} serve as as N-Triples", suffix);
+                            debug!("{} serve as as N-Triples", prefixed);
                             return HttpResponse::Ok().content_type("application/n-triples").body(rdf::serialize_nt(&suffix));
                         }
                         #[cfg(feature = "rdfxml")]
                         if accept.contains("application/rdf+xml") {
-                            debug!("/{} serve as RDF", suffix);
+                            debug!("{} serve as RDF", prefixed);
                             return HttpResponse::Ok().content_type("application/rdf+xml").body(rdf::serialize_rdfxml(&suffix));
                         }
-                        warn!("/{} accept header {} not recognized, using default", suffix, accept);
+                        warn!("{} accept header {} not recognized, using default", prefixed, accept);
                     }
                 }
                 None => {
-                    warn!("/{} accept header missing, using default", suffix);
+                    warn!("{} accept header missing, using default", prefixed);
                 }
             }
-            debug!("/{} serve as RDF Turtle", suffix);
+            debug!("{} serve as RDF Turtle", prefixed);
             HttpResponse::Ok().content_type("application/turtle").body(rdf::serialize_turtle(&suffix))
         }
     }
@@ -131,6 +132,7 @@ async fn main() -> std::io::Result<()> {
     /*    let index_body = fs::read_to_string(&CONFIG.index_file.as_ref().unwrap());
     let response = HttpResponse::Ok().content_type("text/html");
     let index_responder = || response;*/
+    trace!("{:?}", &*CONFIG);
     let server = HttpServer::new(move || {
         App::new().service(
             web::scope(&CONFIG.base_path)
@@ -142,6 +144,7 @@ async fn main() -> std::io::Result<()> {
     })
     .bind(("0.0.0.0", CONFIG.port))?
     .run();
-    info!("Starting server at http://0.0.0.0:{}", CONFIG.port);
+    info!("Serving {} at http://0.0.0.0:{}", CONFIG.namespace, CONFIG.port);
+    //log::info!("{} triples loaded from {}", graph.triples().count() , &CONFIG.kb_file );
     server.await
 }

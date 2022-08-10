@@ -1,39 +1,34 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>HITO Ontology</title>
+    <title>{title}</title>
     <link rel="stylesheet" href="rickview.css" type="text/css" />
     <link rel="preconnect" href="https://fonts.gstatic.com" />
-    <link
-      href="//fonts.googleapis.com/css?family=Roboto:100,300,500&amp;subset=latin-ext,latin,greek-ext,greek,cyrillic-ext,vietnamese,cyrillic&amp;display=swap"
-      rel="stylesheet"
-      type="text/css"
-    />
+    <link href="//fonts.googleapis.com/css?family=Roboto:100,300,500&amp;subset=latin-ext,latin,greek-ext,greek,cyrillic-ext,vietnamese,cyrillic&amp;display=swap" rel="stylesheet" type="text/css" />
   </head>
   <body>
     <article>
       <header>
         <hgroup>
-					<h1>{title}</h1>
-					<h2>{subtitle}</h2>
+          <h1>{title}</h1>
+          <h2>{subtitle}</h2>
         </hgroup>
         <div id="abstract">
-				  {{ if examples }}
-          Example Classes:
+          {{ if examples }} Example Classes:
           <ul>
-					  {{ for c in examples }}
-						<li><a href="{c}">{c}</a></li>
-						{{ endfor }}
+            {{ for c in examples }}
+            <li><a href="{c}">{c}</a></li>
+            {{ endfor }}
           </ul>
-					{{ endif }}
+          {{ endif }}
         </div>
         <aside class="empty"></aside>
         <div id="directs">
           See also:
           <ul>
-							{{if homepage}}<li><a href="{homepage}">Homepage</a></li>{{ endif }}
-							{{if endpoint}}<li><a href="{endpoint}">SPARQL Endpoint</a></li>{{ endif }}
-							{{if doc}}<li><a href="{doc}">Documentation</a></li>{{ endif }}
+            {{if homepage}}<li><a href="{homepage}">Homepage</a></li>{{ endif }}
+			{{if endpoint}}<li><a href="{endpoint}">SPARQL Endpoint</a></li>{{ endif }}
+			{{if doc}}<li><a href="{doc}">Documentation</a></li>{{ endif }}
           </ul>
         </div>
       </header>

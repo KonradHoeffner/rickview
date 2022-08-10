@@ -39,9 +39,11 @@ fn load_graph() -> FastGraph {
         &CONFIG.kb_file
     ));
     let reader = BufReader::new(file);
-    turtle::parse_bufread(reader)
+    let graph: FastGraph = turtle::parse_bufread(reader)
         .collect_triples()
-        .unwrap_or_else(|_| panic!("Unable to parse knowledge base file {}", &CONFIG.kb_file))
+        .unwrap_or_else(|_| panic!("Unable to parse knowledge base file {}", &CONFIG.kb_file));
+    log::debug!("{} triples loaded from {}", graph.triples().count(), &CONFIG.kb_file);
+    graph
 }
 
 // (prefix,iri) pairs from the config
@@ -64,7 +66,6 @@ fn prefixes() -> Vec<(PrefixBox, IriBox)> {
 // language tags are not yet used
 fn titles() -> HashMap<String, String> {
     let mut titles = HashMap::<String, String>::new();
-    log::trace!("Title properties {:?}", CONFIG.title_properties);
     for prop in CONFIG.title_properties.iter().rev() {
         let term = RefTerm::new_iri(prop.as_ref()).unwrap();
         //print!("{}",term);
@@ -80,7 +81,6 @@ fn titles() -> HashMap<String, String> {
 // prioritizes type properties earlier in the list
 fn types() -> HashMap<String, String> {
     let mut types = HashMap::<String, String>::new();
-    log::trace!("Type properties {:?}", CONFIG.type_properties);
     for prop in CONFIG.type_properties.iter().rev() {
         let term = RefTerm::new_iri(prop.as_ref()).unwrap();
         for tt in GRAPH.triples_with_p(&term) {
