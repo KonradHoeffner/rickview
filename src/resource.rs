@@ -11,7 +11,7 @@ pub struct Resource {
     pub uri: String,
     pub suffix: String,
     pub title: String,
-    pub main_type: String,
+    pub main_type: Option<String>,
     //pub titles: Vec<(String, Vec<String>)>,
     pub descriptions: Vec<(String, Vec<String>)>,
     pub directs: Vec<(String, Vec<String>)>,

@@ -17,12 +17,14 @@
           <h1>{title }</h1>
           <h2>
             {uri}
+            {{ if main_type }}
             <span class="instance">
               <a title="<{main_type}>" href="{main_type}" target="_blank">
                 <span class="instanceof">an entity of type:</span>
-                <span>{ main_type | suffix }</span>
+                <span>{ main_type | uri_to_suffix }</span>
               </a>
             </span>
+            {{ endif }}
           </h2>
         </hgroup>
         <div id="abstract">

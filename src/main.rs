@@ -41,11 +41,12 @@ fn template() -> TinyTemplate<'static> {
         }
     };
     */
-    tt.add_formatter("suffix", |v, output| {
+    tt.add_formatter("uri_to_suffix", |json, output| {
         let o = || -> Option<String> {
-            let mut s = v.as_str().unwrap().rsplit_once('/').unwrap().1;
+            let s = json.as_str().expect(&format!("JSON value is not a string: {}", json));
+            let mut s = s.rsplit_once('/').expect(&format!("no '/' in URI '{}'", s)).1;
             if s.contains('#') {
-                s = s.rsplit_once('#').unwrap().1;
+                s = s.rsplit_once('#')?.1;
             }
             Some(s.to_owned())
         };
@@ -55,26 +56,27 @@ fn template() -> TinyTemplate<'static> {
     tt
 }
 
-#[get("rickview.css")]
+#[get("{_anypath:.*/|}rickview.css")]
 async fn css() -> impl Responder {
     HttpResponse::Ok().content_type("text/css").body(CSS)
 }
 
-#[get("favicon.ico")]
+#[get("{_anypath:.*/|}favicon.ico")]
 async fn favicon() -> impl Responder {
     HttpResponse::Ok().content_type("image/x-icon").body(FAVICON.as_ref())
 }
 
-#[get("{suffix}")]
+#[get("{suffix:.*|}")]
 async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
+    //debug!("Params {:?} {:?}",suffix);
     let prefixed = CONFIG.prefix.clone() + ":" + &suffix;
     match rdf::resource(&suffix) {
-        None => {
+        Err(_) => {
             let message = format!("No triples found for resource {}", prefixed);
             warn!("{}", message);
             HttpResponse::NotFound().content_type("text/plain").body(message)
         }
-        Some(res) => {
+        Ok(res) => {
             match request.head().headers().get("Accept") {
                 Some(a) => {
                     if let Ok(accept) = a.to_str() {
@@ -116,8 +118,14 @@ async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl 
 
 #[get("/")]
 async fn index() -> impl Responder {
-    let body = template().render("index", &*CONFIG).unwrap();
-    HttpResponse::Ok().content_type("text/html").body(body)
+    match template().render("index", &*CONFIG) {
+        Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
+        Err(e) => {
+            let message = format!("Could not render index page: {:?}", e);
+            error!("{}", message);
+            HttpResponse::InternalServerError().body(message)
+        }
+    }
 }
 
 #[actix_web::main]
@@ -138,8 +146,8 @@ async fn main() -> std::io::Result<()> {
             web::scope(&CONFIG.base_path)
                 .service(css)
                 .service(favicon)
-                .service(resource_html)
-                .service(index),
+                .service(index)
+                .service(resource_html),
         )
     })
     .bind(("0.0.0.0", CONFIG.port))?

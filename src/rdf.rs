@@ -14,7 +14,7 @@ use sophia::term::{RefTerm, TTerm, Term};
 use sophia::triple::{stream::TripleSource, Triple};
 use sophia::{
     graph::{inmem::sync::FastGraph, *},
-    iri::IriBox,
+    iri::{error::InvalidIri, IriBox},
     ns::Namespace,
 };
 use std::collections::HashMap;
@@ -115,42 +115,44 @@ enum ConnectionType {
     Inverse,
 }
 
-fn linker(object: &String) -> String {
-    if object.starts_with('"') {
-        return object.replace('"', "");
+fn linker((prefixed, full): &(String, String)) -> String {
+    if prefixed.starts_with('"') {
+        return prefixed.replace('"', "");
     }
-    let suffix = object.replace(&format!("{}:", &CONFIG.prefix), "");
+    let root_relative = full.replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
     return format!(
-        "<a href='{suffix}'>{object}</a><br><span>&#8618; {}</span>",
-        TITLES.get(&suffix).unwrap_or(&suffix)
+        "<a href='{}'>{}</a><br><span>&#8618; {}</span>",
+        root_relative,
+        prefixed,
+        TITLES.get(full).unwrap_or(&prefixed)
     );
 }
 
-fn connections(tt: &ConnectionType, suffix: &str) -> Vec<(String, Vec<String>)> {
-    let mut map: MultiMap<String, String> = MultiMap::new();
-    let iri = HITO_NS.get(suffix).unwrap();
+fn connections(tt: &ConnectionType, suffix: &str) -> Result<Vec<(String, Vec<String>)>, InvalidIri> {
+    let mut iri = HITO_NS.get(suffix)?;
+    // Sophia bug workaround when suffix is empty, see https://github.com/pchampin/sophia_rs/issues/115
+    if suffix == "" {
+        iri = sophia::term::SimpleIri::new(&CONFIG.namespace, std::option::Option::None).unwrap();
+    }
+    log::debug!("IRI '{}'", iri);
     let results = match tt {
         ConnectionType::Direct => GRAPH.triples_with_s(&iri),
         ConnectionType::Inverse => GRAPH.triples_with_o(&iri),
     };
+    let mut map: MultiMap<String, (String, String)> = MultiMap::new();
     let mut d: Vec<(String, Vec<String>)> = Vec::new();
     for res in results {
         let t = res.unwrap();
-        map.insert(
-            prefix_term(&PREFIXES, t.p()),
-            prefix_term(
-                &PREFIXES,
-                match tt {
-                    ConnectionType::Direct => t.o(),
-                    ConnectionType::Inverse => t.s(),
-                },
-            ),
-        );
+        let right = match tt {
+            ConnectionType::Direct => t.o(),
+            ConnectionType::Inverse => t.s(),
+        };
+        map.insert(prefix_term(&PREFIXES, t.p()), (prefix_term(&PREFIXES, right), right.value().to_string()));
     }
     for (key, values) in map.iter_all() {
         d.push((key.to_owned(), values.iter().map(linker).collect()));
     }
-    d
+    Ok(d)
 }
 
 /*
@@ -203,12 +205,12 @@ pub fn serialize_nt(suffix: &str) -> String {
         .to_string()
 }
 
-pub fn resource(suffix: &str) -> Option<Resource> {
+pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let start = Instant::now();
     let subject = HITO_NS.get(suffix).unwrap();
 
     let uri = subject.to_string().replace(['<', '>'], "");
-    let all_directs = connections(&ConnectionType::Direct, suffix);
+    let all_directs = connections(&ConnectionType::Direct, suffix)?;
     fn filter(cons: &[(String, Vec<String>)], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
         cons.iter().cloned().filter(|c| key_predicate(&c.0)).collect()
     }
@@ -227,10 +229,14 @@ pub fn resource(suffix: &str) -> Option<Resource> {
                 .to_owned(),
         )
     }()*/
-    let title = TITLES.get(suffix)?.to_string();
-    let main_type = TYPES.get(suffix)?.to_string();
+    let title = TITLES.get(suffix).unwrap_or(&suffix.to_owned()).to_string();
+    let main_type = if let Some(t) = TYPES.get(suffix) {
+        Some(t.to_owned().to_string())
+    } else {
+        None
+    };
     //.unwrap_or(&suffix.to_owned());
-    Some(Resource {
+    Ok(Resource {
         suffix: suffix.to_owned(),
         uri,
         duration: format!("{:?}", start.elapsed()),
@@ -239,6 +245,6 @@ pub fn resource(suffix: &str) -> Option<Resource> {
         main_type,
         descriptions,
         directs: notdescriptions,
-        inverses: connections(&ConnectionType::Inverse, suffix),
+        inverses: connections(&ConnectionType::Inverse, suffix)?,
     })
 }
