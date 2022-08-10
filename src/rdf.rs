@@ -34,16 +34,25 @@ fn prefix_term(prefixes: &Vec<(PrefixBox, IriBox)>, term: &Term<Arc<str>>) -> St
 }
 
 fn load_graph() -> FastGraph {
-    let file = File::open(&CONFIG.kb_file).unwrap_or_else(|_| panic!(
-        "Unable to open knowledge base file '{}'. Make sure that the file exists. You may be able to download it with the prepare script. Configure as kb_file in data/config.toml or using the environment variable RICKVIEW_KB_FILE.",
-        &CONFIG.kb_file
-    ));
-    let reader = BufReader::new(file);
-    let graph: FastGraph = turtle::parse_bufread(reader)
-        .collect_triples()
-        .unwrap_or_else(|_| panic!("Unable to parse knowledge base file {}", &CONFIG.kb_file));
-    log::debug!("{} triples loaded from {}", graph.triples().count(), &CONFIG.kb_file);
-    graph
+    match File::open(&CONFIG.kb_file) {
+        Err(e) => {
+            log::error!(
+                "Cannot open knowledge base file '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.",
+                &CONFIG.kb_file,
+                e
+            );
+            std::process::exit(1);
+        }
+        Ok(file) => {
+            let reader = BufReader::new(file);
+            let graph: FastGraph = turtle::parse_bufread(reader).collect_triples().unwrap_or_else(|x| {
+                log::error!("Unable to parse knowledge base file {}: {}", &CONFIG.kb_file, x);
+                std::process::exit(1);
+            });
+            log::debug!("{} triples loaded from {}", graph.triples().count(), &CONFIG.kb_file);
+            graph
+        }
+    }
 }
 
 // (prefix,iri) pairs from the config
