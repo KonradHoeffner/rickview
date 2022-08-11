@@ -141,17 +141,10 @@ async fn main() -> std::io::Result<()> {
     let response = HttpResponse::Ok().content_type("text/html");
     let index_responder = || response;*/
     trace!("{:?}", &*CONFIG);
-    let server = HttpServer::new(move || {
-        App::new().service(
-            web::scope(&CONFIG.base_path)
-                .service(css)
-                .service(favicon)
-                .service(index)
-                .service(resource_html),
-        )
-    })
-    .bind(("0.0.0.0", CONFIG.port))?
-    .run();
+    let server =
+        HttpServer::new(move || App::new().service(web::scope(&CONFIG.base_path).service(css).service(favicon).service(index).service(resource_html)))
+            .bind(("0.0.0.0", CONFIG.port))?
+            .run();
     info!("Serving {} at http://0.0.0.0:{}", CONFIG.namespace, CONFIG.port);
     //log::info!("{} triples loaded from {}", graph.triples().count() , &CONFIG.kb_file );
     server.await

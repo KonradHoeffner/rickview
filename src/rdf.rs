@@ -36,11 +36,7 @@ fn prefix_term(prefixes: &Vec<(PrefixBox, IriBox)>, term: &Term<Arc<str>>) -> St
 fn load_graph() -> FastGraph {
     match File::open(&CONFIG.kb_file) {
         Err(e) => {
-            log::error!(
-                "Cannot open knowledge base file '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.",
-                &CONFIG.kb_file,
-                e
-            );
+            log::error!("Cannot open knowledge base file '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", &CONFIG.kb_file, e);
             std::process::exit(1);
         }
         Ok(file) => {
@@ -59,15 +55,9 @@ fn load_graph() -> FastGraph {
 fn prefixes() -> Vec<(PrefixBox, IriBox)> {
     let mut p: Vec<(PrefixBox, IriBox)> = Vec::new();
     for (prefix, iri) in CONFIG.namespaces.iter() {
-        p.push((
-            PrefixBox::new_unchecked(prefix.to_owned().into_boxed_str()),
-            IriBox::new_unchecked(iri.to_owned().into_boxed_str()),
-        ));
+        p.push((PrefixBox::new_unchecked(prefix.to_owned().into_boxed_str()), IriBox::new_unchecked(iri.to_owned().into_boxed_str())));
     }
-    p.push((
-        PrefixBox::new_unchecked(CONFIG.prefix.clone().into_boxed_str()),
-        IriBox::new_unchecked(CONFIG.namespace.clone().into_boxed_str()),
-    ));
+    p.push((PrefixBox::new_unchecked(CONFIG.prefix.clone().into_boxed_str()), IriBox::new_unchecked(CONFIG.namespace.clone().into_boxed_str())));
     p
 }
 
@@ -120,12 +110,7 @@ fn linker((prefixed, full): &(String, String)) -> String {
         return prefixed.replace('"', "");
     }
     let root_relative = full.replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
-    return format!(
-        "<a href='{}'>{}</a><br><span>&#8618; {}</span>",
-        root_relative,
-        prefixed,
-        TITLES.get(full).unwrap_or(&prefixed)
-    );
+    return format!("<a href='{}'>{}</a><br><span>&#8618; {}</span>", root_relative, prefixed, TITLES.get(full).unwrap_or(&prefixed));
 }
 
 fn connections(tt: &ConnectionType, suffix: &str) -> Result<Vec<(String, Vec<String>)>, InvalidIri> {
@@ -182,27 +167,18 @@ pub fn simple_resource(suffix: &str) -> SimpleResource {
 #[cfg(feature = "rdfxml")]
 pub fn serialize_rdfxml(suffix: &str) -> String {
     let iri = HITO_NS.get(suffix).unwrap();
-    RdfXmlSerializer::new_stringifier()
-        .serialize_triples(GRAPH.triples_with_s(&iri))
-        .unwrap()
-        .to_string()
+    RdfXmlSerializer::new_stringifier().serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
 }
 
 pub fn serialize_turtle(suffix: &str) -> String {
     let iri = HITO_NS.get(suffix).unwrap();
     let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map((&PREFIXES).to_vec());
-    TurtleSerializer::new_stringifier_with_config(config)
-        .serialize_triples(GRAPH.triples_with_s(&iri))
-        .unwrap()
-        .to_string()
+    TurtleSerializer::new_stringifier_with_config(config).serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
 }
 
 pub fn serialize_nt(suffix: &str) -> String {
     let iri = HITO_NS.get(suffix).unwrap();
-    NtSerializer::new_stringifier()
-        .serialize_triples(GRAPH.triples_with_s(&iri))
-        .unwrap()
-        .to_string()
+    NtSerializer::new_stringifier().serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
 }
 
 pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
@@ -230,11 +206,7 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
         )
     }()*/
     let title = TITLES.get(suffix).unwrap_or(&suffix.to_owned()).to_string();
-    let main_type = if let Some(t) = TYPES.get(suffix) {
-        Some(t.to_owned().to_string())
-    } else {
-        None
-    };
+    let main_type = if let Some(t) = TYPES.get(suffix) { Some(t.to_owned().to_string()) } else { None };
     //.unwrap_or(&suffix.to_owned());
     Ok(Resource {
         suffix: suffix.to_owned(),
