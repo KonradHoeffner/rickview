@@ -18,8 +18,8 @@ use sophia::{
 };
 use std::{collections::HashMap, fs::File, io::BufReader, sync::Arc, time::Instant};
 
-// if the namespace is known, returns a prefixed term string, for example "rdfs:label"
-// otherwise, returns the full IRI
+/// If the namespace is known, returns a prefixed term string, for example "rdfs:label".
+/// Otherwise, returns the full IRI.
 fn prefix_term(prefixes: &Vec<(PrefixBox, IriBox)>, term: &Term<Arc<str>>) -> String {
     let suffix = prefixes.get_prefixed_pair(term);
     match suffix {
@@ -28,6 +28,7 @@ fn prefix_term(prefixes: &Vec<(PrefixBox, IriBox)>, term: &Term<Arc<str>>) -> St
     }
 }
 
+/// Load RDF graph from the RDF Turtle file specified in the config.
 fn load_graph() -> FastGraph {
     match File::open(&CONFIG.kb_file) {
         Err(e) => {
@@ -46,7 +47,7 @@ fn load_graph() -> FastGraph {
     }
 }
 
-// (prefix,iri) pairs from the config
+/// (prefix,iri) pairs from the config
 fn prefixes() -> Vec<(PrefixBox, IriBox)> {
     let mut p: Vec<(PrefixBox, IriBox)> = Vec::new();
     for (prefix, iri) in CONFIG.namespaces.iter() {
@@ -56,8 +57,8 @@ fn prefixes() -> Vec<(PrefixBox, IriBox)> {
     p
 }
 
-// prioritizes title properties earlier in the list
-// language tags are not yet used
+/// Prioritizes title properties earlier in the list.
+/// Language tags are not yet used.
 fn titles() -> HashMap<String, String> {
     let mut titles = HashMap::<String, String>::new();
     for prop in CONFIG.title_properties.iter().rev() {
@@ -72,7 +73,7 @@ fn titles() -> HashMap<String, String> {
     titles
 }
 
-// prioritizes type properties earlier in the list
+/// Prioritizes type properties earlier in the list.
 fn types() -> HashMap<String, String> {
     let mut types = HashMap::<String, String>::new();
     for prop in CONFIG.type_properties.iter().rev() {
@@ -95,11 +96,13 @@ lazy_static! {
     static ref TYPES: HashMap<String, String> = types();
 }
 
+/// Whether the given resource is in subject or object position.
 enum ConnectionType {
     Direct,
     Inverse,
 }
 
+/// Generate HTML anchor element for the URI given as (prefixed, full), for example ("ex:Example", "http://example.com/Example").
 fn linker((prefixed, full): &(String, String)) -> String {
     if prefixed.starts_with('"') {
         return prefixed.replace('"', "");
@@ -108,6 +111,7 @@ fn linker((prefixed, full): &(String, String)) -> String {
     format!("<a href='{}'>{}</a><br><span>&#8618; {}</span>", root_relative, prefixed, TITLES.get(full).unwrap_or(prefixed))
 }
 
+/// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
 fn connections(tt: &ConnectionType, suffix: &str) -> Result<Vec<(String, Vec<String>)>, InvalidIri> {
     let mut iri = HITO_NS.get(suffix)?;
     // Sophia bug workaround when suffix is empty, see https://github.com/pchampin/sophia_rs/issues/115
@@ -135,22 +139,26 @@ fn connections(tt: &ConnectionType, suffix: &str) -> Result<Vec<(String, Vec<Str
 }
 
 #[cfg(feature = "rdfxml")]
+/// Export all triples (s,p,o) for a given subject s as RDF/XML.
 pub fn serialize_rdfxml(suffix: &str) -> String {
     let iri = HITO_NS.get(suffix).unwrap();
     RdfXmlSerializer::new_stringifier().serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
 }
 
+/// Export all triples (s,p,o) for a given subject s as RDF Turtle using the config prefixes.
 pub fn serialize_turtle(suffix: &str) -> String {
     let iri = HITO_NS.get(suffix).unwrap();
     let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map((PREFIXES).to_vec());
     TurtleSerializer::new_stringifier_with_config(config).serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
 }
 
+/// Export all triples (s,p,o) for a given subject s as N-Triples.
 pub fn serialize_nt(suffix: &str) -> String {
     let iri = HITO_NS.get(suffix).unwrap();
     NtSerializer::new_stringifier().serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
 }
 
+/// Returns the resource with the given suffix from the configured namespace.
 pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let start = Instant::now();
     let subject = HITO_NS.get(suffix).unwrap();
@@ -164,7 +172,6 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let notdescriptions = filter(&all_directs, |key| !CONFIG.description_properties.contains(key));
     let title = TITLES.get(suffix).unwrap_or(&suffix.to_owned()).to_string();
     let main_type = TYPES.get(suffix).map(|t| t.to_owned());
-    //.unwrap_or(&suffix.to_owned());
     Ok(Resource {
         suffix: suffix.to_owned(),
         uri,
