@@ -85,7 +85,7 @@ async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl 
                             return match template().render("resource", &res) {
                                 Ok(html) => {
                                     debug!("{} serve as HTML", prefixed);
-                                    HttpResponse::Ok().content_type("text/html").body(html)
+                                    HttpResponse::Ok().content_type("text/html; charset-utf-8").body(html)
                                 }
                                 Err(_) => {
                                     let message = format!("Internal server error. Could not render resource {}.", prefixed);

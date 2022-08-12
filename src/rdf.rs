@@ -119,7 +119,6 @@ fn connections(tt: &ConnectionType, suffix: &str) -> Result<Vec<(String, Vec<Str
     if suffix == "" {
         iri = sophia::term::SimpleIri::new(&CONFIG.namespace, std::option::Option::None).unwrap();
     }
-    log::debug!("IRI '{}'", iri);
     let results = match tt {
         ConnectionType::Direct => GRAPH.triples_with_s(&iri),
         ConnectionType::Inverse => GRAPH.triples_with_o(&iri),
