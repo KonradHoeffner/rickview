@@ -111,6 +111,11 @@ fn linker((prefixed, full): &(String, String)) -> String {
     format!("<a href='{}'>{}</a><br><span>&#8618; {}</span>", root_relative, prefixed, TITLES.get(full).unwrap_or(prefixed))
 }
 
+fn property_anchor(term: &Term<Arc<str>>) -> String {
+    let root_relative = term.to_string().replace(['<', '>'], "").replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
+    format!("<a href='{}'>{}</a>", root_relative, prefix_term(&PREFIXES, term))
+}
+
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
 fn connections(tt: &ConnectionType, suffix: &str) -> Result<Vec<(String, Vec<String>)>, InvalidIri> {
     let mut iri = HITO_NS.get(suffix)?;
@@ -130,7 +135,7 @@ fn connections(tt: &ConnectionType, suffix: &str) -> Result<Vec<(String, Vec<Str
             ConnectionType::Direct => t.o(),
             ConnectionType::Inverse => t.s(),
         };
-        map.insert(prefix_term(&PREFIXES, t.p()), (prefix_term(&PREFIXES, right), right.value().to_string()));
+        map.insert(property_anchor(t.p()), (prefix_term(&PREFIXES, right), right.value().to_string()));
     }
     for (key, values) in map.iter_all() {
         d.push((key.to_owned(), values.iter().map(linker).collect()));

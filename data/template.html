@@ -46,7 +46,7 @@
             {{ for entry in directs }}
             <tr>
               <td>
-                <label class="c1" title="Describe what this property does">{entry.0}</label>
+                <label class="c1" title="Describe what this property does">{entry.0 | unescaped }</label>
               </td>
               <td>{{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}<span class="c2">{ value | unescaped }</span>{{ endfor }}</td>
             </tr>
@@ -61,7 +61,7 @@
           {{ for entry in inverses}}
           <tr>
             <td>
-              <label class="c1" title="Describe what this property does">is {entry.0} of</label>
+              <label class="c1" title="Describe what this property does">is {entry.0 | unescaped } of</label>
             </td>
             <td>{{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}<span class="c2">{ value | unescaped }</span>{{ endfor }}</td>
           </tr>
