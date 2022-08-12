@@ -1,27 +1,22 @@
-use crate::config::CONFIG;
-use crate::resource::Resource;
+use crate::{config::CONFIG, resource::Resource};
 use multimap::MultiMap;
-use sophia::parser::turtle;
-use sophia::prefix::{PrefixBox, PrefixMap};
 #[cfg(feature = "rdfxml")]
 use sophia::serializer::xml::RdfXmlSerializer;
-use sophia::serializer::{
-    nt::NtSerializer,
-    turtle::{TurtleConfig, TurtleSerializer},
-    Stringifier, TripleSerializer,
-};
-use sophia::term::{RefTerm, TTerm, Term};
-use sophia::triple::{stream::TripleSource, Triple};
 use sophia::{
     graph::{inmem::sync::FastGraph, *},
     iri::{error::InvalidIri, IriBox},
     ns::Namespace,
+    parser::turtle,
+    prefix::{PrefixBox, PrefixMap},
+    serializer::{
+        nt::NtSerializer,
+        turtle::{TurtleConfig, TurtleSerializer},
+        Stringifier, TripleSerializer,
+    },
+    term::{RefTerm, TTerm, Term},
+    triple::{stream::TripleSource, Triple},
 };
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
-use std::sync::Arc;
-use std::time::Instant;
+use std::{collections::HashMap, fs::File, io::BufReader, sync::Arc, time::Instant};
 
 // if the namespace is known, returns a prefixed term string, for example "rdfs:label"
 // otherwise, returns the full IRI
