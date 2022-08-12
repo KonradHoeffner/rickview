@@ -21,8 +21,8 @@ fn template() -> TinyTemplate<'static> {
     tt.add_template("index", INDEX).expect("Could not parse default template");
     tt.add_formatter("uri_to_suffix", |json, output| {
         let o = || -> Option<String> {
-            let s = json.as_str().expect(&format!("JSON value is not a string: {}", json));
-            let mut s = s.rsplit_once('/').expect(&format!("no '/' in URI '{}'", s)).1;
+            let s = json.as_str().unwrap_or_else(|| panic!("JSON value is not a string: {}", json));
+            let mut s = s.rsplit_once('/').unwrap_or_else(|| panic!("no '/' in URI '{}'", s)).1;
             if s.contains('#') {
                 s = s.rsplit_once('#')?.1;
             }

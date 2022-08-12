@@ -23,7 +23,7 @@ use std::{collections::HashMap, fs::File, io::BufReader, sync::Arc, time::Instan
 fn prefix_term(prefixes: &Vec<(PrefixBox, IriBox)>, term: &Term<Arc<str>>) -> String {
     let suffix = prefixes.get_prefixed_pair(term);
     match suffix {
-        Some(x) => x.0.to_string() + ":" + &x.1.to_string(),
+        Some(x) => x.0.to_string() + ":" + &x.1,
         None => term.to_string().replace(['<', '>'], ""),
     }
 }
@@ -105,13 +105,13 @@ fn linker((prefixed, full): &(String, String)) -> String {
         return prefixed.replace('"', "");
     }
     let root_relative = full.replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
-    return format!("<a href='{}'>{}</a><br><span>&#8618; {}</span>", root_relative, prefixed, TITLES.get(full).unwrap_or(&prefixed));
+    format!("<a href='{}'>{}</a><br><span>&#8618; {}</span>", root_relative, prefixed, TITLES.get(full).unwrap_or(prefixed))
 }
 
 fn connections(tt: &ConnectionType, suffix: &str) -> Result<Vec<(String, Vec<String>)>, InvalidIri> {
     let mut iri = HITO_NS.get(suffix)?;
     // Sophia bug workaround when suffix is empty, see https://github.com/pchampin/sophia_rs/issues/115
-    if suffix == "" {
+    if suffix.is_empty() {
         iri = sophia::term::SimpleIri::new(&CONFIG.namespace, std::option::Option::None).unwrap();
     }
     let results = match tt {
@@ -142,7 +142,7 @@ pub fn serialize_rdfxml(suffix: &str) -> String {
 
 pub fn serialize_turtle(suffix: &str) -> String {
     let iri = HITO_NS.get(suffix).unwrap();
-    let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map((&PREFIXES).to_vec());
+    let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map((PREFIXES).to_vec());
     TurtleSerializer::new_stringifier_with_config(config).serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
 }
 
@@ -163,7 +163,7 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let descriptions = filter(&all_directs, |key| CONFIG.description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !CONFIG.description_properties.contains(key));
     let title = TITLES.get(suffix).unwrap_or(&suffix.to_owned()).to_string();
-    let main_type = if let Some(t) = TYPES.get(suffix) { Some(t.to_owned().to_string()) } else { None };
+    let main_type = TYPES.get(suffix).map(|t| t.to_owned());
     //.unwrap_or(&suffix.to_owned());
     Ok(Resource {
         suffix: suffix.to_owned(),
