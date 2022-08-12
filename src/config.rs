@@ -9,8 +9,6 @@ pub struct Config {
     pub subtitle: Option<String>,
     pub kb_file: String,
     pub port: u16,
-    //pub template_file: Option<String>,
-    //pub index_file: Option<String>,
     pub github: Option<String>,
     pub prefix: String,
     pub namespace: String,

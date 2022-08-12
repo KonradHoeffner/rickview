@@ -12,7 +12,6 @@ pub struct Resource {
     pub suffix: String,
     pub title: String,
     pub main_type: Option<String>,
-    //pub titles: Vec<(String, Vec<String>)>,
     pub descriptions: Vec<(String, Vec<String>)>,
     pub directs: Vec<(String, Vec<String>)>,
     pub inverses: Vec<(String, Vec<String>)>,

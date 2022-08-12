@@ -7,7 +7,6 @@ mod resource;
 
 use crate::config::CONFIG;
 use actix_web::{get, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
-//use std::fs;
 use log::{debug, error, info, trace, warn};
 use tinytemplate::TinyTemplate;
 
@@ -16,31 +15,10 @@ static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
 static CSS: &str = std::include_str!("../data/rickview.css");
 static INDEX: &str = std::include_str!("../data/index.html");
 
-lazy_static! {
-/*    static ref INDEX_BODY: String = fs::read_to_string(&CONFIG.index_file.as_ref().unwrap())
-        .expect(&format!(
-            "Unable to load index file {}",
-            &CONFIG.index_file.as_ref().unwrap()
-        ));*/
-}
-
-// TODO: reuse existing template
 fn template() -> TinyTemplate<'static> {
     let mut tt = TinyTemplate::new();
     tt.add_template("resource", TEMPLATE).expect("Could not parse default resource template");
     tt.add_template("index", INDEX).expect("Could not parse default template");
-    /*
-    match &CONFIG.template_file {
-        None => {
-            tt.add_template("template", TEMPLATE)
-                .expect("Could not parse default template");
-        }
-        Some(path) => {
-            tt.add_template("template",&fs::read_to_string(path).expect(&format!("Could not read template file {}", path)))
-                .expect(&format!("Could not add custom template file {}", path));
-        }
-    };
-    */
     tt.add_formatter("uri_to_suffix", |json, output| {
         let o = || -> Option<String> {
             let s = json.as_str().expect(&format!("JSON value is not a string: {}", json));
@@ -68,7 +46,6 @@ async fn favicon() -> impl Responder {
 
 #[get("{suffix:.*|}")]
 async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
-    //debug!("Params {:?} {:?}",suffix);
     let prefixed = CONFIG.prefix.clone() + ":" + &suffix;
     match rdf::resource(&suffix) {
         Err(_) => {
@@ -137,15 +114,11 @@ async fn main() -> std::io::Result<()> {
         }
         env_logger::builder().format_timestamp(None).format_target(false).init();
     }
-    /*    let index_body = fs::read_to_string(&CONFIG.index_file.as_ref().unwrap());
-    let response = HttpResponse::Ok().content_type("text/html");
-    let index_responder = || response;*/
     trace!("{:?}", &*CONFIG);
     let server =
         HttpServer::new(move || App::new().service(web::scope(&CONFIG.base_path).service(css).service(favicon).service(index).service(resource_html)))
             .bind(("0.0.0.0", CONFIG.port))?
             .run();
     info!("Serving {} at http://0.0.0.0:{}", CONFIG.namespace, CONFIG.port);
-    //log::info!("{} triples loaded from {}", graph.triples().count() , &CONFIG.kb_file );
     server.await
 }

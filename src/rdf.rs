@@ -139,30 +139,6 @@ fn connections(tt: &ConnectionType, suffix: &str) -> Result<Vec<(String, Vec<Str
     Ok(d)
 }
 
-/*
-pub struct SimpleResource {
-    pub suffix: String,
-    pub title: String,
-}
-
-pub fn simple_resource(suffix: &str) -> SimpleResource {
-    let subject = HITO_NS.get(suffix).unwrap();
-    let title = (|| -> Result<String, sophia::iri::error::InvalidIri> {
-        Ok(GRAPH
-            .triples_with_sp(&subject, &RDFS_NS.get("label")?)
-            .next()
-            .ok_or(sophia::iri::error::InvalidIri)?
-            .o()
-            .to_string())
-    })()
-    .unwrap_or(suffix.to_owned());
-    SimpleResource {
-        suffix: suffix.to_owned(),
-        title: title,
-    }
-}
-*/
-
 #[cfg(feature = "rdfxml")]
 pub fn serialize_rdfxml(suffix: &str) -> String {
     let iri = HITO_NS.get(suffix).unwrap();
@@ -191,19 +167,6 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     }
     let descriptions = filter(&all_directs, |key| CONFIG.description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !CONFIG.description_properties.contains(key));
-    /*let titles = filter(&all_directs, |key| CONFIG.title_properties.contains(&key.to_string()));
-    let title: String = || -> Option<String> {
-        Some(
-            titles
-                .get(0)?
-                .1
-                .get(0)?
-                .to_string()
-                .split("@")
-                .next()?
-                .to_owned(),
-        )
-    }()*/
     let title = TITLES.get(suffix).unwrap_or(&suffix.to_owned()).to_string();
     let main_type = if let Some(t) = TYPES.get(suffix) { Some(t.to_owned().to_string()) } else { None };
     //.unwrap_or(&suffix.to_owned());
