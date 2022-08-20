@@ -41,7 +41,9 @@ fn load_graph() -> FastGraph {
                 log::error!("Unable to parse knowledge base file {}: {}", &CONFIG.kb_file, x);
                 std::process::exit(1);
             });
-            log::debug!("{} triples loaded from {}", graph.triples().count(), &CONFIG.kb_file);
+            if log::log_enabled!(log::Level::Debug) {
+                log::debug!("~ {} triples loaded from {}", graph.triples().size_hint().0, &CONFIG.kb_file);
+            }
             graph
         }
     }
