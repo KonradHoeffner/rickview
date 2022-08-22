@@ -21,6 +21,7 @@ Compile and run with `cargo run` and then open <http://localhost:8080>` in your 
 
     cargo run
 
+
 ## Build
 
     cargo build --release
@@ -58,7 +59,9 @@ Compile and run with `cargo run` and then open <http://localhost:8080>` in your 
 ## Logging
 The default log level is "info" for RickView and "error" for libraries.
 Change the log level of RickView with the log_level configuration key or the RICKVIEW_LOG_LEVEL environment variable.
-Override this setting using the RUST_LOG env var to configure the log levels of dependencies, see the [env_logger documentation](https://docs.rs/env_logger/latest/env_logger/).
+Override this setting using the RUST_LOG env var to configure the log levels of dependencies, see the [env_logger documentation](https://docs.rs/env_logger/latest/env_logger/), for example:
+
+    RUST_LOG=rickview=debug cargo run
 
 ## Motivation
 Existing RDF browsers like [LodView](https://github.com/LodLive/LodView/) look great but use too much hardware ressources as they are based on interpreted or garbage collected languages.
