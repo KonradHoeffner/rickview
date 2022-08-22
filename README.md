@@ -3,7 +3,6 @@
 ![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg "Unsafe forbidden")
 
 A quick RDF viewer (browser).
-Prototype written in Rust.
 Layout copied from LodView.
 
 ## Install
@@ -20,7 +19,6 @@ Compile and run with `cargo run` and then open <http://localhost:8080>` in your 
 ## Run
 
     cargo run
-
 
 ## Build
 

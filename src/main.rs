@@ -1,3 +1,8 @@
+//! Lightweight and performant RDF browser.
+//! An RDF browser is a web application that *resolves* RDF resources: given the HTTP(s) URL identifying a resource it returns an HTML summary.
+//! Besides HTML, the RDF serialization formats RDF/XML, Turtle and N-Triples are also available using content negotiation.
+//! Default configuration is stored in `data/default.toml`, which can be overriden in `data/config.toml` or environment variables.
+//! Configuration keys are in lower\_snake\_case, while environment variables are prefixed with RICKVIEW\_ and are in SCREAMING\_SNAKE\_CASE.
 #[macro_use]
 extern crate lazy_static;
 

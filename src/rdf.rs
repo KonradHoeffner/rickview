@@ -13,18 +13,21 @@ use sophia::{
         turtle::{TurtleConfig, TurtleSerializer},
         Stringifier, TripleSerializer,
     },
-    term::{RefTerm, TTerm, Term},
+    term::{RefTerm, TTerm, Term, Term::*},
     triple::{stream::TripleSource, Triple},
 };
 use std::{collections::HashMap, fs::File, io::BufReader, sync::Arc, time::Instant};
 
 /// If the namespace is known, returns a prefixed term string, for example "rdfs:label".
 /// Otherwise, returns the full IRI.
-fn prefix_term(prefixes: &Vec<(PrefixBox, IriBox)>, term: &Term<Arc<str>>) -> String {
+fn prefix_term<T: TTerm>(prefixes: &Vec<(PrefixBox, IriBox)>, term: &T) -> String
+where
+    T: std::fmt::Display,
+{
     let suffix = prefixes.get_prefixed_pair(term);
     match suffix {
         Some(x) => x.0.to_string() + ":" + &x.1,
-        None => term.to_string().replace(['<', '>'], ""),
+        None => term.value().to_string(),
     }
 }
 
@@ -104,17 +107,8 @@ enum ConnectionType {
     Inverse,
 }
 
-/// Generate HTML anchor element for the URI given as (prefixed, full), for example ("ex:Example", "http://example.com/Example").
-fn linker((prefixed, full): &(String, String)) -> String {
-    if prefixed.starts_with('"') {
-        return prefixed.replace('"', "");
-    }
-    let root_relative = full.replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
-    format!("<a href='{}'>{}</a><br><span>&#8618; {}</span>", root_relative, prefixed, TITLES.get(full).unwrap_or(prefixed))
-}
-
 fn property_anchor(term: &Term<Arc<str>>) -> String {
-    let root_relative = term.to_string().replace(['<', '>'], "").replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
+    let root_relative = term.value().to_string().replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
     format!("<a href='{}'>{}</a>", root_relative, prefix_term(&PREFIXES, term))
 }
 
@@ -129,18 +123,41 @@ fn connections(tt: &ConnectionType, suffix: &str) -> Result<Vec<(String, Vec<Str
         ConnectionType::Direct => GRAPH.triples_with_s(&iri),
         ConnectionType::Inverse => GRAPH.triples_with_o(&iri),
     };
-    let mut map: MultiMap<String, (String, String)> = MultiMap::new();
+    let mut map: MultiMap<String, String> = MultiMap::new();
     let mut d: Vec<(String, Vec<String>)> = Vec::new();
     for res in results {
         let t = res.unwrap();
-        let right = match tt {
+        let right_term = match tt {
             ConnectionType::Direct => t.o(),
             ConnectionType::Inverse => t.s(),
         };
-        map.insert(property_anchor(t.p()), (prefix_term(&PREFIXES, right), right.value().to_string()));
+        let right_html = match right_term {
+            Literal(lit) => {
+                match lit.lang() {
+                    Some(lang) => {
+                        format!("{} ({})", lit.txt(), lang)
+                    }
+                    None => {
+                        //let dt = lit.dt().value().to_string();
+                        //"http://www.w3.org/1999/02/22-rdf-syntax-ns#langString" => {
+                        format!(r#"{}<div class="datatype">{}</div>"#, lit.txt(), &prefix_term(&PREFIXES, &lit.dt()))
+                    }
+                }
+            }
+            Iri(iri) => {
+                let full = &iri.value().to_string();
+                let suffix = &iri.normalized_suffixed_at_last_gen_delim().suffix().to_owned().unwrap().to_string();
+                let prefixed = &prefix_term(&PREFIXES, right_term);
+                let root_relative = full.replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
+                //log::trace!("{} {} {} {:?}", iri, full, root_relative, **&TITLES);
+                format!("<a href='{}'>{}</a><br><span>&#8618; {}</span>", root_relative, prefixed, TITLES.get(suffix).unwrap_or(prefixed))
+            }
+            _ => right_term.value().to_string(), // BNode, Variable
+        };
+        map.insert(property_anchor(t.p()), right_html);
     }
     for (key, values) in map.iter_all() {
-        d.push((key.to_owned(), values.iter().map(linker).collect()));
+        d.push((key.to_owned(), values.to_vec()));
     }
     Ok(d)
 }
@@ -170,7 +187,6 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let start = Instant::now();
     let subject = HITO_NS.get(suffix).unwrap();
 
-    let uri = subject.to_string().replace(['<', '>'], "");
     let all_directs = connections(&ConnectionType::Direct, suffix)?;
     fn filter(cons: &[(String, Vec<String>)], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
         cons.iter().cloned().filter(|c| key_predicate(&c.0)).collect()
@@ -181,7 +197,7 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let main_type = TYPES.get(suffix).map(|t| t.to_owned());
     Ok(Resource {
         suffix: suffix.to_owned(),
-        uri,
+        uri: subject.clone().value().to_string(),
         duration: format!("{:?}", start.elapsed()),
         title,
         github_issue_url: CONFIG.github.as_ref().map(|g| format!("{}/issues/new?title={}", g, suffix)),
