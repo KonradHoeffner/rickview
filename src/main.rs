@@ -3,6 +3,7 @@
 //! Besides HTML, the RDF serialization formats RDF/XML, Turtle and N-Triples are also available using content negotiation.
 //! Default configuration is stored in `data/default.toml`, which can be overriden in `data/config.toml` or environment variables.
 //! Configuration keys are in lower\_snake\_case, while environment variables are prefixed with RICKVIEW\_ and are in SCREAMING\_SNAKE\_CASE.
+/// The main module uses Actix Web to serve resources as HTML and other formats.
 #[macro_use]
 extern crate lazy_static;
 

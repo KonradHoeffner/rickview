@@ -1,3 +1,5 @@
+//! Load the RDF graph and summarize RDF resources.
+#![allow(rustdoc::bare_urls)]
 use crate::{config::CONFIG, resource::Resource};
 use multimap::MultiMap;
 #[cfg(feature = "rdfxml")]
@@ -13,21 +15,19 @@ use sophia::{
         turtle::{TurtleConfig, TurtleSerializer},
         Stringifier, TripleSerializer,
     },
-    term::{RefTerm, TTerm, Term, Term::*},
+    term::{iri::Iri, RefTerm, TTerm, Term::*, TermData},
     triple::{stream::TripleSource, Triple},
 };
 use std::{collections::HashMap, fs::File, io::BufReader, sync::Arc, time::Instant};
 
 /// If the namespace is known, returns a prefixed term string, for example "rdfs:label".
 /// Otherwise, returns the full IRI.
-fn prefix_term<T: TTerm>(prefixes: &Vec<(PrefixBox, IriBox)>, term: &T) -> String
-where
-    T: std::fmt::Display,
+fn prefix_iri<TD: TermData>(prefixes: &Vec<(PrefixBox, IriBox)>, iri: &sophia::term::iri::Iri<TD>) -> String
 {
-    let suffix = prefixes.get_prefixed_pair(term);
+    let suffix = prefixes.get_prefixed_pair(iri);
     match suffix {
         Some(x) => x.0.to_string() + ":" + &x.1,
-        None => term.value().to_string(),
+        None => iri.value().to_string(),
     }
 }
 
@@ -62,7 +62,8 @@ fn prefixes() -> Vec<(PrefixBox, IriBox)> {
     p
 }
 
-/// Prioritizes title properties earlier in the list.
+/// Maps RDF resource suffixes to at most one title each, for example "ExampleResource" -> "example resource".
+/// Prioritizes title_properties earlier in the list.
 /// Language tags are not yet used.
 fn titles() -> HashMap<String, String> {
     let mut titles = HashMap::<String, String>::new();
@@ -78,7 +79,8 @@ fn titles() -> HashMap<String, String> {
     titles
 }
 
-/// Prioritizes type properties earlier in the list.
+/// Maps RDF resource suffixes to at most one type URI each, for example "ExampleResource" -> "http://example.com/resource/ExampleClass".
+/// Prioritizes type_properties earlier in the list.
 fn types() -> HashMap<String, String> {
     let mut types = HashMap::<String, String>::new();
     for prop in CONFIG.type_properties.iter().rev() {
@@ -94,10 +96,15 @@ fn types() -> HashMap<String, String> {
 
 lazy_static! {
     static ref PREFIXES: Vec<(PrefixBox, IriBox)> = prefixes();
+    // Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
+    // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
+    /// Contains the knowledge base.
     static ref GRAPH: FastGraph = load_graph();
     static ref HITO_NS: Namespace<&'static str> = Namespace::new(CONFIG.namespace.as_ref()).unwrap();
     static ref RDFS_NS: Namespace<&'static str> = Namespace::new("http://www.w3.org/2000/01/rdf-schema#").unwrap();
+    /// Map of RDF resource suffixes to at most one title each. Result of [titles].
     static ref TITLES: HashMap<String, String> = titles();
+    /// Map of RDF resource suffixes to at most one type URI each. Result of [types].
     static ref TYPES: HashMap<String, String> = types();
 }
 
@@ -107,59 +114,70 @@ enum ConnectionType {
     Inverse,
 }
 
-fn property_anchor(term: &Term<Arc<str>>) -> String {
-    let root_relative = term.value().to_string().replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
-    format!("<a href='{}'>{}</a>", root_relative, prefix_term(&PREFIXES, term))
+fn property_anchor<TD: TermData>(iri: &Iri<TD>) -> String {
+    let root_relative = iri.value().to_string().replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
+    format!("<a href='{}'>{}</a>", root_relative, prefix_iri(&PREFIXES, &iri))
+}
+
+#[derive(Debug)]
+struct Connection {
+    prop: Iri<Arc<str>>,
+    prop_html: String,
+    to_htmls: Vec<String>,
 }
 
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
-fn connections(tt: &ConnectionType, suffix: &str) -> Result<Vec<(String, Vec<String>)>, InvalidIri> {
+fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connection>, InvalidIri> {
     let mut iri = HITO_NS.get(suffix)?;
     // Sophia bug workaround when suffix is empty, see https://github.com/pchampin/sophia_rs/issues/115
     if suffix.is_empty() {
         iri = sophia::term::SimpleIri::new(&CONFIG.namespace, std::option::Option::None).unwrap();
     }
-    let results = match tt {
+    let triples = match conn_type {
         ConnectionType::Direct => GRAPH.triples_with_s(&iri),
         ConnectionType::Inverse => GRAPH.triples_with_o(&iri),
     };
-    let mut map: MultiMap<String, String> = MultiMap::new();
-    let mut d: Vec<(String, Vec<String>)> = Vec::new();
-    for res in results {
-        let t = res.unwrap();
-        let right_term = match tt {
-            ConnectionType::Direct => t.o(),
-            ConnectionType::Inverse => t.s(),
+    let mut map: MultiMap<Iri<Arc<str>>, String> = MultiMap::new();
+    let mut connections: Vec<Connection> = Vec::new();
+    //let mut to_htmls: Vec<String> = Vec::new();
+    for res in triples {
+        let triple = res.unwrap();
+        let to_term = match conn_type {
+            ConnectionType::Direct => triple.o(),
+            ConnectionType::Inverse => triple.s(),
         };
-        let right_html = match right_term {
+        let to_html = match to_term {
             Literal(lit) => {
                 match lit.lang() {
                     Some(lang) => {
-                        format!("{} ({})", lit.txt(), lang)
+                        format!("{} @{}", lit.txt(), lang)
                     }
                     None => {
                         //let dt = lit.dt().value().to_string();
                         //"http://www.w3.org/1999/02/22-rdf-syntax-ns#langString" => {
-                        format!(r#"{}<div class="datatype">{}</div>"#, lit.txt(), &prefix_term(&PREFIXES, &lit.dt()))
+                        format!(r#"{}<div class="datatype">{}</div>"#, lit.txt(), &prefix_iri(&PREFIXES, &lit.dt()))
                     }
                 }
             }
             Iri(iri) => {
                 let full = &iri.value().to_string();
                 let suffix = &iri.normalized_suffixed_at_last_gen_delim().suffix().to_owned().unwrap().to_string();
-                let prefixed = &prefix_term(&PREFIXES, right_term);
+                let prefixed = &prefix_iri(&PREFIXES, iri);
                 let root_relative = full.replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
                 //log::trace!("{} {} {} {:?}", iri, full, root_relative, **&TITLES);
                 format!("<a href='{}'>{}</a><br><span>&#8618; {}</span>", root_relative, prefixed, TITLES.get(suffix).unwrap_or(prefixed))
             }
-            _ => right_term.value().to_string(), // BNode, Variable
+            _ => to_term.value().to_string(), // BNode, Variable
         };
-        map.insert(property_anchor(t.p()), right_html);
+        //map.insert(property_anchor(t.p()), to_html);
+        if let Iri(iri) = triple.p() {
+            map.insert(iri.clone(), to_html);
+        }
     }
-    for (key, values) in map.iter_all() {
-        d.push((key.to_owned(), values.to_vec()));
+    for (prop, values) in map.iter_all() {
+        connections.push(Connection { prop: prop.to_owned(), prop_html: property_anchor(prop), to_htmls: values.to_vec() });
     }
-    Ok(d)
+    Ok(connections)
 }
 
 #[cfg(feature = "rdfxml")]
@@ -188,8 +206,9 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let subject = HITO_NS.get(suffix).unwrap();
 
     let all_directs = connections(&ConnectionType::Direct, suffix)?;
-    fn filter(cons: &[(String, Vec<String>)], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
-        cons.iter().cloned().filter(|c| key_predicate(&c.0)).collect()
+    log::info!("{:?}", all_directs);
+    fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
+        cons.iter().filter(|c| key_predicate(&c.prop.value())).map(|c| (c.prop_html.clone(), c.to_htmls.clone())).collect()
     }
     let descriptions = filter(&all_directs, |key| CONFIG.description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !CONFIG.description_properties.contains(key));
@@ -204,6 +223,7 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
         main_type,
         descriptions,
         directs: notdescriptions,
-        inverses: connections(&ConnectionType::Inverse, suffix)?,
+        //inverses: connections(&ConnectionType::Inverse, suffix)?,
+        inverses: filter(&connections(&ConnectionType::Inverse, suffix)?, |_| true),
     })
 }
