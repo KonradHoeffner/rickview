@@ -62,18 +62,18 @@ fn prefixes() -> Vec<(PrefixBox, IriBox)> {
     p
 }
 
-/// Maps RDF resource suffixes to at most one title each, for example "ExampleResource" -> "example resource".
+/// Maps RDF resource URIs to at most one title each, for example "http://example.com/resource/ExampleResource" -> "example resource".
 /// Prioritizes title_properties earlier in the list.
 /// Language tags are not yet used.
 fn titles() -> HashMap<String, String> {
+    // TODO: Use a trie instead of a hash map and measure memory consumption when there is a large enough knowledge bases where it could be worth it.
+    // Even better would be &str keys referencing the graph, but that is difficult, see branch reftitles.
     let mut titles = HashMap::<String, String>::new();
     for prop in CONFIG.title_properties.iter().rev() {
         let term = RefTerm::new_iri(prop.as_ref()).unwrap();
-        //print!("{}",term);
         for tt in GRAPH.triples_with_p(&term) {
             let t = tt.unwrap();
-            let suffix = t.s().value().replace(&CONFIG.namespace, "");
-            titles.insert(suffix, t.o().value().to_string());
+            titles.insert(t.s().value().to_string(), t.o().value().to_string());
         }
     }
     titles
@@ -157,10 +157,9 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connectio
             },
             Iri(iri) => {
                 let full = &iri.value().to_string();
-                let suffix = &iri.normalized_suffixed_at_last_gen_delim().suffix().to_owned().unwrap().to_string();
                 let prefixed = prefix_iri(&PREFIXES, &Iri::new_unchecked(&iri.value()));
                 let root_relative = full.replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
-                let title = if let Some(title) = TITLES.get(suffix) { format!("<br><span>&#8618; {title}</span>") } else { "".to_owned() };
+                let title = if let Some(title) = TITLES.get(full) { format!("<br><span>&#8618; {title}</span>") } else { "".to_owned() };
                 format!("<a href='{}'>{prefixed}{}</a>", root_relative, title)
             }
             _ => to_term.value().to_string(), // BNode, Variable
