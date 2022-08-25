@@ -6,7 +6,7 @@ use multimap::MultiMap;
 use sophia::serializer::xml::RdfXmlSerializer;
 use sophia::{
     graph::{inmem::sync::FastGraph, *},
-    iri::{error::InvalidIri, IriBox},
+    iri::{error::InvalidIri, AsIri, Iri, IriBox},
     ns::Namespace,
     parser::turtle,
     prefix::{PrefixBox, PrefixMap},
@@ -15,18 +15,18 @@ use sophia::{
         turtle::{TurtleConfig, TurtleSerializer},
         Stringifier, TripleSerializer,
     },
-    term::{iri::Iri, RefTerm, TTerm, Term::*, TermData},
+    term::{RefTerm, TTerm, Term::*},
     triple::{stream::TripleSource, Triple},
 };
-use std::{collections::HashMap, fs::File, io::BufReader, sync::Arc, time::Instant};
+use std::{collections::HashMap, fs::File, io::BufReader, time::Instant};
 
 /// If the namespace is known, returns a prefixed term string, for example "rdfs:label".
 /// Otherwise, returns the full IRI.
-fn prefix_iri<TD: TermData>(prefixes: &Vec<(PrefixBox, IriBox)>, iri: &sophia::term::iri::Iri<TD>) -> String
-{
+fn prefix_iri(prefixes: &Vec<(PrefixBox, IriBox)>, iri: &Iri) -> String {
     let suffix = prefixes.get_prefixed_pair(iri);
     match suffix {
-        Some(x) => x.0.to_string() + ":" + &x.1,
+        //Some(x) => format!("{}:<b>{}</b>",x.0.to_string(),&x.1),
+        Some(x) => format!("{}:{}", x.0.to_string(), &x.1),
         None => iri.value().to_string(),
     }
 }
@@ -114,14 +114,14 @@ enum ConnectionType {
     Inverse,
 }
 
-fn property_anchor<TD: TermData>(iri: &Iri<TD>) -> String {
+fn property_anchor(iri: &Iri) -> String {
     let root_relative = iri.value().to_string().replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
-    format!("<a href='{}'>{}</a>", root_relative, prefix_iri(&PREFIXES, &iri))
+    format!("<a href='{}'>{}</a>", root_relative, prefix_iri(&PREFIXES, iri))
 }
 
 #[derive(Debug)]
 struct Connection {
-    prop: Iri<Arc<str>>,
+    prop: IriBox,
     prop_html: String,
     to_htmls: Vec<String>,
 }
@@ -137,7 +137,7 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connectio
         ConnectionType::Direct => GRAPH.triples_with_s(&iri),
         ConnectionType::Inverse => GRAPH.triples_with_o(&iri),
     };
-    let mut map: MultiMap<Iri<Arc<str>>, String> = MultiMap::new();
+    let mut map: MultiMap<IriBox, String> = MultiMap::new();
     let mut connections: Vec<Connection> = Vec::new();
     //let mut to_htmls: Vec<String> = Vec::new();
     for res in triples {
@@ -147,35 +147,30 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connectio
             ConnectionType::Inverse => triple.s(),
         };
         let to_html = match to_term {
-            Literal(lit) => {
-                match lit.lang() {
-                    Some(lang) => {
-                        format!("{} @{}", lit.txt(), lang)
-                    }
-                    None => {
-                        //let dt = lit.dt().value().to_string();
-                        //"http://www.w3.org/1999/02/22-rdf-syntax-ns#langString" => {
-                        format!(r#"{}<div class="datatype">{}</div>"#, lit.txt(), &prefix_iri(&PREFIXES, &lit.dt()))
-                    }
+            Literal(lit) => match lit.lang() {
+                Some(lang) => {
+                    format!("{} @{}", lit.txt(), lang)
                 }
-            }
+                None => {
+                    format!(r#"{}<div class="datatype">{}</div>"#, lit.txt(), &prefix_iri(&PREFIXES, &Iri::new_unchecked(&lit.dt().value())))
+                }
+            },
             Iri(iri) => {
                 let full = &iri.value().to_string();
                 let suffix = &iri.normalized_suffixed_at_last_gen_delim().suffix().to_owned().unwrap().to_string();
-                let prefixed = &prefix_iri(&PREFIXES, iri);
+                let prefixed = prefix_iri(&PREFIXES, &Iri::new_unchecked(&iri.value()));
                 let root_relative = full.replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
-                //log::trace!("{} {} {} {:?}", iri, full, root_relative, **&TITLES);
-                format!("<a href='{}'>{}</a><br><span>&#8618; {}</span>", root_relative, prefixed, TITLES.get(suffix).unwrap_or(prefixed))
+                let title = if let Some(title) = TITLES.get(suffix) { format!("<br><span>&#8618; {title}</span>") } else { "".to_owned() };
+                format!("<a href='{}'>{prefixed}{}</a>", root_relative, title)
             }
             _ => to_term.value().to_string(), // BNode, Variable
         };
-        //map.insert(property_anchor(t.p()), to_html);
         if let Iri(iri) = triple.p() {
-            map.insert(iri.clone(), to_html);
+            map.insert(IriBox::new_unchecked(iri.value().into()), to_html);
         }
     }
     for (prop, values) in map.iter_all() {
-        connections.push(Connection { prop: prop.to_owned(), prop_html: property_anchor(prop), to_htmls: values.to_vec() });
+        connections.push(Connection { prop: prop.to_owned(), prop_html: property_anchor(&prop.as_iri()), to_htmls: values.to_vec() });
     }
     Ok(connections)
 }
@@ -206,7 +201,6 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let subject = HITO_NS.get(suffix).unwrap();
 
     let all_directs = connections(&ConnectionType::Direct, suffix)?;
-    log::info!("{:?}", all_directs);
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
         cons.iter().filter(|c| key_predicate(&c.prop.value())).map(|c| (c.prop_html.clone(), c.to_htmls.clone())).collect()
     }
