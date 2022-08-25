@@ -98,6 +98,7 @@ div#directs a:hover, div#inverses a:hover {
 
 table {
   width: 100%;
+  border-spacing: 1em 0em;
 }
 
 a {
@@ -107,6 +108,10 @@ a {
   vertical-align: baseline;
   background: transparent;
   text-decoration: none;
+}
+
+.td1 {
+  min-width: 10vw;
 }
 
 td .c2 {
