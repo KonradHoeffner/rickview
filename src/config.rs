@@ -27,7 +27,7 @@ static DEFAULT: &str = std::include_str!("../data/default.toml");
 
 impl Config {
     pub fn new() -> Result<Self, ConfigError> {
-        config::Config::builder()
+        let config = config::Config::builder()
             .add_source(File::from_str(DEFAULT, FileFormat::Toml))
             .add_source(File::new("data/config.toml", FileFormat::Toml).required(false))
             .add_source(
@@ -39,7 +39,11 @@ impl Config {
                     .with_list_parse_key("type_properties"),
             )
             .build()?
-            .try_deserialize()
+            .try_deserialize();
+        if config.base_path.ends_with('/') {
+            config.base_path.pop();
+        }
+        config
     }
 }
 

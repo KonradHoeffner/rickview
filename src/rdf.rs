@@ -115,7 +115,7 @@ enum ConnectionType {
 }
 
 fn property_anchor(iri: &Iri) -> String {
-    let root_relative = iri.value().to_string().replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
+    let root_relative = iri.value().to_string().replace(&CONFIG.namespace, &(CONFIG.base_path.clone() + "/"));
     format!("<a href='{}'>{}</a>", root_relative, prefix_iri(&PREFIXES, iri))
 }
 
@@ -158,7 +158,7 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connectio
             Iri(iri) => {
                 let full = &iri.value().to_string();
                 let prefixed = prefix_iri(&PREFIXES, &Iri::new_unchecked(&iri.value()));
-                let root_relative = full.replace(&CONFIG.namespace, &("/".to_owned() + &CONFIG.base_path));
+                let root_relative = full.replace(&CONFIG.namespace, &(CONFIG.base_path.clone() + "/"));
                 let title = if let Some(title) = TITLES.get(full) { format!("<br><span>&#8618; {title}</span>") } else { "".to_owned() };
                 format!("<a href='{}'>{prefixed}{}</a>", root_relative, title)
             }
