@@ -6,9 +6,9 @@ use_try_shorthand = true
 fn_args_layout = "Compressed"
 # fn_params_layout = "Compressed" # renamed from fn_args_layout in the master branch but not in current release rustfmt 1.5.1
 
-# *** only available in unstable rust ***
-#where_single_line = true
-#fn_single_line = true
-#group_imports = "One"
-#condense_wildcard_suffixes = true
-# ***************************************
+# *** only available in unstable Rust, use "cargo +nightly fmt" on stable ***
+where_single_line = true
+fn_single_line = true
+group_imports = "One"
+condense_wildcard_suffixes = true
+# ***************************************************************************

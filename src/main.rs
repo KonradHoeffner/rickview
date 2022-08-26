@@ -41,14 +41,10 @@ fn template() -> TinyTemplate<'static> {
 }
 
 #[get("{_anypath:.*/|}rickview.css")]
-async fn css() -> impl Responder {
-    HttpResponse::Ok().content_type("text/css").body(CSS)
-}
+async fn css() -> impl Responder { HttpResponse::Ok().content_type("text/css").body(CSS) }
 
 #[get("{_anypath:.*/|}favicon.ico")]
-async fn favicon() -> impl Responder {
-    HttpResponse::Ok().content_type("image/x-icon").body(FAVICON.as_ref())
-}
+async fn favicon() -> impl Responder { HttpResponse::Ok().content_type("image/x-icon").body(FAVICON.as_ref()) }
 
 #[get("{suffix:.*|}")]
 async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
