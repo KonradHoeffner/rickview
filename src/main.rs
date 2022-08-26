@@ -125,6 +125,6 @@ async fn main() -> std::io::Result<()> {
         HttpServer::new(move || App::new().service(web::scope(&CONFIG.base_path).service(css).service(favicon).service(index).service(resource_html)))
             .bind(("0.0.0.0", CONFIG.port))?
             .run();
-    info!("Serving {} at http://0.0.0.0:{}", CONFIG.namespace, CONFIG.port);
+    info!("Serving {} at http://localhost:{}{}", CONFIG.namespace, CONFIG.port, CONFIG.base_path);
     server.await
 }
