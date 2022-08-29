@@ -22,12 +22,11 @@ use std::{collections::HashMap, fs::File, io::BufReader, time::Instant};
 
 /// If the namespace is known, returns a prefixed term string, for example "rdfs:label".
 /// Otherwise, returns the full IRI.
-fn prefix_iri(prefixes: &Vec<(PrefixBox, IriBox)>, iri: &Iri) -> String {
+fn prefix_iri(prefixes: &Vec<(PrefixBox, IriBox)>, iri: &Iri, left: &str, right: &str) -> String {
     let suffix = prefixes.get_prefixed_pair(iri);
     match suffix {
-        //Some(x) => format!("{}:<b>{}</b>",x.0.to_string(),&x.1),
         Some(x) => format!("{}:{}", x.0.to_string(), &x.1),
-        None => iri.value().to_string(),
+        None => left.to_owned() + &iri.value().to_string() + right,
     }
 }
 
@@ -116,7 +115,7 @@ enum ConnectionType {
 
 fn property_anchor(iri: &Iri) -> String {
     let root_relative = iri.value().to_string().replace(&CONFIG.namespace, &(CONFIG.base_path.clone() + "/"));
-    format!("<a href='{}'>{}</a>", root_relative, prefix_iri(&PREFIXES, iri))
+    format!("<a href='{}'>{}</a>", root_relative, prefix_iri(&PREFIXES, iri, "", ""))
 }
 
 #[derive(Debug)]
@@ -152,15 +151,16 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connectio
                     format!("{} @{}", lit.txt(), lang)
                 }
                 None => {
-                    format!(r#"{}<div class="datatype">{}</div>"#, lit.txt(), &prefix_iri(&PREFIXES, &Iri::new_unchecked(&lit.dt().value())))
+                    format!(r#"{}<div class="datatype">{}</div>"#, lit.txt(), &prefix_iri(&PREFIXES, &Iri::new_unchecked(&lit.dt().value()), "", ""))
                 }
             },
             Iri(iri) => {
                 let full = &iri.value().to_string();
-                let prefixed = prefix_iri(&PREFIXES, &Iri::new_unchecked(&iri.value()));
+                let prefixed = prefix_iri(&PREFIXES, &Iri::new_unchecked(&iri.value()), "&lt;", "&gt;");
                 let root_relative = full.replace(&CONFIG.namespace, &(CONFIG.base_path.clone() + "/"));
                 let title = if let Some(title) = TITLES.get(full) { format!("<br><span>&#8618; {title}</span>") } else { "".to_owned() };
-                format!("<a href='{}'>{prefixed}{}</a>", root_relative, title)
+                let target = if full.starts_with(&CONFIG.namespace) { "" } else { " target='_blank' " };
+                format!("<a href='{}'{}>{prefixed}{}</a>", root_relative, target, title)
             }
             _ => to_term.value().to_string(), // BNode, Variable
         };
