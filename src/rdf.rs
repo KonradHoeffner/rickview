@@ -46,13 +46,11 @@ impl Piri {
         Piri::new(IriBox::new_unchecked((CONFIG.namespace.clone() + suffix).into_boxed_str()))
      }
     fn new(iri: IriBox) -> Self { Self { prefixed: get_prefixed_pair(&iri.as_iri()), iri } }
-    fn embrace(&self) -> String {format!("&lt;{}&gt;",self.to_string())}
+    fn embrace(&self) -> String {format!("&lt;{}&gt;",self)}
     fn prefixed_string(&self, bold: bool ,embrace: bool) -> String {
         if let Some((p,s)) = &self.prefixed {
             if bold {format!("{p}:<b>{s}</b>")}  else {format!("{p}:{s}")}
-        } else {
-            if embrace {self.embrace()} else {self.to_string()}
-        }
+        } else if embrace {self.embrace()} else {self.to_string()}
     }
     fn short(&self) -> String { self.prefixed_string(false,false)}
 
@@ -102,6 +100,8 @@ fn titles() -> HashMap<String, String> {
         let term = RefTerm::new_iri(prop.as_ref()).unwrap();
         for tt in GRAPH.triples_with_p(&term) {
             let t = tt.unwrap();
+            let x = t.s().value().to_string();
+            if x == "http://www.snik.eu/ontology/meta" {log::info!("{:?} {:?} {:?}",t.s(),t.p(),t.o());}
             titles.insert(t.s().value().to_string(), t.o().value().to_string());
         }
     }
@@ -216,6 +216,7 @@ pub fn serialize_nt(suffix: &str) -> String {
 pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let start = Instant::now();
     let subject = NAMESPACE.get(suffix).unwrap();
+    let uri = subject.clone().value().to_string();
 
     let all_directs = connections(&ConnectionType::Direct, suffix)?;
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
@@ -223,11 +224,11 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     }
     let descriptions = filter(&all_directs, |key| CONFIG.description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !CONFIG.description_properties.contains(key));
-    let title = TITLES.get(suffix).unwrap_or(&suffix.to_owned()).to_string();
+    let title = TITLES.get(&uri).unwrap_or(&suffix.to_owned()).to_string();
     let main_type = TYPES.get(suffix).map(|t| t.to_owned());
     Ok(Resource {
         suffix: suffix.to_owned(),
-        uri: subject.clone().value().to_string(),
+        uri,
         duration: format!("{:?}", start.elapsed()),
         title,
         github_issue_url: CONFIG.github.as_ref().map(|g| format!("{}/issues/new?title={}", g, suffix)),
