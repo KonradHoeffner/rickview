@@ -15,19 +15,49 @@ use sophia::{
         turtle::{TurtleConfig, TurtleSerializer},
         Stringifier, TripleSerializer,
     },
+    term,
     term::{RefTerm, TTerm, Term::*},
     triple::{stream::TripleSource, Triple},
 };
-use std::{collections::HashMap, fs::File, io::BufReader, time::Instant};
+use std::{collections::HashMap, fmt, fs::File, io::BufReader, time::Instant};
 
-/// If the namespace is known, returns a prefixed term string, for example "rdfs:label".
-/// Otherwise, returns the full IRI.
-fn prefix_iri(prefixes: &Vec<(PrefixBox, IriBox)>, iri: &Iri, left: &str, right: &str) -> String {
-    let suffix = prefixes.get_prefixed_pair(iri);
-    match suffix {
-        Some(x) => format!("{}:{}", x.0.to_string(), &x.1),
-        None => left.to_owned() + &iri.value().to_string() + right,
+fn get_prefixed_pair(iri: &Iri) -> Option<(String, String)> {
+    let (p, s) = PREFIXES.get_prefixed_pair(iri)?;
+    Some((p.to_string(), s.to_string()))
+}
+
+struct Piri {
+    iri: IriBox,
+    prefixed: Option<(String, String)>,
+}
+
+/// convert sophia::term::iri::Iri sophia::iri::IriBox
+/// major sophia refactoring on the way, this function will hopefully be unnecessary in the next sophia version is finished
+impl<TD: term::TermData> From<&term::iri::Iri<TD>> for Piri {
+    fn from(tiri: &term::iri::Iri<TD>) -> Self { Piri::new(IriBox::new_unchecked(tiri.value().to_string().into_boxed_str())) }
+}
+
+impl fmt::Display for Piri {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.iri.value()) }
+}
+
+impl Piri {
+    fn from_suffix(suffix: &str) -> Self {
+        Piri::new(IriBox::new_unchecked((CONFIG.namespace.clone() + suffix).into_boxed_str()))
+     }
+    fn new(iri: IriBox) -> Self { Self { prefixed: get_prefixed_pair(&iri.as_iri()), iri } }
+    fn embrace(&self) -> String {format!("&lt;{}&gt;",self.to_string())}
+    fn prefixed_string(&self, bold: bool ,embrace: bool) -> String {
+        if let Some((p,s)) = &self.prefixed {
+            if bold {format!("{p}:<b>{s}</b>")}  else {format!("{p}:{s}")}
+        } else {
+            if embrace {self.embrace()} else {self.to_string()}
+        }
     }
+    fn short(&self) -> String { self.prefixed_string(false,false)}
+
+    fn root_relative(&self) -> String { self.iri.value().replace(&CONFIG.namespace, &(CONFIG.base_path.clone() + "/")) }
+    fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true,false)) }
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
@@ -99,7 +129,7 @@ lazy_static! {
     // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
     /// Contains the knowledge base.
     static ref GRAPH: FastGraph = load_graph();
-    static ref HITO_NS: Namespace<&'static str> = Namespace::new(CONFIG.namespace.as_ref()).unwrap();
+    static ref NAMESPACE: Namespace<&'static str> = Namespace::new(CONFIG.namespace.as_ref()).unwrap();
     static ref RDFS_NS: Namespace<&'static str> = Namespace::new("http://www.w3.org/2000/01/rdf-schema#").unwrap();
     /// Map of RDF resource suffixes to at most one title each. Result of [titles].
     static ref TITLES: HashMap<String, String> = titles();
@@ -113,63 +143,51 @@ enum ConnectionType {
     Inverse,
 }
 
-fn property_anchor(iri: &Iri) -> String {
-    let root_relative = iri.value().to_string().replace(&CONFIG.namespace, &(CONFIG.base_path.clone() + "/"));
-    format!("<a href='{}'>{}</a>", root_relative, prefix_iri(&PREFIXES, iri, "", ""))
-}
-
 #[derive(Debug)]
 struct Connection {
     prop: IriBox,
     prop_html: String,
-    to_htmls: Vec<String>,
+    target_htmls: Vec<String>,
 }
 
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
 fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connection>, InvalidIri> {
-    let mut iri = HITO_NS.get(suffix)?;
-    // Sophia bug workaround when suffix is empty, see https://github.com/pchampin/sophia_rs/issues/115
-    if suffix.is_empty() {
-        iri = sophia::term::SimpleIri::new(&CONFIG.namespace, std::option::Option::None).unwrap();
-    }
+    let source = Piri::from_suffix(suffix);
     let triples = match conn_type {
-        ConnectionType::Direct => GRAPH.triples_with_s(&iri),
-        ConnectionType::Inverse => GRAPH.triples_with_o(&iri),
+        ConnectionType::Direct => GRAPH.triples_with_s(&source.iri),
+        ConnectionType::Inverse => GRAPH.triples_with_o(&source.iri),
     };
     let mut map: MultiMap<IriBox, String> = MultiMap::new();
     let mut connections: Vec<Connection> = Vec::new();
-    //let mut to_htmls: Vec<String> = Vec::new();
     for res in triples {
         let triple = res.unwrap();
-        let to_term = match conn_type {
+        let target_term = match conn_type {
             ConnectionType::Direct => triple.o(),
             ConnectionType::Inverse => triple.s(),
         };
-        let to_html = match to_term {
+        let target_html = match target_term {
             Literal(lit) => match lit.lang() {
                 Some(lang) => {
                     format!("{} @{}", lit.txt(), lang)
                 }
                 None => {
-                    format!(r#"{}<div class="datatype">{}</div>"#, lit.txt(), &prefix_iri(&PREFIXES, &Iri::new_unchecked(&lit.dt().value()), "", ""))
+                    format!(r#"{}<div class="datatype">{}</div>"#, lit.txt(), Piri::from(&lit.dt()).short())
                 }
             },
-            Iri(iri) => {
-                let full = &iri.value().to_string();
-                let prefixed = prefix_iri(&PREFIXES, &Iri::new_unchecked(&iri.value()), "&lt;", "&gt;");
-                let root_relative = full.replace(&CONFIG.namespace, &(CONFIG.base_path.clone() + "/"));
-                let title = if let Some(title) = TITLES.get(full) { format!("<br><span>&#8618; {title}</span>") } else { "".to_owned() };
-                let target = if full.starts_with(&CONFIG.namespace) { "" } else { " target='_blank' " };
-                format!("<a href='{}'{}>{prefixed}{}</a>", root_relative, target, title)
+            Iri(tiri) => {
+                let piri = Piri::from(tiri);
+                let title = if let Some(title) = TITLES.get(&piri.to_string()) { format!("<br><span>&#8618; {title}</span>") } else { "".to_owned() };
+                let target = if piri.to_string().starts_with(&CONFIG.namespace) { "" } else { " target='_blank' " };
+                format!("<a href='{}'{}>{}{}</a>", piri.root_relative(), target, piri.prefixed_string(false, true), title)
             }
-            _ => to_term.value().to_string(), // BNode, Variable
+            _ => target_term.value().to_string(), // BNode, Variable
         };
         if let Iri(iri) = triple.p() {
-            map.insert(IriBox::new_unchecked(iri.value().into()), to_html);
+            map.insert(IriBox::new_unchecked(iri.value().into()), target_html);
         }
     }
-    for (prop, values) in map.iter_all() {
-        connections.push(Connection { prop: prop.to_owned(), prop_html: property_anchor(&prop.as_iri()), to_htmls: values.to_vec() });
+    for (prop, values) in map.into_iter() {
+        connections.push(Connection { prop: prop.to_owned(), prop_html: Piri::new(prop).property_anchor(), target_htmls: values.to_vec() });
     }
     Ok(connections)
 }
@@ -177,31 +195,31 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connectio
 #[cfg(feature = "rdfxml")]
 /// Export all triples (s,p,o) for a given subject s as RDF/XML.
 pub fn serialize_rdfxml(suffix: &str) -> String {
-    let iri = HITO_NS.get(suffix).unwrap();
+    let iri = NAMESPACE.get(suffix).unwrap();
     RdfXmlSerializer::new_stringifier().serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
 }
 
 /// Export all triples (s,p,o) for a given subject s as RDF Turtle using the config prefixes.
 pub fn serialize_turtle(suffix: &str) -> String {
-    let iri = HITO_NS.get(suffix).unwrap();
+    let iri = NAMESPACE.get(suffix).unwrap();
     let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map((PREFIXES).to_vec());
     TurtleSerializer::new_stringifier_with_config(config).serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
 }
 
 /// Export all triples (s,p,o) for a given subject s as N-Triples.
 pub fn serialize_nt(suffix: &str) -> String {
-    let iri = HITO_NS.get(suffix).unwrap();
+    let iri = NAMESPACE.get(suffix).unwrap();
     NtSerializer::new_stringifier().serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
 }
 
 /// Returns the resource with the given suffix from the configured namespace.
 pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let start = Instant::now();
-    let subject = HITO_NS.get(suffix).unwrap();
+    let subject = NAMESPACE.get(suffix).unwrap();
 
     let all_directs = connections(&ConnectionType::Direct, suffix)?;
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
-        cons.iter().filter(|c| key_predicate(&c.prop.value())).map(|c| (c.prop_html.clone(), c.to_htmls.clone())).collect()
+        cons.iter().filter(|c| key_predicate(&c.prop.value())).map(|c| (c.prop_html.clone(), c.target_htmls.clone())).collect()
     }
     let descriptions = filter(&all_directs, |key| CONFIG.description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !CONFIG.description_properties.contains(key));
