@@ -1,18 +1,25 @@
 [package]
 name = "rickview"
-version = "0.1.0"
+version = "0.0.2"
 edition = "2021"
+license = "MIT"
+keywords = ["rdf", "semantic-web", "linked-data"]
+categories = ["web-programming::http-server"]
+description = "A fast RDF viewer (Linked Data browser)"
+authors = ["Konrad Höffner"]
+readme = "README.md"
+repository = "https://github.com/konradhoeffner/rickview"
 
 [dependencies]
 sophia = "0.7" 
 actix-web = "4"
-lazy_static = "1.4"
+lazy_static = "1"
 multimap = "0.8"
 tinytemplate = "1"
 serde = { version = "1", features = ["derive"] }
 config = { version = "0.13", default-features = false, features = ["toml"] }
-log = "0.4.17"
-env_logger = { version = "0.9.0", default-features = false, features = ["termcolor", "atty"], optional = true }
+log = "0.4"
+env_logger = { version = "0.9", default-features = false, features = ["termcolor", "atty"], optional = true }
 
 [features]
 default = ["rdfxml", "log"]
@@ -23,4 +30,4 @@ log = ["env_logger"] # ~ 500 kb binary size increase
 # see https://fasterthanli.me/articles/why-is-my-rust-build-so-slow
 lto = "fat"
 strip = true
-incremental = true # disable in CI with CARGO_INCREMENTAL = 0
+incremental = true # disable in CI with CARGO_INCREMENTAL=0

@@ -21,6 +21,8 @@ use sophia::{
 };
 use std::{collections::HashMap, fmt, fs::File, io::BufReader, time::Instant};
 
+static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
+
 fn get_prefixed_pair(iri: &Iri) -> Option<(String, String)> {
     let (p, s) = PREFIXES.get_prefixed_pair(iri)?;
     Some((p.to_string(), s.to_string()))
@@ -42,41 +44,54 @@ impl fmt::Display for Piri {
 }
 
 impl Piri {
-    fn from_suffix(suffix: &str) -> Self {
-        Piri::new(IriBox::new_unchecked((CONFIG.namespace.clone() + suffix).into_boxed_str()))
-     }
+    fn from_suffix(suffix: &str) -> Self { Piri::new(IriBox::new_unchecked((CONFIG.namespace.clone() + suffix).into_boxed_str())) }
     fn new(iri: IriBox) -> Self { Self { prefixed: get_prefixed_pair(&iri.as_iri()), iri } }
-    fn embrace(&self) -> String {format!("&lt;{}&gt;",self)}
-    fn prefixed_string(&self, bold: bool ,embrace: bool) -> String {
-        if let Some((p,s)) = &self.prefixed {
-            if bold {format!("{p}:<b>{s}</b>")}  else {format!("{p}:{s}")}
-        } else if embrace {self.embrace()} else {self.to_string()}
+    fn embrace(&self) -> String { format!("&lt;{}&gt;", self) }
+    fn prefixed_string(&self, bold: bool, embrace: bool) -> String {
+        if let Some((p, s)) = &self.prefixed {
+            if bold {
+                format!("{p}:<b>{s}</b>")
+            } else {
+                format!("{p}:{s}")
+            }
+        } else if embrace {
+            self.embrace()
+        } else {
+            self.to_string()
+        }
     }
-    fn short(&self) -> String { self.prefixed_string(false,false)}
+    fn short(&self) -> String { self.prefixed_string(false, false) }
 
     fn root_relative(&self) -> String { self.iri.value().replace(&CONFIG.namespace, &(CONFIG.base_path.clone() + "/")) }
-    fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true,false)) }
+    fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
 fn load_graph() -> FastGraph {
-    match File::open(&CONFIG.kb_file) {
-        Err(e) => {
-            log::error!("Cannot open knowledge base file '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", &CONFIG.kb_file, e);
-            std::process::exit(1);
+    let triples = match &CONFIG.kb_file {
+        None => {
+            log::warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
+            turtle::parse_str(EXAMPLE_KB).collect_triples()
         }
-        Ok(file) => {
-            let reader = BufReader::new(file);
-            let graph: FastGraph = turtle::parse_bufread(reader).collect_triples().unwrap_or_else(|x| {
-                log::error!("Unable to parse knowledge base file {}: {}", &CONFIG.kb_file, x);
+        Some(file) => match File::open(&file) {
+            Err(e) => {
+                log::error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", file, e);
                 std::process::exit(1);
-            });
-            if log::log_enabled!(log::Level::Debug) {
-                log::debug!("~ {} triples loaded from {}", graph.triples().size_hint().0, &CONFIG.kb_file);
             }
-            graph
-        }
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                turtle::parse_bufread(reader).collect_triples()
+            }
+        },
+    };
+    let graph: FastGraph = triples.unwrap_or_else(|x| {
+        log::error!("Unable to parse knowledge base {}: {}", &CONFIG.kb_file.as_deref().unwrap_or("example"), x);
+        std::process::exit(1);
+    });
+    if log::log_enabled!(log::Level::Debug) {
+        log::debug!("~ {} triples loaded from {}", graph.triples().size_hint().0, &CONFIG.kb_file.as_deref().unwrap_or("example"));
     }
+    graph
 }
 
 /// (prefix,iri) pairs from the config
@@ -101,7 +116,9 @@ fn titles() -> HashMap<String, String> {
         for tt in GRAPH.triples_with_p(&term) {
             let t = tt.unwrap();
             let x = t.s().value().to_string();
-            if x == "http://www.snik.eu/ontology/meta" {log::info!("{:?} {:?} {:?}",t.s(),t.p(),t.o());}
+            if x == "http://www.snik.eu/ontology/meta" {
+                log::info!("{:?} {:?} {:?}", t.s(), t.p(), t.o());
+            }
             titles.insert(t.s().value().to_string(), t.o().value().to_string());
         }
     }

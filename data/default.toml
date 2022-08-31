@@ -1,14 +1,14 @@
-kb_file = "data/kb.ttl"
 prefix = "ex"
 namespace = "http://example.com/resource/"
 title_properties =  ["http://purl.org/dc/elements/1.1/title", "http://purl.org/dc/terms/title", "http://www.w3.org/2000/01/rdf-schema#label"]
 type_properties = ["http://www.w3.org/1999/02/22-rdf-syntax-ns#type"]
 description_properties = [ "http://www.w3.org/2004/02/skos/core#definition", "http://www.w3.org/2000/01/rdf-schema#comment"]
-examples = ["ExampleClass", "exampleProperty", "ExampleInstance"]
+examples = ["ExClass", "exProperty", "ExInstance"]
+homepage = "https://github.com/konradhoeffner/rickview"
 base_path = ""
 port = 8080
-title = "RickView"
-subtitle = "A quick RDF browser"
+title = "RickView Example Knowledge Base"
+subtitle = "You have successfully installed RickView but not configured a knowledge base yet"
 # error, warn, info, debug, trace
 log_level = "info"
 [namespaces]

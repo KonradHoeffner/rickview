@@ -67,7 +67,7 @@ async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl 
                                     HttpResponse::Ok().content_type("text/html; charset-utf-8").body(html)
                                 }
                                 Err(err) => {
-                                    let message = format!("Internal server error. Could not render resource {}:\n{}.", prefixed,err);
+                                    let message = format!("Internal server error. Could not render resource {}:\n{}.", prefixed, err);
                                     error!("{}", message);
                                     HttpResponse::InternalServerError().body(message)
                                 }

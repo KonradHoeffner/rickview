@@ -6,14 +6,16 @@ A quick RDF viewer (browser).
 Layout copied from LodView.
 
 ## Install
-Install [Rust including Cargo](https://www.rust-lang.org/tools/install) and clone this repository.
+Install [Rust including Cargo](https://www.rust-lang.org/tools/install) and `git clone git@github.com:KonradHoeffner/rickview.git`.
 Binaries and prebuild Docker images will be available in the future.
+Alternatively, you can `cargo install rickview`.
 
 ## Configure
 Default configuration is stored in `data/default.toml`, which you can override with a custom `data/config.toml` or environment variables.
 Configuration keys are in lower\_snake\_case, while environment variables are prefixed with RICKVIEW\_ and are in SCREAMING\_SNAKE\_CASE.
 For example, `namespace = "http://hitontology.eu/ontology/"` in `config.toml` is equivalent to `RICKVIEW_NAMESPACE=http://hitontology.eu/ontology/` as an environment variable.
 You need to provide a knowledge base in RDF Turtle format, whose default path is `data/kb.ttl`.
+If you don't, RickView will show a minimal example knowledge base.
 Compile and run with `cargo run` and then open <http://localhost:8080>` in your browser.
 
 ## Run
@@ -166,5 +168,13 @@ So my assumption is that you use the configuration file for local development an
 However if you need `.env` support outside of Docker Compose, just create an issue with a motivation and I may implement it.
 
 ### Can I use it with DBpedia?
-RickView is not designed for large knowledgebases (several GB) such as the complete DBpedia, as it holds the knowledge base in RAM.
+RickView is not designed for large knowledge bases (many GB) such as the complete DBpedia, as it holds the knowledge base in RAM.
 In those cases, traditional RDF browsers based on a SPARQL endpoint are the better solution.
+However I do plan to test and if possible support knowledge bases up to around 2 GB of compressed size.
+
+### Why does it look exactly like LodView?
+1. LodView looks beautiful and works well, the only problems are performance and to a lesser degree simple containerized deployment.
+2. LodView is licensed under MIT, so that is allowed. LodView is Copyright (c) 2014 Diego Valerio Camarda and Alessandro Antonuccio.
+3. I can focus my limited time on programming instead of design decisions. Other designs may follow later.
+4. Users of LodView can switch without training.
+5. Performance comparisons are easier when the interface is very similar. 

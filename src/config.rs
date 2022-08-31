@@ -7,7 +7,7 @@ pub struct Config {
     pub base_path: String,
     pub title: Option<String>,
     pub subtitle: Option<String>,
-    pub kb_file: String,
+    pub kb_file: Option<String>,
     pub port: u16,
     pub github: Option<String>,
     pub prefix: String,
