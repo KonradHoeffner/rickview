@@ -6,9 +6,17 @@ A quick RDF viewer (browser).
 Layout copied from LodView.
 
 ## Install
-Install [Rust including Cargo](https://www.rust-lang.org/tools/install) and `git clone git@github.com:KonradHoeffner/rickview.git`.
-Binaries and prebuild Docker images will be available in the future.
-Alternatively, you can `cargo install rickview`.
+
+### Precompiled Binaries
+Download the binary from the [latest release](https://github.com/konradhoeffner/rickview/releases/latest) and run `rickview`.
+If you need binaries for a different platform than Linux amd64, [let me know](https://github.com/konradhoeffner/rickview/issues/new).
+
+### Compile it yourself
+Alternatively, you can compile it for your own platform with `cargo install rickview`.
+Or you can clone [the repository](https://github.com/konradhoeffner/rickview) and then `cargo build`.
+This requires you to install [Rust including Cargo](https://www.rust-lang.org/tools/install).
+I recommend installing Rust via `rustup`, especially on Ubuntu, because `apt install cargo` may install an old version and not work correctly with RickView.
+On Arch Linux however, both `pacman -S rustup` and `pacman -S rust` worked in my testing as the Rust package was much more current and does not require a separate step of choosing between stable and unstable rust.
 
 ## Configure
 Default configuration is stored in `data/default.toml`, which you can override with a custom `data/config.toml` or environment variables.
@@ -16,20 +24,15 @@ Configuration keys are in lower\_snake\_case, while environment variables are pr
 For example, `namespace = "http://hitontology.eu/ontology/"` in `config.toml` is equivalent to `RICKVIEW_NAMESPACE=http://hitontology.eu/ontology/` as an environment variable.
 You need to provide a knowledge base in RDF Turtle format, whose default path is `data/kb.ttl`.
 If you don't, RickView will show a minimal example knowledge base.
-Compile and run with `cargo run` and then open <http://localhost:8080>` in your browser.
-
-## Run
-
-    cargo run
-
-## Build
-
-    cargo build --release
+Compile and run with `cargo run` and then open <http://localhost:8080> in your browser.
 
 ## Docker
+Clone [the repository](https://github.com/konradhoeffner/rickview) and then:
 
     docker build . -t rickview
     docker run --mount "type=bind,src=$PWD/data/kb.ttl,target=/app/data/kb.ttl"  --network="host" rickview
+
+Prebuild Docker images may be available in the future.
 
 ## Docker Compose Example
 

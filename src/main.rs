@@ -63,7 +63,7 @@ async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl 
                         if accept.contains("text/html") {
                             return match template().render("resource", &res) {
                                 Ok(html) => {
-                                    debug!("{} serve as HTML", prefixed);
+                                    debug!("{} HTML", prefixed);
                                     HttpResponse::Ok().content_type("text/html; charset-utf-8").body(html)
                                 }
                                 Err(err) => {
@@ -74,12 +74,12 @@ async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl 
                             };
                         }
                         if accept.contains("application/n-triples") {
-                            debug!("{} serve as as N-Triples", prefixed);
+                            debug!("{} N-Triples", prefixed);
                             return HttpResponse::Ok().content_type("application/n-triples").body(rdf::serialize_nt(&suffix));
                         }
                         #[cfg(feature = "rdfxml")]
                         if accept.contains("application/rdf+xml") {
-                            debug!("{} serve as RDF", prefixed);
+                            debug!("{} RDF", prefixed);
                             return HttpResponse::Ok().content_type("application/rdf+xml").body(rdf::serialize_rdfxml(&suffix));
                         }
                         warn!("{} accept header {} not recognized, using default", prefixed, accept);
@@ -122,5 +122,8 @@ async fn main() -> std::io::Result<()> {
             .bind(("0.0.0.0", CONFIG.port))?
             .run();
     info!("Serving {} at http://localhost:{}{}", CONFIG.namespace, CONFIG.port, CONFIG.base_path);
+    if CONFIG.preload {
+        rdf::preload();
+    }
     server.await
 }

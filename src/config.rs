@@ -19,6 +19,8 @@ pub struct Config {
     pub description_properties: HashSet<String>,
     pub homepage: Option<String>,
     pub endpoint: Option<String>,
+    /// When false, knowledge base will only be loaded on first resource (non-index) access.
+    pub preload: bool,
     pub doc: Option<String>,
     pub log_level: Option<String>,
 }

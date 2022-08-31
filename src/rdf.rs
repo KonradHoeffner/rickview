@@ -89,7 +89,7 @@ fn load_graph() -> FastGraph {
         std::process::exit(1);
     });
     if log::log_enabled!(log::Level::Debug) {
-        log::debug!("~ {} triples loaded from {}", graph.triples().size_hint().0, &CONFIG.kb_file.as_deref().unwrap_or("example"));
+        log::info!("~ {} triples loaded from {}", graph.triples().size_hint().0, &CONFIG.kb_file.as_deref().unwrap_or("example kb"));
     }
     graph
 }
@@ -115,10 +115,6 @@ fn titles() -> HashMap<String, String> {
         let term = RefTerm::new_iri(prop.as_ref()).unwrap();
         for tt in GRAPH.triples_with_p(&term) {
             let t = tt.unwrap();
-            let x = t.s().value().to_string();
-            if x == "http://www.snik.eu/ontology/meta" {
-                log::info!("{:?} {:?} {:?}", t.s(), t.p(), t.o());
-            }
             titles.insert(t.s().value().to_string(), t.o().value().to_string());
         }
     }
@@ -153,6 +149,10 @@ lazy_static! {
     /// Map of RDF resource suffixes to at most one type URI each. Result of [types].
     static ref TYPES: HashMap<String, String> = types();
 }
+
+
+#[allow(unused_must_use)]
+pub fn preload() { GRAPH.triples(); }
 
 /// Whether the given resource is in subject or object position.
 enum ConnectionType {
@@ -239,10 +239,16 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
         cons.iter().filter(|c| key_predicate(&c.prop.value())).map(|c| (c.prop_html.clone(), c.target_htmls.clone())).collect()
     }
-    let descriptions = filter(&all_directs, |key| CONFIG.description_properties.contains(key));
+    let mut descriptions = filter(&all_directs, |key| CONFIG.description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !CONFIG.description_properties.contains(key));
     let title = TITLES.get(&uri).unwrap_or(&suffix.to_owned()).to_string();
     let main_type = TYPES.get(suffix).map(|t| t.to_owned());
+    let inverses = filter(&connections(&ConnectionType::Inverse, suffix)?, |_| true);
+    if all_directs.is_empty() && inverses.is_empty() {
+        let warning = format!("No triples found for {}. Did you configure the namespace correctly?", uri);
+        log::warn!("{warning}");
+        descriptions.push(("Warning".to_owned(), vec![warning]));
+    }
     Ok(Resource {
         suffix: suffix.to_owned(),
         uri,
@@ -253,6 +259,6 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
         descriptions,
         directs: notdescriptions,
         //inverses: connections(&ConnectionType::Inverse, suffix)?,
-        inverses: filter(&connections(&ConnectionType::Inverse, suffix)?, |_| true),
+        inverses,
     })
 }
