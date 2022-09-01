@@ -62,7 +62,7 @@ impl Piri {
     }
     fn short(&self) -> String { self.prefixed_string(false, false) }
 
-    fn root_relative(&self) -> String { self.iri.value().replace(&config().namespace, &(config().base_path.clone() + "/")) }
+    fn root_relative(&self) -> String { self.iri.value().replace(&config().namespace, &(config().base.clone() + "/")) }
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
 }
 

@@ -10,7 +10,7 @@ mod rdf;
 mod resource;
 
 use crate::config::config;
-use actix_web::{get, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{get, web, web::scope, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use log::{debug, error, info, trace, warn};
 use tinytemplate::TinyTemplate;
 
@@ -45,7 +45,7 @@ async fn css() -> impl Responder { HttpResponse::Ok().content_type("text/css").b
 async fn favicon() -> impl Responder { HttpResponse::Ok().content_type("image/x-icon").body(FAVICON.as_ref()) }
 
 #[get("{suffix:.*|}")]
-async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
+async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
     let prefixed = config().prefix.clone() + ":" + &suffix;
     match rdf::resource(&suffix) {
         Err(_) => {
@@ -105,6 +105,10 @@ async fn index() -> impl Responder {
     }
 }
 
+// redirect /base to correct index page /base/
+#[get("")]
+async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append_header(("location", config().base.to_owned() + "/")).finish() }
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     #[cfg(feature = "log")]
@@ -115,10 +119,9 @@ async fn main() -> std::io::Result<()> {
         env_logger::builder().format_timestamp(None).format_target(false).init();
     }
     trace!("{:?}", config());
-    let server =
-        HttpServer::new(move || App::new().service(web::scope(&config().base_path).service(css).service(favicon).service(index).service(resource_html)))
-            .bind(("0.0.0.0", config().port))?
-            .run();
-    info!("Serving {} at http://localhost:{}{}", config().namespace, config().port, config().base_path);
-    server.await
+    info!("Serving {} at http://localhost:{}{}/", config().namespace, config().port, config().base);
+    HttpServer::new(move || App::new().service(css).service(favicon).service(scope(&config().base).service(index).service(redirect).service(res_html)))
+        .bind(("0.0.0.0", config().port))?
+        .run()
+        .await
 }

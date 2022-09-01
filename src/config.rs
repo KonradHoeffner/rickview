@@ -5,7 +5,7 @@ use std::sync::OnceLock;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
-    pub base_path: String,
+    pub base: String,
     pub title: Option<String>,
     pub subtitle: Option<String>,
     pub kb_file: Option<String>,
@@ -42,8 +42,8 @@ impl Config {
             )
             .build()?
             .try_deserialize()?;
-        if config.base_path.ends_with('/') {
-            config.base_path.pop();
+        if config.base.ends_with('/') {
+            config.base.pop();
         }
         Ok(config)
     }
