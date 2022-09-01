@@ -1,6 +1,7 @@
 use config::{ConfigError, Environment, File, FileFormat};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::sync::OnceLock;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -20,7 +21,6 @@ pub struct Config {
     pub homepage: Option<String>,
     pub endpoint: Option<String>,
     /// When false, knowledge base will only be loaded on first resource (non-index) access.
-    pub preload: bool,
     pub doc: Option<String>,
     pub log_level: Option<String>,
 }
@@ -49,6 +49,5 @@ impl Config {
     }
 }
 
-lazy_static! {
-    pub static ref CONFIG: Config = Config::new().expect("Error reading configuration.");
-}
+static CONFIG: OnceLock<Config> = OnceLock::new();
+pub fn config() -> &'static Config { CONFIG.get_or_init(|| Config::new().expect("Error reading configuration.")) }

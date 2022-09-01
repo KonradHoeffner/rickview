@@ -1,6 +1,6 @@
 //! Load the RDF graph and summarize RDF resources.
 #![allow(rustdoc::bare_urls)]
-use crate::{config::CONFIG, resource::Resource};
+use crate::{config::config, resource::Resource};
 use multimap::MultiMap;
 #[cfg(feature = "rdfxml")]
 use sophia::serializer::xml::RdfXmlSerializer;
@@ -19,12 +19,12 @@ use sophia::{
     term::{RefTerm, TTerm, Term::*},
     triple::{stream::TripleSource, Triple},
 };
-use std::{collections::HashMap, fmt, fs::File, io::BufReader, time::Instant};
+use std::{collections::HashMap, fmt, fs::File, io::BufReader, sync::OnceLock, time::Instant};
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 
 fn get_prefixed_pair(iri: &Iri) -> Option<(String, String)> {
-    let (p, s) = PREFIXES.get_prefixed_pair(iri)?;
+    let (p, s) = prefixes().get_prefixed_pair(iri)?;
     Some((p.to_string(), s.to_string()))
 }
 
@@ -44,7 +44,7 @@ impl fmt::Display for Piri {
 }
 
 impl Piri {
-    fn from_suffix(suffix: &str) -> Self { Piri::new(IriBox::new_unchecked((CONFIG.namespace.clone() + suffix).into_boxed_str())) }
+    fn from_suffix(suffix: &str) -> Self { Piri::new(IriBox::new_unchecked((config().namespace.clone() + suffix).into_boxed_str())) }
     fn new(iri: IriBox) -> Self { Self { prefixed: get_prefixed_pair(&iri.as_iri()), iri } }
     fn embrace(&self) -> String { format!("&lt;{}&gt;", self) }
     fn prefixed_string(&self, bold: bool, embrace: bool) -> String {
@@ -62,97 +62,100 @@ impl Piri {
     }
     fn short(&self) -> String { self.prefixed_string(false, false) }
 
-    fn root_relative(&self) -> String { self.iri.value().replace(&CONFIG.namespace, &(CONFIG.base_path.clone() + "/")) }
+    fn root_relative(&self) -> String { self.iri.value().replace(&config().namespace, &(config().base_path.clone() + "/")) }
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
-fn load_graph() -> FastGraph {
-    let triples = match &CONFIG.kb_file {
-        None => {
-            log::warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
-            turtle::parse_str(EXAMPLE_KB).collect_triples()
+fn graph() -> &'static FastGraph {
+    GRAPH.get_or_init(|| {
+        let triples = match &config().kb_file {
+            None => {
+                log::warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
+                turtle::parse_str(EXAMPLE_KB).collect_triples()
+            }
+            Some(file) => match File::open(&file) {
+                Err(e) => {
+                    log::error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", file, e);
+                    std::process::exit(1);
+                }
+                Ok(file) => {
+                    let reader = BufReader::new(file);
+                    turtle::parse_bufread(reader).collect_triples()
+                }
+            },
+        };
+        let graph: FastGraph = triples.unwrap_or_else(|x| {
+            log::error!("Unable to parse knowledge base {}: {}", &config().kb_file.as_deref().unwrap_or("example"), x);
+            std::process::exit(1);
+        });
+        if log::log_enabled!(log::Level::Debug) {
+            log::info!("~ {} triples loaded from {}", graph.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"));
         }
-        Some(file) => match File::open(&file) {
-            Err(e) => {
-                log::error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", file, e);
-                std::process::exit(1);
-            }
-            Ok(file) => {
-                let reader = BufReader::new(file);
-                turtle::parse_bufread(reader).collect_triples()
-            }
-        },
-    };
-    let graph: FastGraph = triples.unwrap_or_else(|x| {
-        log::error!("Unable to parse knowledge base {}: {}", &CONFIG.kb_file.as_deref().unwrap_or("example"), x);
-        std::process::exit(1);
-    });
-    if log::log_enabled!(log::Level::Debug) {
-        log::info!("~ {} triples loaded from {}", graph.triples().size_hint().0, &CONFIG.kb_file.as_deref().unwrap_or("example kb"));
-    }
-    graph
+        graph
+    })
 }
 
 /// (prefix,iri) pairs from the config
-fn prefixes() -> Vec<(PrefixBox, IriBox)> {
-    let mut p: Vec<(PrefixBox, IriBox)> = Vec::new();
-    for (prefix, iri) in CONFIG.namespaces.iter() {
-        p.push((PrefixBox::new_unchecked(prefix.to_owned().into_boxed_str()), IriBox::new_unchecked(iri.to_owned().into_boxed_str())));
-    }
-    p.push((PrefixBox::new_unchecked(CONFIG.prefix.clone().into_boxed_str()), IriBox::new_unchecked(CONFIG.namespace.clone().into_boxed_str())));
-    p
+fn prefixes() -> &'static Vec<(PrefixBox, IriBox)> {
+    PREFIXES.get_or_init(|| {
+        let mut p: Vec<(PrefixBox, IriBox)> = Vec::new();
+        for (prefix, iri) in config().namespaces.iter() {
+            p.push((PrefixBox::new_unchecked(prefix.to_owned().into_boxed_str()), IriBox::new_unchecked(iri.to_owned().into_boxed_str())));
+        }
+        p.push((PrefixBox::new_unchecked(config().prefix.clone().into_boxed_str()), IriBox::new_unchecked(config().namespace.clone().into_boxed_str())));
+        p
+    })
 }
 
 /// Maps RDF resource URIs to at most one title each, for example "http://example.com/resource/ExampleResource" -> "example resource".
 /// Prioritizes title_properties earlier in the list.
 /// Language tags are not yet used.
-fn titles() -> HashMap<String, String> {
-    // TODO: Use a trie instead of a hash map and measure memory consumption when there is a large enough knowledge bases where it could be worth it.
-    // Even better would be &str keys referencing the graph, but that is difficult, see branch reftitles.
-    let mut titles = HashMap::<String, String>::new();
-    for prop in CONFIG.title_properties.iter().rev() {
-        let term = RefTerm::new_iri(prop.as_ref()).unwrap();
-        for tt in GRAPH.triples_with_p(&term) {
-            let t = tt.unwrap();
-            titles.insert(t.s().value().to_string(), t.o().value().to_string());
+fn titles() -> &'static HashMap<String, String> {
+    TITLES.get_or_init(|| {
+        // TODO: Use a trie instead of a hash map and measure memory consumption when there is a large enough knowledge bases where it could be worth it.
+        // Even better would be &str keys referencing the graph, but that is difficult, see branch reftitles.
+        let mut titles = HashMap::<String, String>::new();
+        for prop in config().title_properties.iter().rev() {
+            let term = RefTerm::new_iri(prop.as_ref()).unwrap();
+            for tt in graph().triples_with_p(&term) {
+                let t = tt.unwrap();
+                titles.insert(t.s().value().to_string(), t.o().value().to_string());
+            }
         }
-    }
-    titles
+        titles
+    })
 }
 
 /// Maps RDF resource suffixes to at most one type URI each, for example "ExampleResource" -> "http://example.com/resource/ExampleClass".
 /// Prioritizes type_properties earlier in the list.
-fn types() -> HashMap<String, String> {
-    let mut types = HashMap::<String, String>::new();
-    for prop in CONFIG.type_properties.iter().rev() {
-        let term = RefTerm::new_iri(prop.as_ref()).unwrap();
-        for tt in GRAPH.triples_with_p(&term) {
-            let t = tt.unwrap();
-            let suffix = t.s().value().replace(&CONFIG.namespace, "");
-            types.insert(suffix, t.o().value().to_string());
+fn types() -> &'static HashMap<String, String> {
+    TYPES.get_or_init(|| {
+        let mut types = HashMap::<String, String>::new();
+        for prop in config().type_properties.iter().rev() {
+            let term = RefTerm::new_iri(prop.as_ref()).unwrap();
+            for tt in graph().triples_with_p(&term) {
+                let t = tt.unwrap();
+                let suffix = t.s().value().replace(&config().namespace, "");
+                types.insert(suffix, t.o().value().to_string());
+            }
         }
-    }
-    types
+        types
+    })
 }
 
-lazy_static! {
-    static ref PREFIXES: Vec<(PrefixBox, IriBox)> = prefixes();
-    // Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
-    // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
-    /// Contains the knowledge base.
-    static ref GRAPH: FastGraph = load_graph();
-    static ref NAMESPACE: Namespace<&'static str> = Namespace::new(CONFIG.namespace.as_ref()).unwrap();
-    static ref RDFS_NS: Namespace<&'static str> = Namespace::new("http://www.w3.org/2000/01/rdf-schema#").unwrap();
-    /// Map of RDF resource suffixes to at most one title each. Result of [titles].
-    static ref TITLES: HashMap<String, String> = titles();
-    /// Map of RDF resource suffixes to at most one type URI each. Result of [types].
-    static ref TYPES: HashMap<String, String> = types();
-}
+// Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
+// Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
+/// Contains the knowledge base.
+static GRAPH: OnceLock<FastGraph> = OnceLock::new();
+static PREFIXES: OnceLock<Vec<(PrefixBox, IriBox)>> = OnceLock::new();
+/// Map of RDF resource suffixes to at most one title each.
+static TITLES: OnceLock<HashMap<String, String>> = OnceLock::new();
+/// Map of RDF resource suffixes to at most one type URI each. Result of [types].
+static TYPES: OnceLock<HashMap<String, String>> = OnceLock::new();
+static NAMESPACE: OnceLock<Namespace<&'static str>> = OnceLock::new();
 
-
-#[allow(unused_must_use)]
-pub fn preload() { GRAPH.triples(); }
+fn namespace() -> &'static Namespace<&'static str> { NAMESPACE.get_or_init(|| Namespace::new(config().namespace.as_ref()).unwrap()) }
 
 /// Whether the given resource is in subject or object position.
 enum ConnectionType {
@@ -171,8 +174,8 @@ struct Connection {
 fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connection>, InvalidIri> {
     let source = Piri::from_suffix(suffix);
     let triples = match conn_type {
-        ConnectionType::Direct => GRAPH.triples_with_s(&source.iri),
-        ConnectionType::Inverse => GRAPH.triples_with_o(&source.iri),
+        ConnectionType::Direct => graph().triples_with_s(&source.iri),
+        ConnectionType::Inverse => graph().triples_with_o(&source.iri),
     };
     let mut map: MultiMap<IriBox, String> = MultiMap::new();
     let mut connections: Vec<Connection> = Vec::new();
@@ -193,8 +196,8 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connectio
             },
             Iri(tiri) => {
                 let piri = Piri::from(tiri);
-                let title = if let Some(title) = TITLES.get(&piri.to_string()) { format!("<br><span>&#8618; {title}</span>") } else { "".to_owned() };
-                let target = if piri.to_string().starts_with(&CONFIG.namespace) { "" } else { " target='_blank' " };
+                let title = if let Some(title) = titles().get(&piri.to_string()) { format!("<br><span>&#8618; {title}</span>") } else { "".to_owned() };
+                let target = if piri.to_string().starts_with(&config().namespace) { "" } else { " target='_blank' " };
                 format!("<a href='{}'{}>{}{}</a>", piri.root_relative(), target, piri.prefixed_string(false, true), title)
             }
             _ => target_term.value().to_string(), // BNode, Variable
@@ -212,37 +215,37 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connectio
 #[cfg(feature = "rdfxml")]
 /// Export all triples (s,p,o) for a given subject s as RDF/XML.
 pub fn serialize_rdfxml(suffix: &str) -> String {
-    let iri = NAMESPACE.get(suffix).unwrap();
-    RdfXmlSerializer::new_stringifier().serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
+    let iri = namespace().get(suffix).unwrap();
+    RdfXmlSerializer::new_stringifier().serialize_triples(graph().triples_with_s(&iri)).unwrap().to_string()
 }
 
 /// Export all triples (s,p,o) for a given subject s as RDF Turtle using the config prefixes.
 pub fn serialize_turtle(suffix: &str) -> String {
-    let iri = NAMESPACE.get(suffix).unwrap();
-    let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map((PREFIXES).to_vec());
-    TurtleSerializer::new_stringifier_with_config(config).serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
+    let iri = namespace().get(suffix).unwrap();
+    let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map(prefixes().to_vec());
+    TurtleSerializer::new_stringifier_with_config(config).serialize_triples(graph().triples_with_s(&iri)).unwrap().to_string()
 }
 
 /// Export all triples (s,p,o) for a given subject s as N-Triples.
 pub fn serialize_nt(suffix: &str) -> String {
-    let iri = NAMESPACE.get(suffix).unwrap();
-    NtSerializer::new_stringifier().serialize_triples(GRAPH.triples_with_s(&iri)).unwrap().to_string()
+    let iri = namespace().get(suffix).unwrap();
+    NtSerializer::new_stringifier().serialize_triples(graph().triples_with_s(&iri)).unwrap().to_string()
 }
 
 /// Returns the resource with the given suffix from the configured namespace.
 pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let start = Instant::now();
-    let subject = NAMESPACE.get(suffix).unwrap();
+    let subject = namespace().get(suffix).unwrap();
     let uri = subject.clone().value().to_string();
 
     let all_directs = connections(&ConnectionType::Direct, suffix)?;
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
         cons.iter().filter(|c| key_predicate(&c.prop.value())).map(|c| (c.prop_html.clone(), c.target_htmls.clone())).collect()
     }
-    let mut descriptions = filter(&all_directs, |key| CONFIG.description_properties.contains(key));
-    let notdescriptions = filter(&all_directs, |key| !CONFIG.description_properties.contains(key));
-    let title = TITLES.get(&uri).unwrap_or(&suffix.to_owned()).to_string();
-    let main_type = TYPES.get(suffix).map(|t| t.to_owned());
+    let mut descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
+    let notdescriptions = filter(&all_directs, |key| !config().description_properties.contains(key));
+    let title = titles().get(&uri).unwrap_or(&suffix.to_owned()).to_string();
+    let main_type = types().get(suffix).map(|t| t.to_owned());
     let inverses = filter(&connections(&ConnectionType::Inverse, suffix)?, |_| true);
     if all_directs.is_empty() && inverses.is_empty() {
         let warning = format!("No triples found for {}. Did you configure the namespace correctly?", uri);
@@ -254,7 +257,7 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
         uri,
         duration: format!("{:?}", start.elapsed()),
         title,
-        github_issue_url: CONFIG.github.as_ref().map(|g| format!("{}/issues/new?title={}", g, suffix)),
+        github_issue_url: config().github.as_ref().map(|g| format!("{}/issues/new?title={}", g, suffix)),
         main_type,
         descriptions,
         directs: notdescriptions,

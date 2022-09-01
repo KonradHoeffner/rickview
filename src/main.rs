@@ -1,17 +1,15 @@
+#![feature(once_cell)]
 //! Lightweight and performant RDF browser.
 //! An RDF browser is a web application that *resolves* RDF resources: given the HTTP(s) URL identifying a resource it returns an HTML summary.
 //! Besides HTML, the RDF serialization formats RDF/XML, Turtle and N-Triples are also available using content negotiation.
 //! Default configuration is stored in `data/default.toml`, which can be overriden in `data/config.toml` or environment variables.
 //! Configuration keys are in lower\_snake\_case, while environment variables are prefixed with RICKVIEW\_ and are in SCREAMING\_SNAKE\_CASE.
 /// The main module uses Actix Web to serve resources as HTML and other formats.
-#[macro_use]
-extern crate lazy_static;
-
 mod config;
 mod rdf;
 mod resource;
 
-use crate::config::CONFIG;
+use crate::config::config;
 use actix_web::{get, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use log::{debug, error, info, trace, warn};
 use tinytemplate::TinyTemplate;
@@ -48,7 +46,7 @@ async fn favicon() -> impl Responder { HttpResponse::Ok().content_type("image/x-
 
 #[get("{suffix:.*|}")]
 async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
-    let prefixed = CONFIG.prefix.clone() + ":" + &suffix;
+    let prefixed = config().prefix.clone() + ":" + &suffix;
     match rdf::resource(&suffix) {
         Err(_) => {
             let message = format!("No triples found for resource {}", prefixed);
@@ -97,7 +95,7 @@ async fn resource_html(request: HttpRequest, suffix: web::Path<String>) -> impl 
 
 #[get("/")]
 async fn index() -> impl Responder {
-    match template().render("index", &*CONFIG) {
+    match template().render("index", config()) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
         Err(e) => {
             let message = format!("Could not render index page: {:?}", e);
@@ -112,18 +110,15 @@ async fn main() -> std::io::Result<()> {
     #[cfg(feature = "log")]
     {
         if std::env::var("RUST_LOG").is_err() {
-            std::env::set_var("RUST_LOG", format!("rickview={}", CONFIG.log_level.as_ref().unwrap_or(&"info".to_owned())));
+            std::env::set_var("RUST_LOG", format!("rickview={}", config().log_level.as_ref().unwrap_or(&"info".to_owned())));
         }
         env_logger::builder().format_timestamp(None).format_target(false).init();
     }
-    trace!("{:?}", &*CONFIG);
+    trace!("{:?}", config());
     let server =
-        HttpServer::new(move || App::new().service(web::scope(&CONFIG.base_path).service(css).service(favicon).service(index).service(resource_html)))
-            .bind(("0.0.0.0", CONFIG.port))?
+        HttpServer::new(move || App::new().service(web::scope(&config().base_path).service(css).service(favicon).service(index).service(resource_html)))
+            .bind(("0.0.0.0", config().port))?
             .run();
-    info!("Serving {} at http://localhost:{}{}", CONFIG.namespace, CONFIG.port, CONFIG.base_path);
-    if CONFIG.preload {
-        rdf::preload();
-    }
+    info!("Serving {} at http://localhost:{}{}", config().namespace, config().port, config().base_path);
     server.await
 }
