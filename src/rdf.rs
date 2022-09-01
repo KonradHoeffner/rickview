@@ -110,17 +110,31 @@ fn prefixes() -> &'static Vec<(PrefixBox, IriBox)> {
 
 /// Maps RDF resource URIs to at most one title each, for example "http://example.com/resource/ExampleResource" -> "example resource".
 /// Prioritizes title_properties earlier in the list.
-/// Language tags are not yet used.
 fn titles() -> &'static HashMap<String, String> {
     TITLES.get_or_init(|| {
         // TODO: Use a trie instead of a hash map and measure memory consumption when there is a large enough knowledge bases where it could be worth it.
         // Even better would be &str keys referencing the graph, but that is difficult, see branch reftitles.
+        let mut tagged = MultiMap::<String, (String, String)>::new();
         let mut titles = HashMap::<String, String>::new();
         for prop in config().title_properties.iter().rev() {
             let term = RefTerm::new_iri(prop.as_ref()).unwrap();
             for tt in graph().triples_with_p(&term) {
                 let t = tt.unwrap();
-                titles.insert(t.s().value().to_string(), t.o().value().to_string());
+                if let Literal(lit) = t.o() {
+                    let lang = if let Some(lang) = lit.lang() { lang.to_string() } else { "".to_owned() };
+                    tagged.insert(lang, (t.s().value().to_string(), lit.txt().to_string()));
+                }
+            }
+        }
+        // prioritize language tags listed earlier in config().langs
+        let mut tags: Vec<&String> = tagged.keys().collect();
+        tags.sort_by_cached_key(|tag| config().langs.iter().position(|x| &x == tag).unwrap_or(1000));
+        tags.reverse();
+        for tag in tags {
+            if let Some(v) = tagged.get_vec(tag) {
+            for (uri,title) in v{
+                titles.insert(uri.to_owned(), title.to_owned());
+            }
             }
         }
         titles
