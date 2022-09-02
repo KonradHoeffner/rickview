@@ -4,6 +4,7 @@
 
 A quick RDF viewer (browser).
 Layout copied from LodView.
+See also the unpublished [paper draft](https://github.com/KonradHoeffner/rickview/releases/download/0.0.2/paper.pdf).
 
 ## Install
 
