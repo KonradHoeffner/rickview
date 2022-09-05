@@ -8,7 +8,7 @@ use sophia::{
     graph::{inmem::sync::FastGraph, *},
     iri::{error::InvalidIri, AsIri, Iri, IriBox},
     ns::Namespace,
-    parser::turtle,
+    parser::{nt, turtle},
     prefix::{PrefixBox, PrefixMap},
     serializer::{
         nt::NtSerializer,
@@ -19,7 +19,7 @@ use sophia::{
     term::{RefTerm, TTerm, Term::*},
     triple::{stream::TripleSource, Triple},
 };
-use std::{collections::HashMap, fmt, fs::File, io::BufReader, sync::OnceLock, time::Instant};
+use std::{collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 
@@ -74,14 +74,22 @@ fn graph() -> &'static FastGraph {
                 log::warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
                 turtle::parse_str(EXAMPLE_KB).collect_triples()
             }
-            Some(file) => match File::open(file) {
+            Some(filename) => match File::open(filename) {
                 Err(e) => {
-                    log::error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", file, e);
+                    log::error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", filename, e);
                     std::process::exit(1);
                 }
                 Ok(file) => {
                     let reader = BufReader::new(file);
-                    turtle::parse_bufread(reader).collect_triples()
+                    let triples = match Path::new(&filename).extension().and_then(|p| p.to_str()) {
+                        Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
+                        Some("nt") => nt::parse_bufread(reader).collect_triples(),
+                        x => {
+                            log::error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
+                            std::process::exit(1);
+                        }
+                    };
+                    triples
                 }
             },
         };
@@ -132,9 +140,9 @@ fn titles() -> &'static HashMap<String, String> {
         tags.reverse();
         for tag in tags {
             if let Some(v) = tagged.get_vec(tag) {
-            for (uri,title) in v{
-                titles.insert(uri.to_owned(), title.to_owned());
-            }
+                for (uri, title) in v {
+                    titles.insert(uri.to_owned(), title.to_owned());
+                }
             }
         }
         titles
