@@ -74,7 +74,7 @@ fn graph() -> &'static FastGraph {
                 log::warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
                 turtle::parse_str(EXAMPLE_KB).collect_triples()
             }
-            Some(file) => match File::open(&file) {
+            Some(file) => match File::open(file) {
                 Err(e) => {
                     log::error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", file, e);
                     std::process::exit(1);

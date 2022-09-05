@@ -3,6 +3,7 @@ env:
   NAME: rickview
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
+  RUSTFLAGS: -Dwarnings
 
 name: Release
 on:
