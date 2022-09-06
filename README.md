@@ -80,15 +80,25 @@ Implement a basic RDF browser similar to LodView in Rust with the following goal
 * option to generate static HTML
 
 ## Stats
-All values approximated are are measured on an Intel i9-12900k (16 cores, 24 threads) with 32 GB of DDR5-5200 RAM on Arch Linux, standard kernel 5.18.
+All values are rounded and are measured on an Intel i9-12900k (16 cores, 24 threads) with 32 GB of DDR5-5200 RAM and a Samsung SSD 980 Pro 1 TB on Arch Linux, standard kernel 5.18.
+The qbench2 test URI is <http://www.linkedspending.aksw.org/instance/618ac3ec98384f44a9ef142356ce476d>.
 
 * Linux x86-64 release binary size (strip, fat link time optimization, all features): 4.1 MB
 * Linux x86-64 release binary size (strip, no link time optimization, all features): 5.8 MB
 * Docker image size: 9.7 MB
 * release compile time (strip, fat LTO, all features, cold): 52 s
 * release compile time (strip, no LTO, all features, cold): 19 s
-* RAM consumption (docker stats, HITO knowledge base 1.1 MB, idle): 10 MB
-* RAM consumption (docker stats, HITO knowledge base 1.1 MB, 30s max load): 15 MB
+* RAM consumption (FastGraph, docker stats, HITO knowledge base 1.1 MB, idle): 10 MB
+* RAM consumption (FastGraph, docker stats, HITO knowledge base 1.1 MB, 30s max load): 15 MB
+* RAM consumption (LightGraph, docker stats, qbench2, 16.2 million triples, 3.6 GB N-Triples file): 2.568 GiB
+* RAM consumption (LightGraph, qbench2, normalized): 2.524 GiB
+* RAM consumption (FastGraph, docker stats, qbench2):  4.9 GB
+* graph loading time (FastGraph, qbench2, debug build): 548-552 s
+* graph loading time (FastGraph, qbench2): 47 s
+* graph loading time (LightGraph, qbench2): 40 s
+* HTML page generation time (LightGraph, qbench2): 1.9 s
+* HTML page generation time (FastGraph, qbench2): 6-58 ms
+* Turtle page generation time (FastGraph, qbench2): 6-35 ms
 
 ### Throughput Single Resource, HTML
 There is no page cache but there could still be internal caching benefits so this should be more elaborate in the future.

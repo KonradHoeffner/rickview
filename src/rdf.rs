@@ -1,6 +1,7 @@
 //! Load the RDF graph and summarize RDF resources.
 #![allow(rustdoc::bare_urls)]
 use crate::{config::config, resource::Resource};
+use log::*;
 use multimap::MultiMap;
 #[cfg(feature = "rdfxml")]
 use sophia::serializer::xml::RdfXmlSerializer;
@@ -69,14 +70,15 @@ impl Piri {
 /// Load RDF graph from the RDF Turtle file specified in the config.
 fn graph() -> &'static FastGraph {
     GRAPH.get_or_init(|| {
+        let t = Instant::now();
         let triples = match &config().kb_file {
             None => {
-                log::warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
+                warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
                 turtle::parse_str(EXAMPLE_KB).collect_triples()
             }
             Some(filename) => match File::open(filename) {
                 Err(e) => {
-                    log::error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", filename, e);
+                    error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", filename, e);
                     std::process::exit(1);
                 }
                 Ok(file) => {
@@ -85,7 +87,7 @@ fn graph() -> &'static FastGraph {
                         Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
                         Some("nt") => nt::parse_bufread(reader).collect_triples(),
                         x => {
-                            log::error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
+                            error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
                             std::process::exit(1);
                         }
                     };
@@ -93,14 +95,14 @@ fn graph() -> &'static FastGraph {
                 }
             },
         };
-        let graph: FastGraph = triples.unwrap_or_else(|x| {
-            log::error!("Unable to parse knowledge base {}: {}", &config().kb_file.as_deref().unwrap_or("example"), x);
+        let g: FastGraph = triples.unwrap_or_else(|x| {
+            error!("Unable to parse knowledge base {}: {}", &config().kb_file.as_deref().unwrap_or("example"), x);
             std::process::exit(1);
         });
-        if log::log_enabled!(log::Level::Debug) {
-            log::info!("~ {} triples loaded from {}", graph.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"));
+        if log_enabled!(Level::Debug) {
+            info!("~{} FastGraph triples from {} in {:?}", g.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
         }
-        graph
+        g
     })
 }
 
@@ -271,7 +273,7 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let inverses = filter(&connections(&ConnectionType::Inverse, suffix)?, |_| true);
     if all_directs.is_empty() && inverses.is_empty() {
         let warning = format!("No triples found for {}. Did you configure the namespace correctly?", uri);
-        log::warn!("{warning}");
+        warn!("{warning}");
         descriptions.push(("Warning".to_owned(), vec![warning]));
     }
     Ok(Resource {
