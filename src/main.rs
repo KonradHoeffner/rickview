@@ -12,6 +12,7 @@ mod resource;
 use crate::config::config;
 use actix_web::{get, web, web::scope, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use log::{debug, error, info, trace, warn};
+use std::time::Instant;
 use tinytemplate::TinyTemplate;
 
 static TEMPLATE: &str = std::include_str!("../data/template.html");
@@ -46,6 +47,7 @@ async fn favicon() -> impl Responder { HttpResponse::Ok().content_type("image/x-
 
 #[get("{suffix:.*|}")]
 async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
+    let t = Instant::now();
     let prefixed = config().prefix.clone() + ":" + &suffix;
     match rdf::resource(&suffix) {
         Err(_) => {
@@ -61,7 +63,7 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                         if accept.contains("text/html") {
                             return match template().render("resource", &res) {
                                 Ok(html) => {
-                                    debug!("{} HTML", prefixed);
+                                    debug!("{} HTML {:?}", prefixed, t.elapsed());
                                     HttpResponse::Ok().content_type("text/html; charset-utf-8").body(html)
                                 }
                                 Err(err) => {
@@ -72,22 +74,22 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                             };
                         }
                         if accept.contains("application/n-triples") {
-                            debug!("{} N-Triples", prefixed);
+                            debug!("{} N-Triples {:?}", prefixed, t.elapsed());
                             return HttpResponse::Ok().content_type("application/n-triples").body(rdf::serialize_nt(&suffix));
                         }
                         #[cfg(feature = "rdfxml")]
                         if accept.contains("application/rdf+xml") {
-                            debug!("{} RDF", prefixed);
+                            debug!("{} RDF {:?}", prefixed, t.elapsed());
                             return HttpResponse::Ok().content_type("application/rdf+xml").body(rdf::serialize_rdfxml(&suffix));
                         }
-                        warn!("{} accept header {} not recognized, using default", prefixed, accept);
+                        warn!("{} accept header {} not recognized, using RDF Turtle", prefixed, accept);
                     }
                 }
                 None => {
-                    warn!("{} accept header missing, using default", prefixed);
+                    warn!("{} accept header missing, using RDF Turtle", prefixed);
                 }
             }
-            debug!("{} serve as RDF Turtle", prefixed);
+            debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
             HttpResponse::Ok().content_type("application/turtle").body(rdf::serialize_turtle(&suffix))
         }
     }
