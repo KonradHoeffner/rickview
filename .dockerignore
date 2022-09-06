@@ -1,5 +1,9 @@
 *
 !src
-!data
 !Cargo.toml
 !Cargo.lock
+!data/default.toml
+!data/favicon.ico
+!data/example.ttl
+!data/*.html
+!data/*.css
