@@ -122,6 +122,7 @@ async fn main() -> std::io::Result<()> {
     }
     trace!("{:?}", config());
     info!("Serving {} at http://localhost:{}{}/", config().namespace, config().port, config().base);
+    rdf::graph(); // preload graph 
     HttpServer::new(move || App::new().service(css).service(favicon).service(scope(&config().base).service(index).service(redirect).service(res_html)))
         .bind(("0.0.0.0", config().port))?
         .run()

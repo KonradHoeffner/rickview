@@ -19,6 +19,8 @@ serde = { version = "1", features = ["derive"] }
 config = { version = "0.13", default-features = false, features = ["toml"] }
 log = "0.4"
 env_logger = { version = "0.9", default-features = false, features = ["termcolor", "atty"], optional = true }
+weak-table = "0.3.2"
+fcsd = "0.2.0"
 
 [features]
 default = ["rdfxml", "log"]
@@ -28,5 +30,6 @@ log = ["env_logger"] # ~ 500 kb binary size increase
 [profile.release]
 # see https://fasterthanli.me/articles/why-is-my-rust-build-so-slow
 lto = "thin"
-strip = true
+#strip = true
+debug = true
 incremental = true # disable in CI with CARGO_INCREMENTAL=0

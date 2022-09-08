@@ -6,7 +6,7 @@ use multimap::MultiMap;
 #[cfg(feature = "rdfxml")]
 use sophia::serializer::xml::RdfXmlSerializer;
 use sophia::{
-    graph::{inmem::sync::FastGraph, *},
+    graph::{inmem::sync::LightGraph, *},
     iri::{error::InvalidIri, AsIri, Iri, IriBox},
     ns::Namespace,
     parser::{nt, turtle},
@@ -17,10 +17,17 @@ use sophia::{
         Stringifier, TripleSerializer,
     },
     term,
-    term::{RefTerm, TTerm, Term::*},
+    term::{RefTerm, TTerm, Term::*, iri::Normalization},
     triple::{stream::TripleSource, Triple},
 };
 use std::{collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
+use weak_table::WeakHashSet;
+use std::collections::hash_map::RandomState;
+use std::sync::Weak;
+use sophia::graph::inmem::TermIndexMapU;
+use std::sync::Arc;
+use std::collections::HashSet;
+use fcsd::Set;
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 
@@ -68,7 +75,7 @@ impl Piri {
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
-fn graph() -> &'static FastGraph {
+fn old_graph() -> &'static LightGraph {
     GRAPH.get_or_init(|| {
         let t = Instant::now();
         let triples = match &config().kb_file {
@@ -95,12 +102,86 @@ fn graph() -> &'static FastGraph {
                 }
             },
         };
-        let g: FastGraph = triples.unwrap_or_else(|x| {
+        let g: LightGraph = triples.unwrap_or_else(|x| {
             error!("Unable to parse knowledge base {}: {}", &config().kb_file.as_deref().unwrap_or("example"), x);
             std::process::exit(1);
         });
         if log_enabled!(Level::Debug) {
-            info!("~{} FastGraph triples from {} in {:?}", g.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
+            info!("~{} LightGraph triples from {} in {:?}", g.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
+        }
+        g
+    })
+}
+
+fn foo()
+{
+ let mut whs: WeakHashSet<Weak<Vec<u8>>, RandomState> = WeakHashSet::new();
+ let mut barvec: Vec<String> = Vec::new();
+ for i in 1..10000000 {
+  barvec.push("blablablablablabla".to_owned()+&i.to_string());
+ }
+ let bars: Set = Set::new(barvec).unwrap();
+ for bar in bars.iter() {
+    let x: Arc<Vec<u8>> = Arc::new(bar.1);
+    whs.insert(x);
+ }
+ let mut tim: TermIndexMapU<u32, WeakHashSet<Weak<str>, RandomState>> = TermIndexMapU::new();
+}
+
+// HashGraph<TermIndexMapU<u32, WeakHashSet<Weak<str>, RandomState>>>;
+fn measure(g: &LightGraph) {
+ log::info!("blubb ");
+}
+
+/// Load RDF graph from the RDF Turtle file specified in the config.
+/// Public in case it should be loaded before the first resource access, else the graph will be lazily loaded.
+pub fn graph() -> &'static LightGraph {
+    GRAPH.get_or_init(|| {
+        foo();
+        std::process::exit(0);
+
+        let t = Instant::now();
+        let triples = match &config().kb_file {
+            None => {
+                warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
+                turtle::parse_str(EXAMPLE_KB).collect_triples()
+            }
+            Some(filename) => match File::open(filename) {
+                Err(e) => {
+                    error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", filename, e);
+                    std::process::exit(1);
+                }
+                Ok(file) => {
+                    let reader = BufReader::new(file);
+                    let mut graph = LightGraph::new();
+                    let triples = match Path::new(&filename).extension().and_then(|p| p.to_str()) {
+                        Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
+                        Some("nt") => {
+/*
+                        log::info!("Normalizing URIs");nt::parse_bufread(reader).for_each_triple(|t| {graph.insert(
+            &RefTerm::from(t.s()).normalized(Normalization::LastGenDelim), 
+            &RefTerm::from(t.p()).normalized(Normalization::LastGenDelim), 
+            &RefTerm::from(t.o()).normalized(Normalization::LastGenDelim), 
+        ).unwrap();
+        });
+        */
+        measure(&graph);
+        Ok(graph)},
+                        x => {
+                            error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
+                            std::process::exit(1);
+                        }
+                    };
+                    triples
+                }
+            },
+        };
+        let g: LightGraph = triples.unwrap_or_else(|x| {
+            error!("Unable to parse knowledge base {}: {}", &config().kb_file.as_deref().unwrap_or("example"), x);
+            std::process::exit(1);
+        });
+        if log_enabled!(Level::Debug) {
+            info!("~{} LightGraph triples from {} in {:?}", g.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
         }
         g
     })
@@ -171,7 +252,7 @@ fn types() -> &'static HashMap<String, String> {
 // Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
 // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
 /// Contains the knowledge base.
-static GRAPH: OnceLock<FastGraph> = OnceLock::new();
+static GRAPH: OnceLock<LightGraph> = OnceLock::new();
 static PREFIXES: OnceLock<Vec<(PrefixBox, IriBox)>> = OnceLock::new();
 /// Map of RDF resource suffixes to at most one title each.
 static TITLES: OnceLock<HashMap<String, String>> = OnceLock::new();
