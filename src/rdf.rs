@@ -6,7 +6,7 @@ use multimap::MultiMap;
 #[cfg(feature = "rdfxml")]
 use sophia::serializer::xml::RdfXmlSerializer;
 use sophia::{
-    graph::{inmem::sync::LightGraph, *},
+    graph::{inmem::sync::{LightGraph, FastGraph}, *},
     iri::{error::InvalidIri, AsIri, Iri, IriBox},
     ns::Namespace,
     parser::{nt, turtle},
@@ -28,6 +28,10 @@ use sophia::graph::inmem::TermIndexMapU;
 use std::sync::Arc;
 use std::collections::HashSet;
 use fcsd::Set;
+
+// FastGraph: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
+// Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
+type GraphType = LightGraph;
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 
@@ -75,7 +79,7 @@ impl Piri {
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
-fn old_graph() -> &'static LightGraph {
+fn old_graph() -> &'static GraphType {
     GRAPH.get_or_init(|| {
         let t = Instant::now();
         let triples = match &config().kb_file {
@@ -102,12 +106,12 @@ fn old_graph() -> &'static LightGraph {
                 }
             },
         };
-        let g: LightGraph = triples.unwrap_or_else(|x| {
+        let g: GraphType = triples.unwrap_or_else(|x| {
             error!("Unable to parse knowledge base {}: {}", &config().kb_file.as_deref().unwrap_or("example"), x);
             std::process::exit(1);
         });
         if log_enabled!(Level::Debug) {
-            info!("~{} LightGraph triples from {} in {:?}", g.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
+            info!("~{} triples from {} in {:?}", g.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
         }
         g
     })
@@ -129,13 +133,14 @@ fn foo()
 }
 
 // HashGraph<TermIndexMapU<u32, WeakHashSet<Weak<str>, RandomState>>>;
-fn measure(g: &LightGraph) {
+fn measure(g: &GraphType) {
  log::info!("blubb ");
 }
 
+
 /// Load RDF graph from the RDF Turtle file specified in the config.
 /// Public in case it should be loaded before the first resource access, else the graph will be lazily loaded.
-pub fn graph() -> &'static LightGraph {
+pub fn graph() -> &'static GraphType {
     GRAPH.get_or_init(|| {
         foo();
         std::process::exit(0);
@@ -153,7 +158,8 @@ pub fn graph() -> &'static LightGraph {
                 }
                 Ok(file) => {
                     let reader = BufReader::new(file);
-                    let mut graph = LightGraph::new();
+                    let mut graph = GraphType::new();
+                    measure(&graph);
                     let triples = match Path::new(&filename).extension().and_then(|p| p.to_str()) {
                         Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
                         Some("nt") => {
@@ -165,7 +171,6 @@ pub fn graph() -> &'static LightGraph {
         ).unwrap();
         });
         */
-        measure(&graph);
         Ok(graph)},
                         x => {
                             error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
@@ -176,12 +181,12 @@ pub fn graph() -> &'static LightGraph {
                 }
             },
         };
-        let g: LightGraph = triples.unwrap_or_else(|x| {
+        let g: GraphType = triples.unwrap_or_else(|x| {
             error!("Unable to parse knowledge base {}: {}", &config().kb_file.as_deref().unwrap_or("example"), x);
             std::process::exit(1);
         });
         if log_enabled!(Level::Debug) {
-            info!("~{} LightGraph triples from {} in {:?}", g.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
+            info!("~{} triples from {} in {:?}", g.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
         }
         g
     })
@@ -249,10 +254,8 @@ fn types() -> &'static HashMap<String, String> {
     })
 }
 
-// Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
-// Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
 /// Contains the knowledge base.
-static GRAPH: OnceLock<LightGraph> = OnceLock::new();
+static GRAPH: OnceLock<GraphType> = OnceLock::new();
 static PREFIXES: OnceLock<Vec<(PrefixBox, IriBox)>> = OnceLock::new();
 /// Map of RDF resource suffixes to at most one title each.
 static TITLES: OnceLock<HashMap<String, String>> = OnceLock::new();
