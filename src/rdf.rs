@@ -21,13 +21,6 @@ use sophia::{
     triple::{stream::TripleSource, Triple},
 };
 use std::{collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
-use weak_table::WeakHashSet;
-use std::collections::hash_map::RandomState;
-use std::sync::Weak;
-use sophia::graph::inmem::TermIndexMapU;
-use std::sync::Arc;
-use std::collections::HashSet;
-use fcsd::Set;
 
 // FastGraph: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
 // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
@@ -117,32 +110,12 @@ fn old_graph() -> &'static GraphType {
     })
 }
 
-fn foo()
-{
- let mut whs: WeakHashSet<Weak<Vec<u8>>, RandomState> = WeakHashSet::new();
- let mut barvec: Vec<String> = Vec::new();
- for i in 1..10000000 {
-  barvec.push("blablablablablabla".to_owned()+&i.to_string());
- }
- let bars: Set = Set::new(barvec).unwrap();
- for bar in bars.iter() {
-    let x: Arc<Vec<u8>> = Arc::new(bar.1);
-    whs.insert(x);
- }
- let mut tim: TermIndexMapU<u32, WeakHashSet<Weak<str>, RandomState>> = TermIndexMapU::new();
-}
-
-// HashGraph<TermIndexMapU<u32, WeakHashSet<Weak<str>, RandomState>>>;
-fn measure(g: &GraphType) {
- log::info!("blubb ");
-}
-
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
 /// Public in case it should be loaded before the first resource access, else the graph will be lazily loaded.
 pub fn graph() -> &'static GraphType {
     GRAPH.get_or_init(|| {
-        foo();
+        //foo();
         std::process::exit(0);
 
         let t = Instant::now();
@@ -159,7 +132,7 @@ pub fn graph() -> &'static GraphType {
                 Ok(file) => {
                     let reader = BufReader::new(file);
                     let mut graph = GraphType::new();
-                    measure(&graph);
+                    //measure(&graph);
                     let triples = match Path::new(&filename).extension().and_then(|p| p.to_str()) {
                         Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
                         Some("nt") => {

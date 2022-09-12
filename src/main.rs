@@ -8,6 +8,7 @@
 mod config;
 mod rdf;
 mod resource;
+mod small_graph;
 
 use crate::config::config;
 use actix_web::{get, web, web::scope, App, HttpRequest, HttpResponse, HttpServer, Responder};
