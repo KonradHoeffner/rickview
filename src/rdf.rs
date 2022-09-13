@@ -6,7 +6,10 @@ use multimap::MultiMap;
 #[cfg(feature = "rdfxml")]
 use sophia::serializer::xml::RdfXmlSerializer;
 use sophia::{
-    graph::{inmem::sync::{LightGraph, FastGraph}, *},
+    graph::{
+        inmem::sync::{FastGraph, LightGraph},
+        *,
+    },
     iri::{error::InvalidIri, AsIri, Iri, IriBox},
     ns::Namespace,
     parser::{nt, turtle},
@@ -17,10 +20,12 @@ use sophia::{
         Stringifier, TripleSerializer,
     },
     term,
-    term::{RefTerm, TTerm, Term::*, iri::Normalization},
+    term::{iri::Normalization, RefTerm, TTerm, Term::*},
     triple::{stream::TripleSource, Triple},
 };
 use std::{collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
+use terminus_store::{store::sync::*, store::*, *};
+use tokio::runtime::Runtime;
 
 // FastGraph: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
 // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
@@ -110,13 +115,11 @@ fn old_graph() -> &'static GraphType {
     })
 }
 
-
 /// Load RDF graph from the RDF Turtle file specified in the config.
 /// Public in case it should be loaded before the first resource access, else the graph will be lazily loaded.
 pub fn graph() -> &'static GraphType {
     GRAPH.get_or_init(|| {
         //foo();
-        std::process::exit(0);
 
         let t = Instant::now();
         let triples = match &config().kb_file {
@@ -132,19 +135,40 @@ pub fn graph() -> &'static GraphType {
                 Ok(file) => {
                     let reader = BufReader::new(file);
                     let mut graph = GraphType::new();
+
                     //measure(&graph);
                     let triples = match Path::new(&filename).extension().and_then(|p| p.to_str()) {
                         Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
                         Some("nt") => {
-/*
-                        log::info!("Normalizing URIs");nt::parse_bufread(reader).for_each_triple(|t| {graph.insert(
-            &RefTerm::from(t.s()).normalized(Normalization::LastGenDelim), 
-            &RefTerm::from(t.p()).normalized(Normalization::LastGenDelim), 
-            &RefTerm::from(t.o()).normalized(Normalization::LastGenDelim), 
-        ).unwrap();
-        });
-        */
-        Ok(graph)},
+                            log::info!("Normalizing URIs");
+                            let thread = std::thread::spawn(move || {
+                                let store = open_sync_memory_store();
+                                let tgraph = store.create("test").unwrap();
+                                let builder = match tgraph.head().unwrap() {
+                                    Some(layer) => layer.open_write().unwrap(),
+                                    None => store.create_base_layer().unwrap(),
+                                };
+                                (builder,tgraph)
+                            });
+                            let (builder, tgraph) = thread.join().unwrap();
+                            nt::parse_bufread(reader).for_each_triple(|t| {
+                                graph
+                                    .insert(
+                                        &RefTerm::from(t.s()).normalized(Normalization::LastGenDelim),
+                                        &RefTerm::from(t.p()).normalized(Normalization::LastGenDelim),
+                                        &RefTerm::from(t.o()).normalized(Normalization::LastGenDelim),
+                                    )
+                                    .unwrap();
+                                let triple = StringTriple::new_value(&t.s().value(), &t.p().value(), &t.o().value());
+                                builder.add_string_triple(triple);
+                            });
+                            std::thread::spawn(move || {
+                            let layer = builder.commit().unwrap();
+                            tgraph.set_head(&layer);
+                            }).join();
+                            Ok(graph)
+                        }
+
                         x => {
                             error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
                             std::process::exit(1);

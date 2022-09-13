@@ -21,6 +21,8 @@ log = "0.4"
 env_logger = { version = "0.9", default-features = false, features = ["termcolor", "atty"], optional = true }
 weak-table = "0.3.2"
 fcsd = "0.2.0"
+terminus-store = "0.19.9"
+tokio = "1.21.1"
 
 [features]
 default = ["rdfxml", "log"]

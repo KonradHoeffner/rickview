@@ -1,4 +1,5 @@
 #![feature(once_cell)]
+#![feature(async_closure)]
 //! Lightweight and performant RDF browser.
 //! An RDF browser is a web application that *resolves* RDF resources: given the HTTP(s) URL identifying a resource it returns an HTML summary.
 //! Besides HTML, the RDF serialization formats RDF/XML, Turtle and N-Triples are also available using content negotiation.
@@ -8,7 +9,7 @@
 mod config;
 mod rdf;
 mod resource;
-mod small_graph;
+//mod small_graph;
 
 use crate::config::config;
 use actix_web::{get, web, web::scope, App, HttpRequest, HttpResponse, HttpServer, Responder};
@@ -123,7 +124,7 @@ async fn main() -> std::io::Result<()> {
     }
     trace!("{:?}", config());
     info!("Serving {} at http://localhost:{}{}/", config().namespace, config().port, config().base);
-    rdf::graph(); // preload graph 
+    rdf::graph(); // preload graph
     HttpServer::new(move || App::new().service(css).service(favicon).service(scope(&config().base).service(index).service(redirect).service(res_html)))
         .bind(("0.0.0.0", config().port))?
         .run()
