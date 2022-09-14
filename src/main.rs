@@ -75,6 +75,7 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                                 }
                             };
                         }
+                        /*
                         if accept.contains("application/n-triples") {
                             debug!("{} N-Triples {:?}", prefixed, t.elapsed());
                             return HttpResponse::Ok().content_type("application/n-triples").body(rdf::serialize_nt(&suffix));
@@ -84,6 +85,7 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                             debug!("{} RDF {:?}", prefixed, t.elapsed());
                             return HttpResponse::Ok().content_type("application/rdf+xml").body(rdf::serialize_rdfxml(&suffix));
                         }
+                        */
                         warn!("{} accept header {} not recognized, using RDF Turtle", prefixed, accept);
                     }
                 }
@@ -92,7 +94,8 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                 }
             }
             debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
-            HttpResponse::Ok().content_type("application/turtle").body(rdf::serialize_turtle(&suffix))
+            //HttpResponse::Ok().content_type("application/turtle").body(rdf::serialize_turtle(&suffix))
+            HttpResponse::Ok().body("test")
         }
     }
 }

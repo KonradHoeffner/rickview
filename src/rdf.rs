@@ -27,10 +27,6 @@ use std::{collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::
 use terminus_store::{store::sync::*, store::*, *};
 use tokio::runtime::Runtime;
 
-// FastGraph: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
-// Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
-type GraphType = LightGraph;
-
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 
 fn get_prefixed_pair(iri: &Iri) -> Option<(String, String)> {
@@ -77,115 +73,37 @@ impl Piri {
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
-fn old_graph() -> &'static GraphType {
-    GRAPH.get_or_init(|| {
-        let t = Instant::now();
-        let triples = match &config().kb_file {
-            None => {
-                warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
-                turtle::parse_str(EXAMPLE_KB).collect_triples()
-            }
-            Some(filename) => match File::open(filename) {
-                Err(e) => {
-                    error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", filename, e);
-                    std::process::exit(1);
-                }
-                Ok(file) => {
-                    let reader = BufReader::new(file);
-                    let triples = match Path::new(&filename).extension().and_then(|p| p.to_str()) {
-                        Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
-                        Some("nt") => nt::parse_bufread(reader).collect_triples(),
-                        x => {
-                            error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
-                            std::process::exit(1);
-                        }
-                    };
-                    triples
-                }
-            },
-        };
-        let g: GraphType = triples.unwrap_or_else(|x| {
-            error!("Unable to parse knowledge base {}: {}", &config().kb_file.as_deref().unwrap_or("example"), x);
-            std::process::exit(1);
-        });
-        if log_enabled!(Level::Debug) {
-            info!("~{} triples from {} in {:?}", g.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
-        }
-        g
-    })
-}
-
-/// Load RDF graph from the RDF Turtle file specified in the config.
 /// Public in case it should be loaded before the first resource access, else the graph will be lazily loaded.
-pub fn graph() -> &'static GraphType {
-    GRAPH.get_or_init(|| {
-        //foo();
+pub fn graph() -> &'static SyncStoreLayer {
+    GRAPH.get_or_init(|| match File::open(&config().kb_file.as_ref().unwrap()) {
+        Ok(file) => {
+            let reader = BufReader::new(file);
 
-        let t = Instant::now();
-        let triples = match &config().kb_file {
-            None => {
-                warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
-                turtle::parse_str(EXAMPLE_KB).collect_triples()
-            }
-            Some(filename) => match File::open(filename) {
-                Err(e) => {
-                    error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", filename, e);
-                    std::process::exit(1);
-                }
-                Ok(file) => {
-                    let reader = BufReader::new(file);
-                    let mut graph = GraphType::new();
-
-                    //measure(&graph);
-                    let triples = match Path::new(&filename).extension().and_then(|p| p.to_str()) {
-                        Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
-                        Some("nt") => {
-                            log::info!("Normalizing URIs");
-                            let thread = std::thread::spawn(move || {
-                                let store = open_sync_memory_store();
-                                let tgraph = store.create("test").unwrap();
-                                let builder = match tgraph.head().unwrap() {
-                                    Some(layer) => layer.open_write().unwrap(),
-                                    None => store.create_base_layer().unwrap(),
-                                };
-                                (builder,tgraph)
-                            });
-                            let (builder, tgraph) = thread.join().unwrap();
-                            nt::parse_bufread(reader).for_each_triple(|t| {
-                                graph
-                                    .insert(
-                                        &RefTerm::from(t.s()).normalized(Normalization::LastGenDelim),
-                                        &RefTerm::from(t.p()).normalized(Normalization::LastGenDelim),
-                                        &RefTerm::from(t.o()).normalized(Normalization::LastGenDelim),
-                                    )
-                                    .unwrap();
-                                let triple = StringTriple::new_value(&t.s().value(), &t.p().value(), &t.o().value());
-                                builder.add_string_triple(triple);
-                            });
-                            std::thread::spawn(move || {
-                            let layer = builder.commit().unwrap();
-                            tgraph.set_head(&layer);
-                            }).join();
-                            Ok(graph)
-                        }
-
-                        x => {
-                            error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
-                            std::process::exit(1);
-                        }
-                    };
-                    triples
-                }
-            },
-        };
-        let g: GraphType = triples.unwrap_or_else(|x| {
-            error!("Unable to parse knowledge base {}: {}", &config().kb_file.as_deref().unwrap_or("example"), x);
-            std::process::exit(1);
-        });
-        if log_enabled!(Level::Debug) {
-            info!("~{} triples from {} in {:?}", g.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
+            log::info!("Normalizing URIs");
+            return std::thread::spawn(move || {
+                let store = open_sync_memory_store();
+                let tgraph = store.create("test").unwrap();
+                let builder = match tgraph.head().unwrap() {
+                    Some(layer) => layer.open_write().unwrap(),
+                    None => store.create_base_layer().unwrap(),
+                };
+                nt::parse_bufread(reader).for_each_triple(|t| {
+                    let triple = StringTriple::new_value(&t.s().value(), &t.p().value(), &t.o().value());
+                    builder.add_string_triple(triple);
+                    });
+                    let layer = builder.commit().unwrap();
+                    tgraph.set_head(&layer);
+                    log::info!("finished loading");
+                    layer
+                })
+            .join()
+            .unwrap();
         }
-        g
+        Err(e) => {
+            error!("Cannot open knowledge base: {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", e);
+            std::process::exit(1);
+            panic!();
+        }
     })
 }
 
@@ -209,6 +127,7 @@ fn titles() -> &'static HashMap<String, String> {
         // Even better would be &str keys referencing the graph, but that is difficult, see branch reftitles.
         let mut tagged = MultiMap::<String, (String, String)>::new();
         let mut titles = HashMap::<String, String>::new();
+        /*
         for prop in config().title_properties.iter().rev() {
             let term = RefTerm::new_iri(prop.as_ref()).unwrap();
             for tt in graph().triples_with_p(&term) {
@@ -230,6 +149,7 @@ fn titles() -> &'static HashMap<String, String> {
                 }
             }
         }
+        */
         titles
     })
 }
@@ -239,6 +159,7 @@ fn titles() -> &'static HashMap<String, String> {
 fn types() -> &'static HashMap<String, String> {
     TYPES.get_or_init(|| {
         let mut types = HashMap::<String, String>::new();
+        /*
         for prop in config().type_properties.iter().rev() {
             let term = RefTerm::new_iri(prop.as_ref()).unwrap();
             for tt in graph().triples_with_p(&term) {
@@ -247,12 +168,13 @@ fn types() -> &'static HashMap<String, String> {
                 types.insert(suffix, t.o().value().to_string());
             }
         }
+        */
         types
     })
 }
 
 /// Contains the knowledge base.
-static GRAPH: OnceLock<GraphType> = OnceLock::new();
+static GRAPH: OnceLock<SyncStoreLayer> = OnceLock::new();
 static PREFIXES: OnceLock<Vec<(PrefixBox, IriBox)>> = OnceLock::new();
 /// Map of RDF resource suffixes to at most one title each.
 static TITLES: OnceLock<HashMap<String, String>> = OnceLock::new();
@@ -277,13 +199,16 @@ struct Connection {
 
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
 fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connection>, InvalidIri> {
+    /*
     let source = Piri::from_suffix(suffix);
     let triples = match conn_type {
         ConnectionType::Direct => graph().triples_with_s(&source.iri),
         ConnectionType::Inverse => graph().triples_with_o(&source.iri),
     };
     let mut map: MultiMap<IriBox, String> = MultiMap::new();
+    */
     let mut connections: Vec<Connection> = Vec::new();
+    /*
     for res in triples {
         let triple = res.unwrap();
         let target_term = match conn_type {
@@ -314,9 +239,11 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connectio
     for (prop, values) in map.into_iter() {
         connections.push(Connection { prop: prop.to_owned(), prop_html: Piri::new(prop).property_anchor(), target_htmls: values.to_vec() });
     }
+    */
     Ok(connections)
 }
 
+/*
 #[cfg(feature = "rdfxml")]
 /// Export all triples (s,p,o) for a given subject s as RDF/XML.
 pub fn serialize_rdfxml(suffix: &str) -> String {
@@ -336,6 +263,7 @@ pub fn serialize_nt(suffix: &str) -> String {
     let iri = namespace().get(suffix).unwrap();
     NtSerializer::new_stringifier().serialize_triples(graph().triples_with_s(&iri)).unwrap().to_string()
 }
+*/
 
 /// Returns the resource with the given suffix from the configured namespace.
 pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
