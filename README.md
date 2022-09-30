@@ -6,46 +6,24 @@ A quick RDF viewer (browser).
 Layout copied from LodView.
 See also the unpublished [paper draft](https://github.com/KonradHoeffner/rickview/releases/download/0.0.2/paper.pdf).
 
-## Install
-
-### Precompiled Binaries
-Download the binary from the [latest release](https://github.com/konradhoeffner/rickview/releases/latest) and run `rickview`.
-If you need binaries for a different platform than Linux amd64, [let me know](https://github.com/konradhoeffner/rickview/issues/new).
-
-### Compile it yourself
-Alternatively, you can compile it for your own platform with `cargo install rickview`.
-Or you can clone [the repository](https://github.com/konradhoeffner/rickview) and then `cargo build`.
-This requires you to install [Rust including Cargo](https://www.rust-lang.org/tools/install).
-I recommend installing Rust via `rustup`, especially on Ubuntu, because `apt install cargo` may install an old version and not work correctly with RickView.
-On Arch Linux however, both `pacman -S rustup` and `pacman -S rust` worked in my testing as the Rust package was much more current and does not require a separate step of choosing between stable and unstable rust.
-
-## Configure
-Default configuration is stored in `data/default.toml`, which you can override with a custom `data/config.toml` or environment variables.
-Configuration keys are in lower\_snake\_case, while environment variables are prefixed with RICKVIEW\_ and are in SCREAMING\_SNAKE\_CASE.
-For example, `namespace = "http://hitontology.eu/ontology/"` in `config.toml` is equivalent to `RICKVIEW_NAMESPACE=http://hitontology.eu/ontology/` as an environment variable.
-You need to provide a knowledge base in RDF Turtle format, whose default path is `data/kb.ttl`.
-If you don't, RickView will show a minimal example knowledge base.
-Compile and run with `cargo run` and then open <http://localhost:8080> in your browser.
-
 ## Docker
-Clone [the repository](https://github.com/konradhoeffner/rickview) and then:
 
-    docker build . -t rickview
-    docker run --mount "type=bind,src=$PWD/data/kb.ttl,target=/app/data/kb.ttl"  --network="host" rickview
+Try it out with the example knowledge base:
 
-Prebuild Docker images may be available in the future.
+    docker run -p 8080:8080 ghcr.io/konradhoeffner/rickview
 
-## Docker Compose Example
+### Docker Compose Example
 
     services:
-      ontology:
-        build: ./ontology
+      ontology: # if you need a separate build step, otherwise remove this service and use a bind mount
+        build: ./ontology # merge all Turtle files into one
         volumes:
           - rdf:/ontology/dist
       rickview:
         build: ./rickview
         environment:
           - RICKVIEW_KB_FILE=/rdf/hito.ttl
+          - RICKVIEW_NAMESPACE=http://hitontology/ontology/
           - RICKVIEW_BASE_PATH=/ontology
           - RICKVIEW_TITLE=HITO
           - RICKVIEW_SUBTITLE=Health IT Ontology
@@ -60,10 +38,29 @@ Prebuild Docker images may be available in the future.
           - "127.0.0.1:8104:8080"
         restart: unless-stopped
 
+## Precompiled Binaries
+Download the binary from the [latest release](https://github.com/konradhoeffner/rickview/releases/latest) and run `rickview`.
+If you need binaries for a different platform than Linux amd64, [let me know](https://github.com/konradhoeffner/rickview/issues/new).
+
+## Compile it yourself
+Alternatively, you can compile it for your own platform with `cargo install rickview`.
+Or you can clone [the repository](https://github.com/konradhoeffner/rickview) and then `cargo build`.
+This requires you to install [Rust including Cargo](https://www.rust-lang.org/tools/install).
+I recommend installing Rust via `rustup`, especially on Ubuntu, because `apt install cargo` may install an old version and not work correctly with RickView.
+On Arch Linux however, both `pacman -S rustup` and `pacman -S rust` worked in my testing as the Rust package was much more current and does not require a separate step of choosing between stable and unstable rust.
+
+## Configure
+Default configuration is stored in `data/default.toml`, which you can override with a custom `data/config.toml` or environment variables.
+Configuration keys are in lower\_snake\_case, while environment variables are prefixed with RICKVIEW\_ and are in SCREAMING\_SNAKE\_CASE.
+For example, `namespace = "http://hitontology.eu/ontology/"` in `config.toml` is equivalent to `RICKVIEW_NAMESPACE=http://hitontology.eu/ontology/` as an environment variable.
+You need to provide a knowledge base in RDF Turtle format, whose default path is `data/kb.ttl`.
+If you don't, RickView will show a minimal example knowledge base.
+Compile and run with `cargo run` and then open <http://localhost:8080> in your browser.
+
 ## Logging
 The default log level is "info" for RickView and "error" for libraries.
-Change the log level of RickView with the log_level configuration key or the RICKVIEW_LOG_LEVEL environment variable.
-Override this setting using the RUST_LOG env var to configure the log levels of dependencies, see the [env_logger documentation](https://docs.rs/env_logger/latest/env_logger/), for example:
+Change the log level of RickView with the `log_level` configuration key or the `RICKVIEW_LOG_LEVEL` environment variable.
+Override this setting using the `RUST_LOG` env var to configure the log levels of dependencies, see the [env\_logger documentation](https://docs.rs/env_logger/latest/env_logger/), for example:
 
     RUST_LOG=rickview=debug cargo run
 
