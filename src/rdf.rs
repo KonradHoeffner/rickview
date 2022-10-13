@@ -86,6 +86,11 @@ fn graph() -> &'static FastGraph {
                     let triples = match Path::new(&filename).extension().and_then(|p| p.to_str()) {
                         Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
                         Some("nt") => nt::parse_bufread(reader).collect_triples(),
+                        // error: returns HdtGraph but FastGraph expected, use trait object
+                        #[cfg(feature = "hdt")]
+                        Some("hdt") => {
+                            return hdt::HdtGraph::new(hdt::Hdt::new(file).unwrap());
+                        }
                         x => {
                             error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
                             std::process::exit(1);
