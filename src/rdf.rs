@@ -21,6 +21,7 @@ use sophia::{
     triple::{stream::TripleSource, Triple},
 };
 use std::{collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
+use sophia::term::SimpleIri;
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 
@@ -67,8 +68,32 @@ impl Piri {
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
 }
 
+// Graph cannot be made into a trait object, see https://github.com/pchampin/sophia_rs/issues/122
+// enum is cumbersome but we don't have a choice
+enum GraphEnum {
+    FastGraph,
+}
+
+impl GraphEnum {
+    pub fn triples_with_s(&self, iri: &SimpleIri) -> Vec<String> {
+        match self {
+            GraphEnum::FastGraph(g) => g.triples_with_s(iri),
+        }
+    }
+    pub fn triples_with_p(&self, iri: &SimpleIri) -> Vec<String> {
+        match self {
+            GraphEnum::FastGraph(g) => g.triples_with_p(iri),
+        }
+    }
+    pub fn triples_with_o(&self, iri: &SimpleIri) -> Vec<String> {
+        match self {
+            GraphEnum::FastGraph(g) => g.triples_with_o(iri),
+        }
+    }
+}
+
 /// Load RDF graph from the RDF Turtle file specified in the config.
-fn graph() -> &'static FastGraph {
+fn graph() -> GraphEnum {
     GRAPH.get_or_init(|| {
         let t = Instant::now();
         let triples = match &config().kb_file {
@@ -87,10 +112,10 @@ fn graph() -> &'static FastGraph {
                         Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
                         Some("nt") => nt::parse_bufread(reader).collect_triples(),
                         // error: returns HdtGraph but FastGraph expected, use trait object
-                        #[cfg(feature = "hdt")]
+                        /*#[cfg(feature = "hdt")]
                         Some("hdt") => {
                             return hdt::HdtGraph::new(hdt::Hdt::new(file).unwrap());
-                        }
+                        }*/
                         x => {
                             error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
                             std::process::exit(1);
@@ -107,7 +132,7 @@ fn graph() -> &'static FastGraph {
         if log_enabled!(Level::Debug) {
             info!("~{} FastGraph triples from {} in {:?}", g.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
         }
-        g
+        GraphEnum::FastGraph(g)
     })
 }
 
