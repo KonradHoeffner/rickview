@@ -1,6 +1,8 @@
 //! Load the RDF graph and summarize RDF resources.
 #![allow(rustdoc::bare_urls)]
 use crate::{config::config, resource::Resource};
+#[cfg(feature = "hdt")]
+use hdt::HdtGraph;
 use log::*;
 use multimap::MultiMap;
 #[cfg(feature = "rdfxml")]
@@ -17,14 +19,10 @@ use sophia::{
         Stringifier, TripleSerializer,
     },
     term,
-    term::{Term,RefTerm, TTerm, Term::*},
+    term::{RefTerm, TTerm, Term, Term::*},
     triple::{stream::TripleSource, Triple},
 };
 use std::{collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
-use sophia::term::SimpleIri;
-use std::convert::Infallible;
-use std::sync::Arc;
-use sophia::triple::streaming_mode::StreamedTriple;
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 
@@ -75,6 +73,8 @@ impl Piri {
 // enum is cumbersome but we don't have a choice
 enum GraphEnum {
     FastGraph(FastGraph),
+    #[cfg(feature = "hdt")]
+    HdtGraph(HdtGraph),
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
@@ -92,15 +92,15 @@ fn graph() -> &'static GraphEnum {
                     std::process::exit(1);
                 }
                 Ok(file) => {
-                    let reader = BufReader::new(file);
+                    let reader = BufReader::new(&file);
                     let triples = match Path::new(&filename).extension().and_then(|p| p.to_str()) {
                         Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
                         Some("nt") => nt::parse_bufread(reader).collect_triples(),
                         // error: returns HdtGraph but FastGraph expected, use trait object
-                        /*#[cfg(feature = "hdt")]
+                        #[cfg(feature = "hdt")]
                         Some("hdt") => {
-                            return hdt::HdtGraph::new(hdt::Hdt::new(file).unwrap());
-                        }*/
+                            return GraphEnum::HdtGraph(hdt::HdtGraph::new(hdt::Hdt::new(file).unwrap()));
+                        }
                         x => {
                             error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
                             std::process::exit(1);
@@ -135,7 +135,15 @@ fn prefixes() -> &'static Vec<(PrefixBox, IriBox)> {
 
 /// Maps RDF resource URIs to at most one title each, for example "http://example.com/resource/ExampleResource" -> "example resource".
 /// Prioritizes title_properties earlier in the list.
-fn titles<G: Graph>(g: G) -> &'static HashMap<String, String> {
+/// Code duplication due to Rusts type system, Sophia Graph cannot be used as a trait object.
+fn titles() -> &'static HashMap<String, String> {
+    match graph() {
+        GraphEnum::FastGraph(g) => titles_generic(g),
+        #[cfg(feature = "hdt")]
+        GraphEnum::HdtGraph(g) => titles_generic(g),
+    }
+}
+fn titles_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
     TITLES.get_or_init(|| {
         // TODO: Use a trie instead of a hash map and measure memory consumption when there is a large enough knowledge bases where it could be worth it.
         // Even better would be &str keys referencing the graph, but that is difficult, see branch reftitles.
@@ -145,7 +153,7 @@ fn titles<G: Graph>(g: G) -> &'static HashMap<String, String> {
             let term = RefTerm::new_iri(prop.as_ref()).unwrap();
             for tt in g.triples_with_p(&term) {
                 let t = tt.unwrap();
-                if let Literal(lit) = t.o() {
+                if let Literal(lit) = Term::<&str>::from(t.o()) {
                     let lang = if let Some(lang) = lit.lang() { lang.to_string() } else { "".to_owned() };
                     tagged.insert(lang, (t.s().value().to_string(), lit.txt().to_string()));
                 }
@@ -168,7 +176,14 @@ fn titles<G: Graph>(g: G) -> &'static HashMap<String, String> {
 
 /// Maps RDF resource suffixes to at most one type URI each, for example "ExampleResource" -> "http://example.com/resource/ExampleClass".
 /// Prioritizes type_properties earlier in the list.
-fn types<G: Graph>(g: G) -> &'static HashMap<String, String> {
+fn types() -> &'static HashMap<String, String> {
+    match graph() {
+        GraphEnum::FastGraph(g) => types_generic(g),
+        #[cfg(feature = "hdt")]
+        GraphEnum::HdtGraph(g) => types_generic(g),
+    }
+}
+fn types_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
     TYPES.get_or_init(|| {
         let mut types = HashMap::<String, String>::new();
         for prop in config().type_properties.iter().rev() {
@@ -210,7 +225,14 @@ struct Connection {
 }
 
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
-fn connections<G: Graph>(g: G, conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connection>, InvalidIri> {
+fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connection>, InvalidIri> {
+    match graph() {
+        GraphEnum::FastGraph(g) => connections_generic(g, conn_type, suffix),
+        #[cfg(feature = "hdt")]
+        GraphEnum::HdtGraph(g) => connections_generic(g, conn_type, suffix),
+    }
+}
+fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connection>, InvalidIri> {
     let source = Piri::from_suffix(suffix);
     let triples = match conn_type {
         ConnectionType::Direct => g.triples_with_s(&source.iri),
@@ -224,7 +246,7 @@ fn connections<G: Graph>(g: G, conn_type: &ConnectionType, suffix: &str) -> Resu
             ConnectionType::Direct => triple.o(),
             ConnectionType::Inverse => triple.s(),
         };
-        let target_html = match target_term {
+        let target_html = match Term::<_>::from(target_term) {
             Literal(lit) => match lit.lang() {
                 Some(lang) => {
                     format!("{} @{}", lit.txt(), lang)
@@ -234,14 +256,14 @@ fn connections<G: Graph>(g: G, conn_type: &ConnectionType, suffix: &str) -> Resu
                 }
             },
             Iri(tiri) => {
-                let piri = Piri::from(tiri);
+                let piri = Piri::from(&tiri);
                 let title = if let Some(title) = titles().get(&piri.to_string()) { format!("<br><span>&#8618; {title}</span>") } else { "".to_owned() };
                 let target = if piri.to_string().starts_with(&config().namespace) { "" } else { " target='_blank' " };
                 format!("<a href='{}'{}>{}{}</a>", piri.root_relative(), target, piri.prefixed_string(false, true), title)
             }
             _ => target_term.value().to_string(), // BNode, Variable
         };
-        if let Iri(iri) = triple.p() {
+        if let Iri(iri) = Term::<_>::from(triple.p()) {
             map.insert(IriBox::new_unchecked(iri.value().into()), target_html);
         }
     }
@@ -253,20 +275,42 @@ fn connections<G: Graph>(g: G, conn_type: &ConnectionType, suffix: &str) -> Resu
 
 #[cfg(feature = "rdfxml")]
 /// Export all triples (s,p,o) for a given subject s as RDF/XML.
-pub fn serialize_rdfxml<G: Graph>(g: G, suffix: &str) -> String {
+pub fn serialize_rdfxml(suffix: &str) -> String {
+    match graph() {
+        GraphEnum::FastGraph(g) => serialize_rdfxml_generic(g, suffix),
+        #[cfg(feature = "hdt")]
+        GraphEnum::HdtGraph(g) => serialize_rdfxml_generic(g, suffix),
+    }
+}
+#[cfg(feature = "rdfxml")]
+pub fn serialize_rdfxml_generic<G: Graph>(g: &G, suffix: &str) -> String {
     let iri = namespace().get(suffix).unwrap();
     RdfXmlSerializer::new_stringifier().serialize_triples(g.triples_with_s(&iri)).unwrap().to_string()
 }
 
 /// Export all triples (s,p,o) for a given subject s as RDF Turtle using the config prefixes.
-pub fn serialize_turtle<G: Graph>(g: G, suffix: &str) -> String {
+pub fn serialize_turtle(suffix: &str) -> String {
+    match graph() {
+        GraphEnum::FastGraph(g) => serialize_turtle_generic(g, suffix),
+        #[cfg(feature = "hdt")]
+        GraphEnum::HdtGraph(g) => serialize_turtle_generic(g, suffix),
+    }
+}
+fn serialize_turtle_generic<G: Graph>(g: &G, suffix: &str) -> String {
     let iri = namespace().get(suffix).unwrap();
     let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map(prefixes().to_vec());
     TurtleSerializer::new_stringifier_with_config(config).serialize_triples(g.triples_with_s(&iri)).unwrap().to_string()
 }
 
 /// Export all triples (s,p,o) for a given subject s as N-Triples.
-pub fn serialize_nt<G: Graph>(g: G, suffix: &str) -> String {
+pub fn serialize_nt(suffix: &str) -> String {
+    match graph() {
+        GraphEnum::FastGraph(g) => serialize_nt_generic(g, suffix),
+        #[cfg(feature = "hdt")]
+        GraphEnum::HdtGraph(g) => serialize_nt_generic(g, suffix),
+    }
+}
+fn serialize_nt_generic<G: Graph>(g: &G, suffix: &str) -> String {
     let iri = namespace().get(suffix).unwrap();
     NtSerializer::new_stringifier().serialize_triples(g.triples_with_s(&iri)).unwrap().to_string()
 }
