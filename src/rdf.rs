@@ -77,26 +77,6 @@ enum GraphEnum {
     FastGraph(FastGraph),
 }
 
-type Triples<'a> = Box<dyn Iterator<Item = Result<StreamedTriple<'a, sophia::triple::streaming_mode::ByTermRefs<Term<Arc<str>>>>, Infallible>>>;
-
-impl GraphEnum {
-    pub fn triples_with_s<TS>(&self, iri: &SimpleIri) -> Triples  where  TS: TTerm + ?Sized{
-        match self {
-            GraphEnum::FastGraph(g) => g.triples_with_s(iri),
-        }
-    }
-    pub fn triples_with_p<TP>(&self, iri: &SimpleIri) -> Triples {
-        match self {
-            GraphEnum::FastGraph(g) => g.triples_with_p(iri),
-        }
-    }
-    pub fn triples_with_o<TO>(&self, iri: &SimpleIri) -> Triples {
-        match self {
-            GraphEnum::FastGraph(g) => g.triples_with_o(iri),
-        }
-    }
-}
-
 /// Load RDF graph from the RDF Turtle file specified in the config.
 fn graph() -> &'static GraphEnum {
     GRAPH.get_or_init(|| {
@@ -155,7 +135,7 @@ fn prefixes() -> &'static Vec<(PrefixBox, IriBox)> {
 
 /// Maps RDF resource URIs to at most one title each, for example "http://example.com/resource/ExampleResource" -> "example resource".
 /// Prioritizes title_properties earlier in the list.
-fn titles() -> &'static HashMap<String, String> {
+fn titles<G: Graph>(g: G) -> &'static HashMap<String, String> {
     TITLES.get_or_init(|| {
         // TODO: Use a trie instead of a hash map and measure memory consumption when there is a large enough knowledge bases where it could be worth it.
         // Even better would be &str keys referencing the graph, but that is difficult, see branch reftitles.
@@ -163,7 +143,7 @@ fn titles() -> &'static HashMap<String, String> {
         let mut titles = HashMap::<String, String>::new();
         for prop in config().title_properties.iter().rev() {
             let term = RefTerm::new_iri(prop.as_ref()).unwrap();
-            for tt in graph().triples_with_p(&term) {
+            for tt in g.triples_with_p(&term) {
                 let t = tt.unwrap();
                 if let Literal(lit) = t.o() {
                     let lang = if let Some(lang) = lit.lang() { lang.to_string() } else { "".to_owned() };
@@ -188,12 +168,12 @@ fn titles() -> &'static HashMap<String, String> {
 
 /// Maps RDF resource suffixes to at most one type URI each, for example "ExampleResource" -> "http://example.com/resource/ExampleClass".
 /// Prioritizes type_properties earlier in the list.
-fn types() -> &'static HashMap<String, String> {
+fn types<G: Graph>(g: G) -> &'static HashMap<String, String> {
     TYPES.get_or_init(|| {
         let mut types = HashMap::<String, String>::new();
         for prop in config().type_properties.iter().rev() {
             let term = RefTerm::new_iri(prop.as_ref()).unwrap();
-            for tt in graph().triples_with_p(&term) {
+            for tt in g.triples_with_p(&term) {
                 let t = tt.unwrap();
                 let suffix = t.s().value().replace(&config().namespace, "");
                 types.insert(suffix, t.o().value().to_string());
@@ -230,11 +210,11 @@ struct Connection {
 }
 
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
-fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connection>, InvalidIri> {
+fn connections<G: Graph>(g: G, conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connection>, InvalidIri> {
     let source = Piri::from_suffix(suffix);
     let triples = match conn_type {
-        ConnectionType::Direct => graph().triples_with_s(&source.iri),
-        ConnectionType::Inverse => graph().triples_with_o(&source.iri),
+        ConnectionType::Direct => g.triples_with_s(&source.iri),
+        ConnectionType::Inverse => g.triples_with_o(&source.iri),
     };
     let mut map: MultiMap<IriBox, String> = MultiMap::new();
     let mut connections: Vec<Connection> = Vec::new();
@@ -273,22 +253,22 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connectio
 
 #[cfg(feature = "rdfxml")]
 /// Export all triples (s,p,o) for a given subject s as RDF/XML.
-pub fn serialize_rdfxml(suffix: &str) -> String {
+pub fn serialize_rdfxml<G: Graph>(g: G, suffix: &str) -> String {
     let iri = namespace().get(suffix).unwrap();
-    RdfXmlSerializer::new_stringifier().serialize_triples(graph().triples_with_s(&iri)).unwrap().to_string()
+    RdfXmlSerializer::new_stringifier().serialize_triples(g.triples_with_s(&iri)).unwrap().to_string()
 }
 
 /// Export all triples (s,p,o) for a given subject s as RDF Turtle using the config prefixes.
-pub fn serialize_turtle(suffix: &str) -> String {
+pub fn serialize_turtle<G: Graph>(g: G, suffix: &str) -> String {
     let iri = namespace().get(suffix).unwrap();
     let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map(prefixes().to_vec());
-    TurtleSerializer::new_stringifier_with_config(config).serialize_triples(graph().triples_with_s(&iri)).unwrap().to_string()
+    TurtleSerializer::new_stringifier_with_config(config).serialize_triples(g.triples_with_s(&iri)).unwrap().to_string()
 }
 
 /// Export all triples (s,p,o) for a given subject s as N-Triples.
-pub fn serialize_nt(suffix: &str) -> String {
+pub fn serialize_nt<G: Graph>(g: G, suffix: &str) -> String {
     let iri = namespace().get(suffix).unwrap();
-    NtSerializer::new_stringifier().serialize_triples(graph().triples_with_s(&iri)).unwrap().to_string()
+    NtSerializer::new_stringifier().serialize_triples(g.triples_with_s(&iri)).unwrap().to_string()
 }
 
 /// Returns the resource with the given suffix from the configured namespace.
