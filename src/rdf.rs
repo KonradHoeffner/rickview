@@ -17,11 +17,14 @@ use sophia::{
         Stringifier, TripleSerializer,
     },
     term,
-    term::{RefTerm, TTerm, Term::*},
+    term::{Term,RefTerm, TTerm, Term::*},
     triple::{stream::TripleSource, Triple},
 };
 use std::{collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
 use sophia::term::SimpleIri;
+use std::convert::Infallible;
+use std::sync::Arc;
+use sophia::triple::streaming_mode::StreamedTriple;
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 
@@ -71,21 +74,23 @@ impl Piri {
 // Graph cannot be made into a trait object, see https://github.com/pchampin/sophia_rs/issues/122
 // enum is cumbersome but we don't have a choice
 enum GraphEnum {
-    FastGraph,
+    FastGraph(FastGraph),
 }
 
+type Triples<'a> = Box<dyn Iterator<Item = Result<StreamedTriple<'a, sophia::triple::streaming_mode::ByTermRefs<Term<Arc<str>>>>, Infallible>>>;
+
 impl GraphEnum {
-    pub fn triples_with_s(&self, iri: &SimpleIri) -> Vec<String> {
+    pub fn triples_with_s<TS>(&self, iri: &SimpleIri) -> Triples  where  TS: TTerm + ?Sized{
         match self {
             GraphEnum::FastGraph(g) => g.triples_with_s(iri),
         }
     }
-    pub fn triples_with_p(&self, iri: &SimpleIri) -> Vec<String> {
+    pub fn triples_with_p<TP>(&self, iri: &SimpleIri) -> Triples {
         match self {
             GraphEnum::FastGraph(g) => g.triples_with_p(iri),
         }
     }
-    pub fn triples_with_o(&self, iri: &SimpleIri) -> Vec<String> {
+    pub fn triples_with_o<TO>(&self, iri: &SimpleIri) -> Triples {
         match self {
             GraphEnum::FastGraph(g) => g.triples_with_o(iri),
         }
@@ -93,7 +98,7 @@ impl GraphEnum {
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
-fn graph() -> GraphEnum {
+fn graph() -> &'static GraphEnum {
     GRAPH.get_or_init(|| {
         let t = Instant::now();
         let triples = match &config().kb_file {
@@ -201,7 +206,7 @@ fn types() -> &'static HashMap<String, String> {
 // Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
 // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
 /// Contains the knowledge base.
-static GRAPH: OnceLock<FastGraph> = OnceLock::new();
+static GRAPH: OnceLock<GraphEnum> = OnceLock::new();
 static PREFIXES: OnceLock<Vec<(PrefixBox, IriBox)>> = OnceLock::new();
 /// Map of RDF resource suffixes to at most one title each.
 static TITLES: OnceLock<HashMap<String, String>> = OnceLock::new();
