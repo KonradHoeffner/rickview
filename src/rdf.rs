@@ -329,7 +329,10 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let notdescriptions = filter(&all_directs, |key| !config().description_properties.contains(key));
     let title = titles().get(&uri).unwrap_or(&suffix.to_owned()).to_string();
     let main_type = types().get(suffix).map(|t| t.to_owned());
-    let inverses = filter(&connections(&ConnectionType::Inverse, suffix)?, |_| true);
+    let inverses = match config().show_inverse {
+        true => filter(&connections(&ConnectionType::Inverse, suffix)?, |_| true),
+        false => Vec::new(),
+    };
     if all_directs.is_empty() && inverses.is_empty() {
         let warning = format!("No triples found for {}. Did you configure the namespace correctly?", uri);
         warn!("{warning}");

@@ -21,6 +21,8 @@ pub struct Config {
     pub langs: Vec<String>,
     pub homepage: Option<String>,
     pub endpoint: Option<String>,
+    /// Show inverse triples, which use the given URI as object instead of subject. May be slow on very large kbs.
+    pub show_inverse: bool,
     /// When false, knowledge base will only be loaded on first resource (non-index) access.
     pub doc: Option<String>,
     pub log_level: Option<String>,
