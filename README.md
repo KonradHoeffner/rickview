@@ -53,7 +53,7 @@ On Arch Linux however, both `pacman -S rustup` and `pacman -S rust` worked in my
 Default configuration is stored in `data/default.toml`, which you can override with a custom `data/config.toml` or environment variables.
 Configuration keys are in lower\_snake\_case, while environment variables are prefixed with RICKVIEW\_ and are in SCREAMING\_SNAKE\_CASE.
 For example, `namespace = "http://hitontology.eu/ontology/"` in `config.toml` is equivalent to `RICKVIEW_NAMESPACE=http://hitontology.eu/ontology/` as an environment variable.
-You need to provide a knowledge base in RDF Turtle format, whose default path is `data/kb.ttl`.
+You need to provide a knowledge base in RDF Turtle or HDT format, whose default path is `data/kb.ttl`.
 If you don't, RickView will show a minimal example knowledge base.
 Compile and run with `cargo run` and then open <http://localhost:8080> in your browser.
 

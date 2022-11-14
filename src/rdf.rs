@@ -99,7 +99,7 @@ fn graph() -> &'static GraphEnum {
                         // error: returns HdtGraph but FastGraph expected, use trait object
                         #[cfg(feature = "hdt")]
                         Some("hdt") => {
-                            return GraphEnum::HdtGraph(hdt::HdtGraph::new(hdt::Hdt::new(file).unwrap()));
+                            return GraphEnum::HdtGraph(hdt::HdtGraph::new(hdt::Hdt::new(BufReader::new(file)).unwrap()));
                         }
                         x => {
                             error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
