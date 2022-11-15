@@ -25,6 +25,7 @@ use sophia::{
 use std::{collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
+static CAP: usize = 100; // maximum number of values shown per property
 
 fn get_prefixed_pair(iri: &Iri) -> Option<(String, String)> {
     let (p, s) = prefixes().get_prefixed_pair(iri)?;
@@ -69,8 +70,9 @@ impl Piri {
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
 }
 
-// Graph cannot be made into a trait object, see https://github.com/pchampin/sophia_rs/issues/122
-// enum is cumbersome but we don't have a choice
+// Graph cannot be made into a trait object as of Rust 1.67 and Sophia 0.7, see https://github.com/pchampin/sophia_rs/issues/122.
+// Enum is cumbersome but we don't have a choice.
+// There may be a more elegant way in future Rust and Sophia versions.
 enum GraphEnum {
     FastGraph(FastGraph),
     #[cfg(feature = "hdt")]
@@ -232,6 +234,7 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connectio
         GraphEnum::HdtGraph(g) => connections_generic(g, conn_type, suffix),
     }
 }
+
 fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connection>, InvalidIri> {
     let source = Piri::from_suffix(suffix);
     let triples = match conn_type {
@@ -268,7 +271,12 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str
         }
     }
     for (prop, values) in map.into_iter() {
-        connections.push(Connection { prop: prop.to_owned(), prop_html: Piri::new(prop).property_anchor(), target_htmls: values.to_vec() });
+        let len = values.len();
+        let mut target_htmls: Vec<String> = values.into_iter().take(CAP).collect();
+        if len > CAP {
+            target_htmls.push("...".to_string());
+        }
+        connections.push(Connection { prop: prop.to_owned(), prop_html: Piri::new(prop).property_anchor(), target_htmls });
     }
     Ok(connections)
 }
@@ -347,7 +355,6 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
         main_type,
         descriptions,
         directs: notdescriptions,
-        //inverses: connections(&ConnectionType::Inverse, suffix)?,
         inverses,
     })
 }
