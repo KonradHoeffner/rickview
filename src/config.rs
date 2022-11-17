@@ -26,6 +26,7 @@ pub struct Config {
     /// When false, knowledge base will only be loaded on first resource (non-index) access.
     pub doc: Option<String>,
     pub log_level: Option<String>,
+    pub cargo_pkg_version: String,
 }
 
 static DEFAULT: &str = std::include_str!("../data/default.toml");
@@ -33,6 +34,7 @@ static DEFAULT: &str = std::include_str!("../data/default.toml");
 impl Config {
     pub fn new() -> Result<Self, ConfigError> {
         let mut config: Config = config::Config::builder()
+            .add_source(Environment::default())
             .add_source(File::from_str(DEFAULT, FileFormat::Toml))
             .add_source(File::new("data/config.toml", FileFormat::Toml).required(false))
             .add_source(

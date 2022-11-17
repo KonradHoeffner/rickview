@@ -163,11 +163,9 @@ footer {
 
 #download {
   float: left;
-  margin-bottom: 30px;
 }
 
-#download a#linkGit {
-  margin-top: 20px;
+.uppercase {
   display: block;
   font-size: 11px;
   text-transform: uppercase;
