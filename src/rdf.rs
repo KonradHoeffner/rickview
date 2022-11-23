@@ -73,6 +73,7 @@ impl Piri {
 // Graph cannot be made into a trait object as of Rust 1.67 and Sophia 0.7, see https://github.com/pchampin/sophia_rs/issues/122.
 // Enum is cumbersome but we don't have a choice.
 // There may be a more elegant way in future Rust and Sophia versions.
+#[allow(clippy::large_enum_variant)]
 enum GraphEnum {
     FastGraph(FastGraph),
     #[cfg(feature = "hdt")]
