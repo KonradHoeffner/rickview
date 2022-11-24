@@ -1,8 +1,6 @@
 //! Load the RDF graph and summarize RDF resources.
 #![allow(rustdoc::bare_urls)]
 use crate::{config::config, resource::Resource};
-#[cfg(feature = "deepsize")]
-use deepsize::DeepSizeOf;
 #[cfg(feature = "hdt")]
 use hdt::HdtGraph;
 use log::*;
@@ -76,14 +74,14 @@ impl Piri {
 // Enum is cumbersome but we don't have a choice.
 // There may be a more elegant way in future Rust and Sophia versions.
 #[allow(clippy::large_enum_variant)]
-enum GraphEnum {
+pub enum GraphEnum {
     FastGraph(FastGraph),
     #[cfg(feature = "hdt")]
     HdtGraph(HdtGraph),
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
-fn graph() -> &'static GraphEnum {
+pub fn graph() -> &'static GraphEnum {
     GRAPH.get_or_init(|| {
         let t = Instant::now();
         let triples = match &config().kb_file {
@@ -141,7 +139,7 @@ fn prefixes() -> &'static Vec<(PrefixBox, IriBox)> {
 /// Maps RDF resource URIs to at most one title each, for example `http://example.com/resource/ExampleResource` -> "example resource".
 /// Prioritizes `title_properties` earlier in the list.
 /// Code duplication due to Rusts type system, Sophia Graph cannot be used as a trait object.
-fn titles() -> &'static HashMap<String, String> {
+pub fn titles() -> &'static HashMap<String, String> {
     match graph() {
         GraphEnum::FastGraph(g) => titles_generic(g),
         #[cfg(feature = "hdt")]
@@ -176,15 +174,13 @@ fn titles_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
                 }
             }
         }
-        #[cfg(all(feature = "deepsize", feature = "log"))]
-        info!("title index {} entries {} B", titles.len(), titles.deep_size_of());
         titles
     })
 }
 
 /// Maps RDF resource suffixes to at most one type URI each, for example "`ExampleResource`" -> `http://example.com/resource/ExampleClass`.
 /// Prioritizes `type_properties` earlier in the list.
-fn types() -> &'static HashMap<String, String> {
+pub fn types() -> &'static HashMap<String, String> {
     match graph() {
         GraphEnum::FastGraph(g) => types_generic(g),
         #[cfg(feature = "hdt")]
@@ -202,8 +198,6 @@ fn types_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
                 types.insert(suffix, t.o().value().to_string());
             }
         }
-        #[cfg(all(feature = "deepsize", feature = "log"))]
-        info!("type index {} entries {} B", types.len(), types.deep_size_of());
         types
     })
 }

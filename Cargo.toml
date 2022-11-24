@@ -19,15 +19,15 @@ serde = { version = "1", features = ["derive"] }
 config = { version = "0.13", default-features = false, features = ["toml"] }
 log = "0.4"
 env_logger = { version = "0.9", default-features = false, features = ["termcolor", "atty"], optional = true }
-hdt = {version = "0.0.3", optional = true }
-deepsize = { version = "0.2.0", optional = true, default-features = false, features = ["std"] }
+hdt = {version = "0.0.4", optional = true }
+deepsize = { version = "0.2.0", default-features = false, features = ["std"] }
+bytesize = "1.1.0"
 
 [features]
-default = ["rdfxml", "log", "hdt" ]
+default = ["rdfxml", "log", "hdt"]
 rdfxml = ["sophia/xml"] # ~ 300kb binary size increase
 log = ["env_logger"] # ~ 500 kb binary size increase
 hdt = ["dep:hdt"]
-deepsize = ["dep:deepsize"]
 
 [profile.release]
 # see https://fasterthanli.me/articles/why-is-my-rust-build-so-slow

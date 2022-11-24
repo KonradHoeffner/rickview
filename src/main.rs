@@ -9,12 +9,14 @@
 //! Besides HTML, the RDF serialization formats RDF/XML, Turtle and N-Triples are also available using content negotiation.
 //! Default configuration is stored in `data/default.toml`, which can be overriden in `data/config.toml` or environment variables.
 //! Configuration keys are in `lower\_snake\_ca`se, while environment variables are prefixed with RICKVIEW\_ and are `in SCREAMING\_SNAKE\`_CASE.
+mod about;
 /// The main module uses Actix Web to serve resources as HTML and other formats.
 mod config;
 mod rdf;
 mod resource;
 
 use crate::config::config;
+use about::About;
 use actix_web::{get, web, web::scope, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use log::{debug, error, info, trace, warn};
 use std::time::Instant;
@@ -24,11 +26,13 @@ static TEMPLATE: &str = std::include_str!("../data/template.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
 static CSS: &str = std::include_str!("../data/rickview.css");
 static INDEX: &str = std::include_str!("../data/index.html");
+static ABOUT: &str = std::include_str!("../data/about.html");
 
 fn template() -> TinyTemplate<'static> {
     let mut tt = TinyTemplate::new();
     tt.add_template("resource", TEMPLATE).expect("Could not parse default resource template");
     tt.add_template("index", INDEX).expect("Could not parse default template");
+    tt.add_template("about", ABOUT).expect("Could not parse about template");
     tt.add_formatter("uri_to_suffix", |json, output| {
         let o = || -> Option<String> {
             let s = json.as_str().unwrap_or_else(|| panic!("JSON value is not a string: {json}"));
@@ -112,6 +116,18 @@ async fn index() -> impl Responder {
     }
 }
 
+#[get("/about")]
+async fn about_page() -> impl Responder {
+    match template().render("about", &About::new()) {
+        Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
+        Err(e) => {
+            let message = format!("Could not render about page: {e:?}");
+            error!("{}", message);
+            HttpResponse::InternalServerError().body(message)
+        }
+    }
+}
+
 // redirect /base to correct index page /base/
 #[get("")]
 async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append_header(("location", config().base.clone() + "/")).finish() }
@@ -127,8 +143,10 @@ async fn main() -> std::io::Result<()> {
     }
     trace!("{:?}", config());
     info!("Serving {} at http://localhost:{}{}/", config().namespace, config().port, config().base);
-    HttpServer::new(move || App::new().service(css).service(favicon).service(scope(&config().base).service(index).service(redirect).service(res_html)))
-        .bind(("0.0.0.0", config().port))?
-        .run()
-        .await
+    HttpServer::new(move || {
+        App::new().service(css).service(favicon).service(scope(&config().base).service(index).service(about_page).service(redirect).service(res_html))
+    })
+    .bind(("0.0.0.0", config().port))?
+    .run()
+    .await
 }
