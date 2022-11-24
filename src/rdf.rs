@@ -1,6 +1,8 @@
 //! Load the RDF graph and summarize RDF resources.
 #![allow(rustdoc::bare_urls)]
 use crate::{config::config, resource::Resource};
+#[cfg(feature = "deepsize")]
+use deepsize::DeepSizeOf;
 #[cfg(feature = "hdt")]
 use hdt::HdtGraph;
 use log::*;
@@ -150,6 +152,7 @@ fn titles_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
     TITLES.get_or_init(|| {
         // TODO: Use a trie instead of a hash map and measure memory consumption when there is a large enough knowledge bases where it could be worth it.
         // Even better would be &str keys referencing the graph, but that is difficult, see branch reftitles.
+        // str keys referencing the graph wouldn't even work with HDT Graph, because strings are stored in compressed form there
         let mut tagged = MultiMap::<String, (String, String)>::new();
         let mut titles = HashMap::<String, String>::new();
         for prop in config().title_properties.iter().rev() {
@@ -173,6 +176,8 @@ fn titles_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
                 }
             }
         }
+        #[cfg(all(feature = "deepsize", feature = "log"))]
+        info!("title index {} entries {} B", titles.len(), titles.deep_size_of());
         titles
     })
 }
@@ -197,6 +202,8 @@ fn types_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
                 types.insert(suffix, t.o().value().to_string());
             }
         }
+        #[cfg(all(feature = "deepsize", feature = "log"))]
+        info!("type index {} entries {} B", types.len(), types.deep_size_of());
         types
     })
 }
