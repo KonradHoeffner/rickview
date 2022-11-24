@@ -1,9 +1,14 @@
+#![warn(clippy::pedantic)]
+#![allow(clippy::wildcard_imports)]
+#![allow(clippy::enum_glob_use)]
+#![allow(clippy::unused_async)]
+#![allow(clippy::similar_names)]
 #![feature(once_cell)]
 //! Lightweight and performant RDF browser.
 //! An RDF browser is a web application that *resolves* RDF resources: given the HTTP(s) URL identifying a resource it returns an HTML summary.
 //! Besides HTML, the RDF serialization formats RDF/XML, Turtle and N-Triples are also available using content negotiation.
 //! Default configuration is stored in `data/default.toml`, which can be overriden in `data/config.toml` or environment variables.
-//! Configuration keys are in lower\_snake\_case, while environment variables are prefixed with RICKVIEW\_ and are in SCREAMING\_SNAKE\_CASE.
+//! Configuration keys are in `lower\_snake\_ca`se, while environment variables are prefixed with RICKVIEW\_ and are `in SCREAMING\_SNAKE\`_CASE.
 /// The main module uses Actix Web to serve resources as HTML and other formats.
 mod config;
 mod rdf;
@@ -26,8 +31,8 @@ fn template() -> TinyTemplate<'static> {
     tt.add_template("index", INDEX).expect("Could not parse default template");
     tt.add_formatter("uri_to_suffix", |json, output| {
         let o = || -> Option<String> {
-            let s = json.as_str().unwrap_or_else(|| panic!("JSON value is not a string: {}", json));
-            let mut s = s.rsplit_once('/').unwrap_or_else(|| panic!("no '/' in URI '{}'", s)).1;
+            let s = json.as_str().unwrap_or_else(|| panic!("JSON value is not a string: {json}"));
+            let mut s = s.rsplit_once('/').unwrap_or_else(|| panic!("no '/' in URI '{s}'")).1;
             if s.contains('#') {
                 s = s.rsplit_once('#')?.1;
             }
@@ -51,7 +56,7 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
     let prefixed = config().prefix.clone() + ":" + &suffix;
     match rdf::resource(&suffix) {
         Err(_) => {
-            let message = format!("No triples found for resource {}", prefixed);
+            let message = format!("No triples found for resource {prefixed}");
             warn!("{}", message);
             HttpResponse::NotFound().content_type("text/plain").body(message)
         }
@@ -67,7 +72,7 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                                     HttpResponse::Ok().content_type("text/html; charset-utf-8").body(html)
                                 }
                                 Err(err) => {
-                                    let message = format!("Internal server error. Could not render resource {}:\n{}.", prefixed, err);
+                                    let message = format!("Internal server error. Could not render resource {prefixed}:\n{err}.");
                                     error!("{}", message);
                                     HttpResponse::InternalServerError().body(message)
                                 }
@@ -100,7 +105,7 @@ async fn index() -> impl Responder {
     match template().render("index", config()) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
         Err(e) => {
-            let message = format!("Could not render index page: {:?}", e);
+            let message = format!("Could not render index page: {e:?}");
             error!("{}", message);
             HttpResponse::InternalServerError().body(message)
         }
@@ -109,7 +114,7 @@ async fn index() -> impl Responder {
 
 // redirect /base to correct index page /base/
 #[get("")]
-async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append_header(("location", config().base.to_owned() + "/")).finish() }
+async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append_header(("location", config().base.clone() + "/")).finish() }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
