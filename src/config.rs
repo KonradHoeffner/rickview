@@ -30,11 +30,11 @@ pub struct Config {
 }
 
 static DEFAULT: &str = std::include_str!("../data/default.toml");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 impl Config {
     pub fn new() -> Result<Self, ConfigError> {
         let mut config: Config = config::Config::builder()
-            .add_source(Environment::default())
             .add_source(File::from_str(DEFAULT, FileFormat::Toml))
             .add_source(File::new("data/config.toml", FileFormat::Toml).required(false))
             .add_source(
@@ -45,6 +45,7 @@ impl Config {
                     .with_list_parse_key("title_properties")
                     .with_list_parse_key("type_properties"),
             )
+            .set_override("cargo_pkg_version", VERSION)?
             .build()?
             .try_deserialize()?;
         if config.base.ends_with('/') {
