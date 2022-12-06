@@ -23,6 +23,7 @@ use sophia::{
     triple::{stream::TripleSource, Triple},
 };
 use std::{collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
+use zstd::stream::read::Decoder;
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 static CAP: usize = 100; // maximum number of values shown per property
@@ -101,6 +102,11 @@ pub fn graph() -> &'static GraphEnum {
                         Some("nt") => nt::parse_bufread(reader).collect_triples(),
                         // error: returns HdtGraph but FastGraph expected, use trait object
                         #[cfg(feature = "hdt")]
+                        Some("zst") if filename.ends_with("hdt.zst") => {
+                            let decoder = Decoder::with_buffer(BufReader::new(file)).expect("Error creating zstd decoder.");
+                            let hdt = hdt::Hdt::new(BufReader::new(decoder)).expect("Error loading HDT.");
+                            return GraphEnum::HdtGraph(hdt::HdtGraph::new(hdt));
+                        }
                         Some("hdt") => {
                             return GraphEnum::HdtGraph(hdt::HdtGraph::new(hdt::Hdt::new(BufReader::new(file)).unwrap()));
                         }
