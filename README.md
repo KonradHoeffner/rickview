@@ -55,6 +55,7 @@ Configuration keys are in lower\_snake\_case, while environment variables are pr
 For example, `namespace = "http://hitontology.eu/ontology/"` in `config.toml` is equivalent to `RICKVIEW_NAMESPACE=http://hitontology.eu/ontology/` as an environment variable.
 You need to provide a knowledge base in RDF Turtle or HDT format, whose default path is `data/kb.ttl`.
 If you don't, RickView will show a minimal example knowledge base.
+You can add custom HTML to the index page by adding a `data/body.html` file.
 Compile and run with `cargo run` and then open <http://localhost:8080> in your browser.
 
 ## Logging

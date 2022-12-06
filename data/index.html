@@ -25,7 +25,7 @@
         </div>
         <aside class="empty"></aside>
         <div id="directs">
-          {{ if body }}{ body | unescaped }{{ endif }}
+          {{ if body }}<div id="custom">{ body | unescaped }</div>{{ endif }}
           See also:
           <ul>
             {{ if homepage }}<li><a href="{homepage}">Homepage</a></li>{{ endif }}
