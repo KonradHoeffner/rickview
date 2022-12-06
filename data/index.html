@@ -25,11 +25,12 @@
         </div>
         <aside class="empty"></aside>
         <div id="directs">
+          {{ if body }}{ body | unescaped }{{ endif }}
           See also:
           <ul>
-            {{if homepage}}<li><a href="{homepage}">Homepage</a></li>{{ endif }}
-			{{if endpoint}}<li><a href="{endpoint}">SPARQL Endpoint</a></li>{{ endif }}
-			{{if doc}}<li><a href="{doc}">Documentation</a></li>{{ endif }}
+            {{ if homepage }}<li><a href="{homepage}">Homepage</a></li>{{ endif }}
+			{{ if endpoint }}<li><a href="{endpoint}">SPARQL Endpoint</a></li>{{ endif }}
+			{{ if doc }}<li><a href="{doc}">Documentation</a></li>{{ endif }}
           </ul>
         </div>
       </header>

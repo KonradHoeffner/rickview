@@ -22,7 +22,7 @@ use log::{debug, error, info, trace, warn};
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
 
-static TEMPLATE: &str = std::include_str!("../data/template.html");
+static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
 static CSS: &str = std::include_str!("../data/rickview.css");
 static INDEX: &str = std::include_str!("../data/index.html");
@@ -30,9 +30,9 @@ static ABOUT: &str = std::include_str!("../data/about.html");
 
 fn template() -> TinyTemplate<'static> {
     let mut tt = TinyTemplate::new();
-    tt.add_template("resource", TEMPLATE).expect("Could not parse default resource template");
-    tt.add_template("index", INDEX).expect("Could not parse default template");
-    tt.add_template("about", ABOUT).expect("Could not parse about template");
+    tt.add_template("resource", RESOURCE).expect("Could not parse resource page template");
+    tt.add_template("index", INDEX).expect("Could not parse index page template");
+    tt.add_template("about", ABOUT).expect("Could not parse about page template");
     tt.add_formatter("uri_to_suffix", |json, output| {
         let o = || -> Option<String> {
             let s = json.as_str().unwrap_or_else(|| panic!("JSON value is not a string: {json}"));
@@ -134,13 +134,6 @@ async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    #[cfg(feature = "log")]
-    {
-        if std::env::var("RUST_LOG").is_err() {
-            std::env::set_var("RUST_LOG", format!("rickview={}", config().log_level.as_ref().unwrap_or(&"info".to_owned())));
-        }
-        env_logger::builder().format_timestamp(None).format_target(false).init();
-    }
     trace!("{:?}", config());
     info!("Serving {} at http://localhost:{}{}/", config().namespace, config().port, config().base);
     HttpServer::new(move || {
