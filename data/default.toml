@@ -13,6 +13,7 @@ subtitle = "You have successfully installed RickView but not configured a knowle
 # error, warn, info, debug, trace
 log_level = "info"
 show_inverse = true
+large = false
 [namespaces]
 rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 rdfs = "http://www.w3.org/2000/01/rdf-schema#"

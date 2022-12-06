@@ -31,6 +31,8 @@ pub struct Config {
     pub cargo_pkg_version: String,
     /// if data/body.html is present, it is inserted into index.html on rendering
     pub body: Option<String>,
+    /// disable memory and CPU intensive preprocessing on large knowledge bases
+    pub large: bool,
 }
 
 // path relative to source file

@@ -159,24 +159,26 @@ fn titles_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
         // str keys referencing the graph wouldn't even work with HDT Graph, because strings are stored in compressed form there
         let mut tagged = MultiMap::<String, (String, String)>::new();
         let mut titles = HashMap::<String, String>::new();
-        for prop in config().title_properties.iter().rev() {
-            let term = RefTerm::new_iri(prop.as_ref()).unwrap();
-            for tt in g.triples_with_p(&term) {
-                let t = tt.unwrap();
-                if let Literal(lit) = Term::<&str>::from(t.o()) {
-                    let lang = if let Some(lang) = lit.lang() { (*lang).to_string() } else { String::new() };
-                    tagged.insert(lang, (t.s().value().to_string(), (*lit.txt()).to_string()));
+        if !config().large {
+            for prop in config().title_properties.iter().rev() {
+                let term = RefTerm::new_iri(prop.as_ref()).unwrap();
+                for tt in g.triples_with_p(&term) {
+                    let t = tt.unwrap();
+                    if let Literal(lit) = Term::<&str>::from(t.o()) {
+                        let lang = if let Some(lang) = lit.lang() { (*lang).to_string() } else { String::new() };
+                        tagged.insert(lang, (t.s().value().to_string(), (*lit.txt()).to_string()));
+                    }
                 }
             }
-        }
-        // prioritize language tags listed earlier in config().langs
-        let mut tags: Vec<&String> = tagged.keys().collect();
-        tags.sort_by_cached_key(|tag| config().langs.iter().position(|x| &x == tag).unwrap_or(1000));
-        tags.reverse();
-        for tag in tags {
-            if let Some(v) = tagged.get_vec(tag) {
-                for (uri, title) in v {
-                    titles.insert(uri.clone(), title.clone());
+            // prioritize language tags listed earlier in config().langs
+            let mut tags: Vec<&String> = tagged.keys().collect();
+            tags.sort_by_cached_key(|tag| config().langs.iter().position(|x| &x == tag).unwrap_or(1000));
+            tags.reverse();
+            for tag in tags {
+                if let Some(v) = tagged.get_vec(tag) {
+                    for (uri, title) in v {
+                        titles.insert(uri.clone(), title.clone());
+                    }
                 }
             }
         }
@@ -196,12 +198,14 @@ pub fn types() -> &'static HashMap<String, String> {
 fn types_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
     TYPES.get_or_init(|| {
         let mut types = HashMap::<String, String>::new();
-        for prop in config().type_properties.iter().rev() {
-            let term = RefTerm::new_iri(prop.as_ref()).unwrap();
-            for tt in g.triples_with_p(&term) {
-                let t = tt.unwrap();
-                let suffix = t.s().value().replace(&config().namespace, "");
-                types.insert(suffix, t.o().value().to_string());
+        if !config().large {
+            for prop in config().type_properties.iter().rev() {
+                let term = RefTerm::new_iri(prop.as_ref()).unwrap();
+                for tt in g.triples_with_p(&term) {
+                    let t = tt.unwrap();
+                    let suffix = t.s().value().replace(&config().namespace, "");
+                    types.insert(suffix, t.o().value().to_string());
+                }
             }
         }
         types
