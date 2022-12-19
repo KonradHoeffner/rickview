@@ -1,3 +1,4 @@
+#[cfg(feature = "hdt")]
 use crate::rdf::GraphEnum;
 use crate::rdf::{graph, titles, types};
 use bytesize::ByteSize;
@@ -17,7 +18,11 @@ pub struct About {
 
 impl About {
     pub fn new() -> About {
-        let graph_size = if let GraphEnum::HdtGraph(hdt_graph) = graph() { Some(ByteSize(hdt_graph.size_in_bytes() as u64).to_string()) } else { None };
+        let graph_size = match graph() {
+            #[cfg(feature = "hdt")]
+            GraphEnum::HdtGraph(hdt_graph) => Some(ByteSize(hdt_graph.size_in_bytes() as u64).to_string()),
+            _ => None,
+        };
         About {
             cargo_pkg_version: VERSION,
             num_titles: titles().len(),

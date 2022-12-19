@@ -23,6 +23,7 @@ use sophia::{
     triple::{stream::TripleSource, Triple},
 };
 use std::{collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
+#[cfg(feature = "hdt")]
 use zstd::stream::read::Decoder;
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
@@ -100,13 +101,13 @@ pub fn graph() -> &'static GraphEnum {
                     let triples = match Path::new(&filename).extension().and_then(std::ffi::OsStr::to_str) {
                         Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
                         Some("nt") => nt::parse_bufread(reader).collect_triples(),
-                        // error: returns HdtGraph but FastGraph expected, use trait object
                         #[cfg(feature = "hdt")]
                         Some("zst") if filename.ends_with("hdt.zst") => {
                             let decoder = Decoder::with_buffer(BufReader::new(file)).expect("Error creating zstd decoder.");
                             let hdt = hdt::Hdt::new(BufReader::new(decoder)).expect("Error loading HDT.");
                             return GraphEnum::HdtGraph(hdt::HdtGraph::new(hdt));
                         }
+                        #[cfg(feature = "hdt")]
                         Some("hdt") => {
                             return GraphEnum::HdtGraph(hdt::HdtGraph::new(hdt::Hdt::new(BufReader::new(file)).unwrap()));
                         }
