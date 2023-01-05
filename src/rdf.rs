@@ -305,7 +305,10 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: &Sim
                     format!("{} @{lang}", lit.txt())
                 }
                 None => {
-                    format!(r#"{}<div class="datatype">{}</div>"#, lit.txt(), Piri::from(&lit.dt()).short())
+                    format!(r#"{}<div class="datatype">{}</div>"#,
+                            if lit.dt().value().to_string() == "http://ns.ontowiki.net/SysOnt/Markdown" {
+                                markdown_to_html::markdown(lit.txt())
+                            } else { lit.txt().to_string() }, Piri::from(&lit.dt()).short())
                 }
             },
             Iri(tiri) => {
