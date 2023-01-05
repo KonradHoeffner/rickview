@@ -73,7 +73,17 @@ impl Piri {
     }
     pub fn short(&self) -> String { self.prefixed_string(false, false) }
 
-    fn root_relative(&self) -> String { self.iri.value().replace(&config().namespace, &(config().base.clone() + "/")) }
+    fn root_relative(&self) -> String {
+        if self.iri.value().starts_with(&config().namespace) {
+            if &self.iri.value().to_string() != &config().namespace && ! self.iri.value().contains("#") {
+                self.iri.value().replace(&config().namespace, &(config().base.clone() + "/"))
+            } else {
+                config().base.clone() + "/?" + &self.iri.value().replace("#","%23")
+            }
+        } else {
+            self.iri.value().clone().to_string()
+        }
+    }
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
     fn root_local(&self) -> String {
         if self.iri.value().starts_with(&config().namespace) && &self.iri.value().to_string() != &config().namespace && ! self.iri.value().contains("#") {
