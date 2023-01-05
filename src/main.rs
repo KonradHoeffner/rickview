@@ -79,6 +79,7 @@ fn res_html_common(request: HttpRequest, resource: &SimpleIri<'_>) -> HttpRespon
                             return match template().render("resource", &Resource {
                                 suffix: local_suffix.clone(),
                                 title: "404 Not found".to_string(),
+                                title_maybe_link: "404 Not found".to_string(),
                                 descriptions: vec![("Warning".to_string(), vec![message])],
                                 directs: vec![],
                                 inverses: vec![],

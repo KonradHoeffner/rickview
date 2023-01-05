@@ -12,6 +12,7 @@ pub struct Resource {
     pub uri: String,
     pub suffix: String,
     pub title: String,
+    pub title_maybe_link: String,
     pub main_type: Option<String>,
     /// HTML representations of properties and descriptions of this resource.
     pub descriptions: Vec<(String, Vec<String>)>,

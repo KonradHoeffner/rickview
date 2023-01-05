@@ -365,6 +365,7 @@ pub fn resource(iri: &SimpleIri) -> Result<Resource, InvalidIri> {
     }
     Ok(Resource {
         suffix: local_suffix.to_owned(),
+        title_maybe_link: if ! local { format!("<a href='{}' target='_blank'>{}</a>", uri, title) } else { title.clone() },
         uri,
         duration: format!("{:?}", start.elapsed()),
         title,

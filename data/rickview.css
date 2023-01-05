@@ -25,6 +25,8 @@ hgroup {
   padding: 0 24px;
   background-color: rgba(197, 0, 123, 0.6);
 }
+hgroup a {
+  color: #fff;
 }
 
 hgroup h1 {
