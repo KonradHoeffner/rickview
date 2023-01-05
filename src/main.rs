@@ -151,6 +151,17 @@ async fn index(request: HttpRequest) -> impl Responder {
 }
 
 fn index_impl(request: HttpRequest) -> HttpResponse {
+    if ! request.query_string().is_empty() {
+        let qs = String::from(request.query_string().replace("%23","#"));
+        let iri = SimpleIri::new(&qs, None);
+        if iri.is_ok() {
+            return res_html_common(request, &iri.unwrap());
+        }
+        let e = iri.unwrap_err();
+        let message = format!("Could not render resource: {e:?}");
+        error!("{}", message);
+        return HttpResponse::NotAcceptable().body(message);
+    }
     match template().render("index", config()) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
         Err(e) => {
