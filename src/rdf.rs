@@ -47,6 +47,10 @@ impl<TD: term::TermData> From<&term::iri::Iri<TD>> for Piri {
     fn from(tiri: &term::iri::Iri<TD>) -> Self { Piri::new(IriBox::new_unchecked(tiri.value().to_string().into_boxed_str())) }
 }
 
+impl From<&str> for Piri {
+    fn from(string: &str) -> Self { Piri::new(IriBox::new_unchecked(Box::from(string))) }
+}
+
 impl fmt::Display for Piri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.iri.value()) }
 }
@@ -71,6 +75,13 @@ impl Piri {
 
     fn root_relative(&self) -> String { self.iri.value().replace(&config().namespace, &(config().base.clone() + "/")) }
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
+    fn root_local(&self) -> String {
+        if self.iri.value().starts_with(&config().namespace) && &self.iri.value().to_string() != &config().namespace && ! self.iri.value().contains("#") {
+            self.iri.value().replace(&config().namespace, "/")
+        } else {
+            String::from("/?") + &self.iri.value().replace("#","%23")
+        }
+    }
 }
 
 // Graph cannot be made into a trait object as of Rust 1.67 and Sophia 0.7, see https://github.com/pchampin/sophia_rs/issues/122.
@@ -249,6 +260,20 @@ fn connections(conn_type: &ConnectionType, source: &SimpleIri) -> Result<Vec<Con
     }
 }
 
+fn local_infos_link<G: Graph>(g: &G, res: &str, iri: &str) -> (bool, String) {
+    let piri = Piri::from(iri);
+    let siri = SimpleIri::new_unchecked(iri, None);
+    let local = iri.starts_with(&config().namespace);
+    let local_infos = if ! local {
+        let any_s = { let vres = res.clone(); g.triples_with_s(&siri).any(|t| t.unwrap().o().value().to_string() != vres) };
+        let any_o = { let vres = res.clone(); g.triples_with_o(&siri).any(|t| t.unwrap().s().value().to_string() != vres) };
+        if any_s || any_o {
+            format!(" <a class='localinfo' href='{}'>&#{};</a>", piri.root_local(), if any_s && any_o { 10542 } else if any_s { 10543 } else { 10544 })
+        } else { String::from("") }
+    } else { String::from("") };
+    (local, local_infos)
+}
+
 fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: &SimpleIri) -> Result<Vec<Connection>, InvalidIri> {
     let triples = match conn_type {
         ConnectionType::Direct => g.triples_with_s(source),
@@ -273,9 +298,10 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: &Sim
             },
             Iri(tiri) => {
                 let piri = Piri::from(&tiri);
+                let (local, local_infos) = local_infos_link(g, &source.value(), &piri.to_string());
                 let title = if let Some(title) = titles().get(&piri.to_string()) { format!("<br><span>&#8618; {title}</span>") } else { String::new() };
-                let target = if piri.to_string().starts_with(&config().namespace) { "" } else { " target='_blank' " };
-                format!("<a href='{}'{target}>{}{title}</a>", piri.root_relative(), piri.prefixed_string(false, true))
+                let target = if local { "" } else { " target='_blank' " };
+                format!("<a href='{}'{target}>{}{title}</a>{local_infos}", piri.root_relative(), piri.prefixed_string(false, true))
             }
             _ => target_term.value().to_string(), // BNode, Variable
         };
@@ -296,7 +322,8 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: &Sim
         if len > CAP {
             target_htmls.push("...".to_string());
         }
-        connections.push(Connection { prop: prop.clone(), prop_html: Piri::new(prop).property_anchor(), target_htmls });
+        let (_, local_infos) = local_infos_link(g, &source.to_string(), &prop);
+        connections.push(Connection { prop: prop.clone(), prop_html: format!("{}{}", Piri::new(prop).property_anchor(), local_infos), target_htmls });
     }
     Ok(connections)
 }

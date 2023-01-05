@@ -210,6 +210,16 @@ div.datatype {
  float: right;
 }
 
+div#directs a.localinfo, div#inverses a.localinfo {
+    color: #9e9e9e;
+}
+div#directs .td1 a.localinfo {
+    color: #cecece
+}
+div#inverses .td1 a.localinfo {
+    color: #9e9e9e
+}
+
 @media (max-width: 950px) {
     .td1 {
         width: 10em;
