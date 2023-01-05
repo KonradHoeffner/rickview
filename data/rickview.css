@@ -23,7 +23,8 @@ hgroup {
   min-height: 210px;
   color: #fff;
   padding: 0 24px;
-  background-color: #914848;
+  background-color: rgba(197, 0, 123, 0.6);
+}
 }
 
 hgroup h1 {
@@ -43,12 +44,12 @@ hgroup h2 {
 header div#abstract {
   padding: 24px;
   color: #fff;
-  background-color: #7d3e3e;
+  background-color: rgba(236, 116, 4, 0.6);
 }
 
 aside {
   display: block;
-  background-color: #eee;
+  background-color: rgba(137, 186, 23, 0.9);
   color: #fff;
   padding: 0;
   font-size: 0px;
