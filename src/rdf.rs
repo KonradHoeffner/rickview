@@ -19,7 +19,7 @@ use sophia::{
         Stringifier, TripleSerializer,
     },
     term,
-    term::{RefTerm, TTerm, Term, Term::*},
+    term::{RefTerm, TTerm, Term, Term::*, SimpleIri},
     triple::{stream::TripleSource, Triple},
 };
 use std::{
@@ -36,7 +36,7 @@ fn get_prefixed_pair(iri: &Iri) -> Option<(String, String)> {
     Some((p.to_string(), s.to_string()))
 }
 
-struct Piri {
+pub struct Piri {
     iri: IriBox,
     prefixed: Option<(String, String)>,
 }
@@ -52,8 +52,7 @@ impl fmt::Display for Piri {
 }
 
 impl Piri {
-    fn from_suffix(suffix: &str) -> Self { Piri::new(IriBox::new_unchecked((config().namespace.clone() + suffix).into_boxed_str())) }
-    fn new(iri: IriBox) -> Self { Self { prefixed: get_prefixed_pair(&iri.as_iri()), iri } }
+    pub fn new(iri: IriBox) -> Self { Self { prefixed: get_prefixed_pair(&iri.as_iri()), iri } }
     fn embrace(&self) -> String { format!("&lt;{self}&gt;") }
     fn prefixed_string(&self, bold: bool, embrace: bool) -> String {
         if let Some((p, s)) = &self.prefixed {
@@ -68,7 +67,7 @@ impl Piri {
             self.to_string()
         }
     }
-    fn short(&self) -> String { self.prefixed_string(false, false) }
+    pub fn short(&self) -> String { self.prefixed_string(false, false) }
 
     fn root_relative(&self) -> String { self.iri.value().replace(&config().namespace, &(config().base.clone() + "/")) }
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
@@ -226,7 +225,7 @@ static TITLES: OnceLock<HashMap<String, String>> = OnceLock::new();
 static TYPES: OnceLock<HashMap<String, String>> = OnceLock::new();
 static NAMESPACE: OnceLock<Namespace<&'static str>> = OnceLock::new();
 
-fn namespace() -> &'static Namespace<&'static str> { NAMESPACE.get_or_init(|| Namespace::new(config().namespace.as_ref()).unwrap()) }
+pub fn namespace() -> &'static Namespace<&'static str> { NAMESPACE.get_or_init(|| Namespace::new(config().namespace.as_ref()).unwrap()) }
 
 /// Whether the given resource is in subject or object position.
 enum ConnectionType {
@@ -242,19 +241,18 @@ struct Connection {
 }
 
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
-fn connections(conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connection>, InvalidIri> {
+fn connections(conn_type: &ConnectionType, source: &SimpleIri) -> Result<Vec<Connection>, InvalidIri> {
     match graph() {
-        GraphEnum::FastGraph(g) => connections_generic(g, conn_type, suffix),
+        GraphEnum::FastGraph(g) => connections_generic(g, conn_type, source),
         #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => connections_generic(g, conn_type, suffix),
+        GraphEnum::HdtGraph(g) => connections_generic(g, conn_type, source),
     }
 }
 
-fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str) -> Result<Vec<Connection>, InvalidIri> {
-    let source = Piri::from_suffix(suffix);
+fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: &SimpleIri) -> Result<Vec<Connection>, InvalidIri> {
     let triples = match conn_type {
-        ConnectionType::Direct => g.triples_with_s(&source.iri),
-        ConnectionType::Inverse => g.triples_with_o(&source.iri),
+        ConnectionType::Direct => g.triples_with_s(source),
+        ConnectionType::Inverse => g.triples_with_o(source),
     };
     let mut map: BTreeMap<IriBox, BTreeSet<String>> = BTreeMap::new();
     let mut connections: Vec<Connection> = Vec::new();
@@ -305,72 +303,71 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str
 
 #[cfg(feature = "rdfxml")]
 /// Export all triples (s,p,o) for a given subject s as RDF/XML.
-pub fn serialize_rdfxml(suffix: &str) -> String {
+pub fn serialize_rdfxml(iri: &SimpleIri) -> String {
     match graph() {
-        GraphEnum::FastGraph(g) => serialize_rdfxml_generic(g, suffix),
+        GraphEnum::FastGraph(g) => serialize_rdfxml_generic(g, iri),
         #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => serialize_rdfxml_generic(g, suffix),
+        GraphEnum::HdtGraph(g) => serialize_rdfxml_generic(g, iri),
     }
 }
 #[cfg(feature = "rdfxml")]
-pub fn serialize_rdfxml_generic<G: Graph>(g: &G, suffix: &str) -> String {
-    let iri = namespace().get(suffix).unwrap();
-    RdfXmlSerializer::new_stringifier().serialize_triples(g.triples_with_s(&iri)).unwrap().to_string()
+pub fn serialize_rdfxml_generic<G: Graph>(g: &G, iri: &SimpleIri) -> String {
+    RdfXmlSerializer::new_stringifier().serialize_triples(g.triples_with_s(iri)).unwrap().to_string()
 }
 
 /// Export all triples (s,p,o) for a given subject s as RDF Turtle using the config prefixes.
-pub fn serialize_turtle(suffix: &str) -> String {
+pub fn serialize_turtle(iri: &SimpleIri) -> String {
     match graph() {
-        GraphEnum::FastGraph(g) => serialize_turtle_generic(g, suffix),
+        GraphEnum::FastGraph(g) => serialize_turtle_generic(g, iri),
         #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => serialize_turtle_generic(g, suffix),
+        GraphEnum::HdtGraph(g) => serialize_turtle_generic(g, iri),
     }
 }
-fn serialize_turtle_generic<G: Graph>(g: &G, suffix: &str) -> String {
-    let iri = namespace().get(suffix).unwrap();
+fn serialize_turtle_generic<G: Graph>(g: &G, iri: &SimpleIri) -> String {
     let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map(prefixes().clone());
-    TurtleSerializer::new_stringifier_with_config(config).serialize_triples(g.triples_with_s(&iri)).unwrap().to_string()
+    TurtleSerializer::new_stringifier_with_config(config).serialize_triples(g.triples_with_s(iri)).unwrap().to_string()
 }
 
 /// Export all triples (s,p,o) for a given subject s as N-Triples.
-pub fn serialize_nt(suffix: &str) -> String {
+pub fn serialize_nt(iri: &SimpleIri) -> String {
     match graph() {
-        GraphEnum::FastGraph(g) => serialize_nt_generic(g, suffix),
+        GraphEnum::FastGraph(g) => serialize_nt_generic(g, iri),
         #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => serialize_nt_generic(g, suffix),
+        GraphEnum::HdtGraph(g) => serialize_nt_generic(g, iri),
     }
 }
-fn serialize_nt_generic<G: Graph>(g: &G, suffix: &str) -> String {
-    let iri = namespace().get(suffix).unwrap();
-    NtSerializer::new_stringifier().serialize_triples(g.triples_with_s(&iri)).unwrap().to_string()
+fn serialize_nt_generic<G: Graph>(g: &G, iri: &SimpleIri) -> String {
+    NtSerializer::new_stringifier().serialize_triples(g.triples_with_s(iri)).unwrap().to_string()
 }
 
 /// Returns the resource with the given suffix from the configured namespace.
-pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
+pub fn resource(iri: &SimpleIri) -> Result<Resource, InvalidIri> {
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
         cons.iter().filter(|c| key_predicate(&c.prop.value())).map(|c| (c.prop_html.clone(), c.target_htmls.clone())).collect()
     }
     let start = Instant::now();
-    let subject = namespace().get(suffix).unwrap();
+    let subject = iri;
     let uri = subject.clone().value().to_string();
 
-    let all_directs = connections(&ConnectionType::Direct, suffix)?;
+    let all_directs = connections(&ConnectionType::Direct, iri)?;
     let mut descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !config().description_properties.contains(key));
-    let title = titles().get(&uri).unwrap_or(&suffix.to_owned()).to_string();
-    let main_type = types().get(suffix).map(std::clone::Clone::clone);
-    let inverses = if config().show_inverse { filter(&connections(&ConnectionType::Inverse, suffix)?, |_| true) } else { Vec::new() };
+    let local = subject.value().starts_with(&config().namespace);
+    let local_suffix = if local { subject.value().replace(&config().namespace, "") } else { subject.value().to_string() };
+    let title = titles().get(&uri).unwrap_or(&local_suffix.to_owned()).to_string();
+    let main_type = types().get(&local_suffix).map(std::clone::Clone::clone);
+    let inverses = if config().show_inverse { filter(&connections(&ConnectionType::Inverse, iri)?, |_| true) } else { Vec::new() };
     if all_directs.is_empty() && inverses.is_empty() {
         let warning = format!("No triples found for {uri}. Did you configure the namespace correctly?");
         warn!("{warning}");
         descriptions.push(("Warning".to_owned(), vec![warning]));
     }
     Ok(Resource {
-        suffix: suffix.to_owned(),
+        suffix: local_suffix.to_owned(),
         uri,
         duration: format!("{:?}", start.elapsed()),
         title,
-        github_issue_url: config().github.as_ref().map(|g| format!("{g}/issues/new?title={suffix}")),
+        github_issue_url: config().github.as_ref().map(|g| format!("{g}/issues/new?title={local_suffix}")),
         main_type,
         descriptions,
         directs: notdescriptions,

@@ -15,12 +15,13 @@ mod config;
 mod rdf;
 mod resource;
 
-use crate::config::config;
+use crate::{config::config, rdf::{namespace, Piri}};
 use about::About;
 use actix_web::{get, web, web::scope, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use log::{debug, error, info, trace, warn};
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
+use sophia::{term::SimpleIri, iri::Iri};
 
 static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 1150] = std::include_bytes!("../data/favicon-aksw.ico");
@@ -56,9 +57,17 @@ async fn favicon() -> impl Responder { HttpResponse::Ok().content_type("image/x-
 
 #[get("{suffix:.*|}")]
 async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
+    res_html_common(request, &namespace().get(&suffix).unwrap())
+}
+
+fn res_html_common(request: HttpRequest, resource: &SimpleIri<'_>) -> HttpResponse {
     let t = Instant::now();
-    let prefixed = config().prefix.clone() + ":" + &suffix;
-    match rdf::resource(&suffix) {
+    let local_suffix = resource.to_string().replace(&config().namespace, "");
+    let prefixed = match Iri::new(&resource.to_string()) {
+        Ok(iri) => Piri::new(iri.boxed()).short(),
+        _ => resource.to_string()
+    };
+    match rdf::resource(resource) {
         Err(_) => {
             let message = format!("No triples found for resource {prefixed}");
             warn!("{}", message);
@@ -84,12 +93,12 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                         }
                         if accept.contains("application/n-triples") {
                             debug!("{} N-Triples {:?}", prefixed, t.elapsed());
-                            return HttpResponse::Ok().content_type("application/n-triples").body(rdf::serialize_nt(&suffix));
+                            return HttpResponse::Ok().content_type("application/n-triples").body(rdf::serialize_nt(resource));
                         }
                         #[cfg(feature = "rdfxml")]
                         if accept.contains("application/rdf+xml") {
                             debug!("{} RDF {:?}", prefixed, t.elapsed());
-                            return HttpResponse::Ok().content_type("application/rdf+xml").body(rdf::serialize_rdfxml(&suffix));
+                            return HttpResponse::Ok().content_type("application/rdf+xml").body(rdf::serialize_rdfxml(resource));
                         }
                         warn!("{} accept header {} not recognized, using RDF Turtle", prefixed, accept);
                     }
@@ -99,13 +108,17 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                 }
             }
             debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
-            HttpResponse::Ok().content_type("application/turtle").body(rdf::serialize_turtle(&suffix))
+            HttpResponse::Ok().content_type("application/turtle").body(rdf::serialize_turtle(resource))
         }
     }
 }
 
 #[get("/")]
-async fn index() -> impl Responder {
+async fn index(request: HttpRequest) -> impl Responder {
+    index_impl(request)
+}
+
+fn index_impl(request: HttpRequest) -> HttpResponse {
     match template().render("index", config()) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
         Err(e) => {
