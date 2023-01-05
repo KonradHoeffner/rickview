@@ -46,6 +46,20 @@ fn template() -> TinyTemplate<'static> {
         output.push_str(&o().unwrap());
         Ok(())
     });
+    tt.add_formatter("uri_to_local", |json, output| {
+        let o = || -> Option<String> {
+            let s = json.as_str().unwrap_or_else(|| panic!("JSON value is not a string: {json}"));
+            Some(if ! s.contains(":") {
+                s.to_string()
+            } else if s.starts_with(&config().namespace) && s != &config().namespace && ! s.contains("#") {
+                s.replace(&config().namespace, "/")
+            } else {
+                String::from("/?") + &s.replace("#","%23")
+            })
+        };
+        output.push_str(&o().unwrap());
+        Ok(())
+    });
     tt
 }
 

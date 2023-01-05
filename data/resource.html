@@ -17,7 +17,7 @@
             {uri}
             {{ if main_type }}
             <span class="instance">
-              <a title="<{main_type}>" href="{main_type}" target="_blank">
+              <a title="<{main_type}>" href="{main_type | uri_to_local}">
                 <span class="instanceof">an entity of type:</span>
                 <span>{ main_type | uri_to_suffix }</span>
               </a>
