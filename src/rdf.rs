@@ -361,6 +361,7 @@ pub fn resource(iri: &SimpleIri) -> Result<Resource, InvalidIri> {
         let warning = format!("No triples found for {uri}. Did you configure the namespace correctly?");
         warn!("{warning}");
         descriptions.push(("Warning".to_owned(), vec![warning]));
+        return Err(InvalidIri(subject.to_string()))
     }
     Ok(Resource {
         suffix: local_suffix.to_owned(),

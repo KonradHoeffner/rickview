@@ -15,7 +15,7 @@ mod config;
 mod rdf;
 mod resource;
 
-use crate::{config::config, rdf::{namespace, Piri}};
+use crate::{config::config, resource::Resource, rdf::{namespace, Piri}};
 use about::About;
 use actix_web::{get, web, web::scope, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use log::{debug, error, info, trace, warn};
@@ -71,6 +71,37 @@ fn res_html_common(request: HttpRequest, resource: &SimpleIri<'_>) -> HttpRespon
         Err(_) => {
             let message = format!("No triples found for resource {prefixed}");
             warn!("{}", message);
+            match request.head().headers().get("Accept") {
+                Some(a) => {
+                    if let Ok(accept) = a.to_str() {
+                        trace!("{} accept header {}", prefixed, accept);
+                        if accept.contains("text/html") {
+                            return match template().render("resource", &Resource {
+                                suffix: local_suffix.clone(),
+                                title: "404 Not found".to_string(),
+                                descriptions: vec![("Warning".to_string(), vec![message])],
+                                directs: vec![],
+                                inverses: vec![],
+                                duration: "".to_string(),
+                                uri: "".to_string(),
+                                main_type: None,
+                                github_issue_url: config().github.as_ref().map(|g| format!("{g}/issues/new?title={local_suffix}")),
+                            }) {
+                                Ok(html) => {
+                                    debug!("{} HTML {:?}", prefixed, t.elapsed());
+                                    HttpResponse::NotFound().content_type("text/html; charset-utf-8").body(html)
+                                }
+                                Err(err) => {
+                                    let message = format!("Internal server error. Could not render resource {prefixed}:\n{err}.");
+                                    error!("{}", message);
+                                    HttpResponse::InternalServerError().body(message)
+                                }
+                            };
+                        }
+                    }
+                }
+                None => {}
+            }
             HttpResponse::NotFound().content_type("text/plain").body(message)
         }
         Ok(res) => {
