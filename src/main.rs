@@ -60,6 +60,17 @@ fn template() -> TinyTemplate<'static> {
         output.push_str(&o().unwrap());
         Ok(())
     });
+    tt.add_formatter("uri_to_prefixed", |json, output| {
+        let o = || -> Option<String> {
+            let s = json.as_str().unwrap_or_else(|| panic!("JSON value is not a string: {json}"));
+            Some(match Iri::new(&s) {
+                Ok(iri) => Piri::new(iri.boxed()).prefixed_string(true, true),
+                _ => String::from(s),
+            })
+        };
+        output.push_str(&o().unwrap());
+        Ok(())
+    });
     tt
 }
 

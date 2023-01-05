@@ -54,7 +54,7 @@ impl fmt::Display for Piri {
 impl Piri {
     pub fn new(iri: IriBox) -> Self { Self { prefixed: get_prefixed_pair(&iri.as_iri()), iri } }
     fn embrace(&self) -> String { format!("&lt;{self}&gt;") }
-    fn prefixed_string(&self, bold: bool, embrace: bool) -> String {
+    pub fn prefixed_string(&self, bold: bool, embrace: bool) -> String {
         if let Some((p, s)) = &self.prefixed {
             if bold {
                 format!("{p}:<b>{s}</b>")

@@ -19,7 +19,7 @@
           {{ if examples }} Examples:
           <ul>
             {{ for c in examples }}
-            <li><a href="{c}">{c}</a></li>
+            <li><a href="{c | uri_to_local}">{c | uri_to_prefixed}</a></li>
             {{ endfor }}
           </ul>
           {{ endif }}
