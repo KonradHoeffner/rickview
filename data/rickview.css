@@ -206,3 +206,42 @@ div.datatype {
  color: #9e9e9e;
  float: right;
 }
+
+@media (max-width: 950px) {
+    .td1 {
+        width: 10em;
+        min-width: 10em;
+    }
+
+    td .c2 {
+        width: 100%;
+        min-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    hgroup {
+        min-height: inherit;
+    }
+
+    hgroup h1 {
+        padding-top: 10px;
+    }
+
+    td {
+        display: block;
+        display: grid;
+    }
+
+    .td1 .td2 {
+        margin-left: -1em;
+    }
+
+    .td2 {
+        padding-left: 2em;
+    }
+
+    hgroup h2 .instance {
+        padding-left: 2em;
+    }
+}
