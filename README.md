@@ -15,16 +15,12 @@ Try it out with the example knowledge base:
 ### Docker Compose Example
 
     services:
-      ontology: # if you need a separate build step, otherwise remove this service and use a bind mount
-        build: ./ontology # merge all Turtle files into one
-        volumes:
-          - rdf:/ontology/dist
       rickview:
-        build: ./rickview
+        image: ghcr.io/konradhoeffner/rickview:0.0.7
         environment:
           - RICKVIEW_KB_FILE=/rdf/hito.ttl
-          - RICKVIEW_NAMESPACE=http://hitontology/ontology/
-          - RICKVIEW_BASE_PATH=/ontology
+          - RICKVIEW_NAMESPACE=http://hitontology.eu/ontology/
+          - RICKVIEW_BASE=/ontology
           - RICKVIEW_TITLE=HITO
           - RICKVIEW_SUBTITLE=Health IT Ontology
           - RICKVIEW_EXAMPLES=Study SoftwareProduct ApplicationSystemTypeCatalogue
@@ -35,7 +31,7 @@ Try it out with the example knowledge base:
         volumes:
           - rdf:/rdf
         ports:
-          - "127.0.0.1:8104:8080"
+          - "127.0.0.1:8080:8080"
         restart: unless-stopped
 
 ## Precompiled Binaries
