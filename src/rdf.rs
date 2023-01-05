@@ -22,7 +22,9 @@ use sophia::{
     term::{RefTerm, TTerm, Term, Term::*},
     triple::{stream::TripleSource, Triple},
 };
-use std::{collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
+use std::{
+    collections::BTreeMap, collections::BTreeSet, collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::Arc, sync::OnceLock, time::Instant,
+};
 #[cfg(feature = "hdt")]
 use zstd::stream::read::Decoder;
 
@@ -79,7 +81,7 @@ impl Piri {
 pub enum GraphEnum {
     FastGraph(FastGraph),
     #[cfg(feature = "hdt")]
-    HdtGraph(HdtGraph),
+    HdtGraph(HdtGraph<Arc<str>>),
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
@@ -254,7 +256,7 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str
         ConnectionType::Direct => g.triples_with_s(&source.iri),
         ConnectionType::Inverse => g.triples_with_o(&source.iri),
     };
-    let mut map: MultiMap<IriBox, String> = MultiMap::new();
+    let mut map: BTreeMap<IriBox, BTreeSet<String>> = BTreeMap::new();
     let mut connections: Vec<Connection> = Vec::new();
     for res in triples {
         let triple = res.unwrap();
@@ -280,7 +282,14 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str
             _ => target_term.value().to_string(), // BNode, Variable
         };
         if let Iri(iri) = Term::<_>::from(triple.p()) {
-            map.insert(IriBox::new(iri.value().into())?, target_html);
+            let key = IriBox::new(iri.value().into())?;
+            if let Some(values) = map.get_mut(&key) {
+                values.insert(target_html);
+            } else {
+                let mut values = BTreeSet::new();
+                values.insert(target_html);
+                map.insert(key, values);
+            }
         }
     }
     for (prop, values) in map {
