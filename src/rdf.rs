@@ -390,6 +390,25 @@ fn serialize_nt_generic<G: Graph>(g: &G, suffix: &str) -> Result<String, Box<dyn
     Ok(NtSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(iri), Any, Any))?.to_string())
 }
 
+fn depiction_iri(suffix: &str) -> Option<String> {
+    match graph() {
+        GraphEnum::FastGraph(g) => depiction_iri_generic(g, suffix),
+        #[cfg(feature = "hdt")]
+        GraphEnum::HdtGraph(g) => depiction_iri_generic(g, suffix),
+    }
+}
+
+fn depiction_iri_generic<G: Graph>(g: &G, suffix: &str) -> Option<String> {
+    let subject = namespace().get(suffix).ok()?;
+    let foaf_depiction = IriRef::new_unchecked("http://xmlns.com/foaf/0.1/depiction");
+    g.triples_matching(Some(subject), Some(foaf_depiction), Any)
+        .filter_map(|res| res.ok())
+        .map(|triple| triple.to_o())
+        .filter(|o| o.is_iri())
+        .map(|o| o.iri().unwrap().as_str().to_owned())
+        .next()
+}
+
 /// Returns the resource with the given suffix from the configured namespace.
 pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
@@ -421,5 +440,6 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
         descriptions,
         directs: notdescriptions,
         inverses,
+        depiction: depiction_iri(&suffix),
     })
 }

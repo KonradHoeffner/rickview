@@ -21,4 +21,5 @@ pub struct Resource {
     pub inverses: Vec<(String, Vec<String>)>,
     pub duration: String,
     pub github_issue_url: Option<String>,
+    pub depiction: Option<String>,
 }

@@ -34,6 +34,15 @@ hgroup h1 {
   margin-right: 100px;
 }
 
+hgroup img.depiction {
+  margin-top: -120px;
+  float: right;
+  max-width: 98px;
+  max-height: 118px;
+  border: 1px solid aliceblue;
+  padding: 1px;
+}
+
 hgroup h2 {
   font-size: 16px;
   padding: 8px 0 24px 0;
@@ -222,6 +231,12 @@ div.datatype {
 
     hgroup h1 {
         padding-top: 10px;
+    }
+
+    hgroup img.depiction {
+        margin-top: -34px;
+        max-height: 56px;
+        max-width: 50px;
     }
 
     td {

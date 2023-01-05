@@ -13,9 +13,12 @@
       <header>
         <hgroup>
           <h1>{title }</h1>
+          {{ if depiction }}
+          <img class="depiction" src="{ depiction }" />
+          {{ endif }}
           <h2>
             {uri}
-			{{ if main_type }}
+            {{ if main_type }}
             <span class="instance">
               <a title="<{main_type}>" href="{main_type}" target="_blank">
                 <span class="instanceof">an entity of type:</span>
