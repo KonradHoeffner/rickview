@@ -23,7 +23,7 @@ use std::time::Instant;
 use tinytemplate::TinyTemplate;
 
 static RESOURCE: &str = std::include_str!("../data/resource.html");
-static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
+static FAVICON: &[u8; 1150] = std::include_bytes!("../data/favicon-aksw.ico");
 static CSS: &str = std::include_str!("../data/rickview.css");
 static INDEX: &str = std::include_str!("../data/index.html");
 static ABOUT: &str = std::include_str!("../data/about.html");
