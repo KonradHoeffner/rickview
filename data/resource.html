@@ -13,6 +13,9 @@
       <header>
         <hgroup>
           <h1>{ title_maybe_link | unescaped }</h1>
+          {{ if depiction }}
+          <img class="depiction" src="{ depiction }" />
+          {{ endif }}
           <h2>
             {uri}
             {{ if main_type }}

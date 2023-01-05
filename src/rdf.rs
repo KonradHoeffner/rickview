@@ -379,6 +379,28 @@ fn serialize_nt_generic<G: Graph>(g: &G, iri: &SimpleIri) -> String {
     NtSerializer::new_stringifier().serialize_triples(g.triples_with_s(iri)).unwrap().to_string()
 }
 
+/// Show images
+pub fn find_depiction_iri(iri: &SimpleIri) -> Option<String> {
+    match graph() {
+        GraphEnum::FastGraph(g) => find_depiction_generic(g, iri),
+        #[cfg(feature = "hdt")]
+        GraphEnum::HdtGraph(g) => find_depiction_generic(g, iri),
+    }
+}
+fn find_depiction_generic<G: Graph>(g: &G, iri: &SimpleIri) -> Option<String> {
+    let fd = SimpleIri::new("http://xmlns.com/foaf/0.1/", Some("depiction")).ok()?;
+    for t in g.triples_with_sp(iri, &fd) {
+        let t = t.ok()?;
+        return Some(t.o().value().to_string());
+    }
+    let fl = SimpleIri::new("http://xmlns.com/foaf/0.1/", Some("logo")).ok()?;
+    for t in g.triples_with_sp(iri, &fl) {
+        let t = t.ok()?;
+        return Some(t.o().value().to_string());
+    }
+    None
+}
+
 /// Returns the resource with the given suffix from the configured namespace.
 pub fn resource(iri: &SimpleIri) -> Result<Resource, InvalidIri> {
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
@@ -391,6 +413,7 @@ pub fn resource(iri: &SimpleIri) -> Result<Resource, InvalidIri> {
     let all_directs = connections(&ConnectionType::Direct, iri)?;
     let mut descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !config().description_properties.contains(key));
+    let depiction = find_depiction_iri(iri);
     let local = subject.value().starts_with(&config().namespace);
     let local_suffix = if local { subject.value().replace(&config().namespace, "") } else { subject.value().to_string() };
     let title = titles().get(&uri).unwrap_or(&local_suffix.to_owned()).to_string();
@@ -413,5 +436,6 @@ pub fn resource(iri: &SimpleIri) -> Result<Resource, InvalidIri> {
         descriptions,
         directs: notdescriptions,
         inverses,
+        depiction,
     })
 }

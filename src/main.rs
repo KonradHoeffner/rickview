@@ -112,6 +112,7 @@ fn res_html_common(request: HttpRequest, resource: &SimpleIri<'_>) -> HttpRespon
                                 uri: "".to_string(),
                                 main_type: None,
                                 github_issue_url: config().github.as_ref().map(|g| format!("{g}/issues/new?title={local_suffix}")),
+                                depiction: None,
                             }) {
                                 Ok(html) => {
                                     debug!("{} HTML {:?}", prefixed, t.elapsed());
