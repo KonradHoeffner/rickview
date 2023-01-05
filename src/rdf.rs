@@ -84,7 +84,9 @@ impl Piri {
             self.iri.value().clone().to_string()
         }
     }
-    fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
+    fn property_anchor(&self) -> String {
+        format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false))
+    }
     fn root_local(&self) -> String {
         if self.iri.value().starts_with(&config().namespace) && &self.iri.value().to_string() != &config().namespace && ! self.iri.value().contains("#") {
             self.iri.value().replace(&config().namespace, "/")
