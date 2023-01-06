@@ -27,6 +27,7 @@ use std::{
 };
 #[cfg(feature = "hdt")]
 use zstd::stream::read::Decoder;
+use comrak::{markdown_to_html, ComrakOptions};
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 static CAP: usize = 1000; // maximum number of values shown per property
@@ -307,7 +308,7 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: &Sim
                 None => {
                     format!(r#"{}<div class="datatype">{}</div>"#,
                             if lit.dt().value().to_string() == "http://ns.ontowiki.net/SysOnt/Markdown" {
-                                markdown_to_html::markdown(lit.txt())
+                                markdown_to_html(lit.txt(), &ComrakOptions::default())
                             } else { lit.txt().to_string() }, Piri::from(&lit.dt()).short())
                 }
             },
