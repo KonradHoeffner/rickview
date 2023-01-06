@@ -79,7 +79,7 @@ h3 {
   font-size: 11px;
 }
 
-div#directs {
+div#directs, div#publications {
   padding: 24px;
   background: #fff;
   color: #212121;
@@ -104,7 +104,7 @@ div#directs a, div#inverses a {
   color: #212121;
 }
 
-div#directs a:hover, div#inverses a:hover {
+div#directs a:hover, div#inverses a:hover, div#publications a:hover {
   text-decoration: underline;
 }
 
@@ -229,6 +229,62 @@ div#inverses .td1 a.localinfo {
     color: #9e9e9e
 }
 
+.exhibit-collectionSummaryWidget-results {
+    text-transform: uppercase;
+}
+
+#publications ol {
+    margin-left: 1em;
+    margin-right: 15em;
+}
+
+#publications ol li {
+    padding: 1ex;
+    padding-left: 0;
+    margin-left: 2em;
+    list-style: none;
+}
+
+#publications ol li div:first-letter {
+    margin-left: -1em;
+}
+
+#publications details > summary {
+    cursor: pointer;
+    direction: rtl;
+    font-size: 111%;
+}
+
+#publications details {
+    font-size: 90%;
+}
+
+#publications div.exhibit-collectionView-group h1 {
+    font-size: 100%;
+    font-weight: 400;
+}
+
+#publications a, #publications strong em, #publications strong.author {
+    font-weight: 300;
+}
+
+#publications strong.author span {
+    font-weight: 400;
+}
+
+#publications em {
+    padding-right: 2pt;
+}
+
+#publications .meta a.link {
+    float: right;
+    color: #9e9e9e;
+}
+
+.hideme, .exhibit-busyIndicator, div.exhibit-toolboxWidget-popup {
+    display: none;
+}
+
 @media (max-width: 950px) {
     .td1 {
         width: 10em;
@@ -238,6 +294,10 @@ div#inverses .td1 a.localinfo {
     td .c2 {
         width: 100%;
         min-width: 100%;
+    }
+
+    #publications ol {
+        margin-right: 2em;
     }
 }
 

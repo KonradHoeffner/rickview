@@ -7,6 +7,15 @@
     <link rel="stylesheet" href="/rickview.css" type="text/css" />
     <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link href="//fonts.googleapis.com/css?family=Roboto:100,300,500&amp;subset=latin-ext,latin,greek-ext,greek,cyrillic-ext,vietnamese,cyrillic&amp;display=swap" rel="stylesheet" type="text/css" />
+    {{ if bibtag }}
+    <script src="https://api.simile-widgets.org/exhibit/3.1.1/exhibit-api.js" type="text/javascript"></script>
+    <script>
+      Exhibit.wait(function()\{ Exhibit.Controls["id"] = \{ f: function(args,roots,rootValueTypes,defaultRootName,database) \{
+        return new Exhibit.Expression._Collection([roots[defaultRootName]], "text")
+      } } })
+    </script>
+    <link href="https://www.bibsonomy.org/json/user/aksw/{bibtag}?items=1000&callback=cb" type="application/jsonp" rel="exhibit/data" ex:jsonp-callback="cb" async />
+    {{ endif }}
   </head>
   <body>
     <article>
@@ -68,6 +77,27 @@
           {{ endfor }}
         </table>
       </div>
+      {{ if bibtag }}
+      <aside class="empty"></aside>
+      <div id="publications">
+        <div ex:role="view" ex:grouped="false" ex:orders=".year,.label" ex:directions="descending,ascending" ex:showSummary="true" ex:showDuplicates="false">
+          <div ex:role="lens" ex:itemTypes="Publication" style="display: none">
+            <span ex:content="if(.url <> '', concat('<a href=', .url, '>', .label, '</a>'), .label)"></span>
+            <span ex:if-exists=".author">
+              <span class="meta"><em>by</em> <strong class="author" ex:content=".author"></strong></span>
+            </span>
+            <span class="meta">
+              <span ex:content="if(exists(.booktitle), concat('<em>in</em> ', .booktitle), '')"></span>
+              <span class="journal" ex:content="if(exists(.journal), concat('<em>in</em> ', .journal), '')"></span>
+              <span ex:if-exists=".editor">(Editors: <span class="editor" ex:content=".editor"></span>)</span>
+              <a class="link" ex:href-content="id()" target="_blank">[Bibsonomy<span class="hideme"> of <span ex:content=".label"></span></span>]</a>
+            </span>
+            <span class="note" ex:content="if(exists(.note), concat('<br/><em>Note:</em> ', .note), '')"></span>
+            <span class="abstract" ex:content="if(exists(.abstract), concat('<br/><details><summary>Abstract</summary> ', .abstract, '</details>'), '')"></span>
+          </div>
+        </div>
+      </div>
+      {{ endif }}
       {duration}
     </article>
     <footer>

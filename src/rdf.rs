@@ -405,6 +405,23 @@ fn find_depiction_generic<G: Graph>(g: &G, iri: &SimpleIri) -> Option<String> {
     None
 }
 
+/// Show publications
+pub fn find_bibtag_iri(iri: &SimpleIri) -> Option<String> {
+    match graph() {
+        GraphEnum::FastGraph(g) => find_bibtag_generic(g, iri),
+        #[cfg(feature = "hdt")]
+        GraphEnum::HdtGraph(g) => find_bibtag_generic(g, iri),
+    }
+}
+fn find_bibtag_generic<G: Graph>(g: &G, iri: &SimpleIri) -> Option<String> {
+    let pt = SimpleIri::new("http://aksw.org/schema/", Some("publicationTag")).ok()?;
+    for t in g.triples_with_sp(iri, &pt) {
+        let t = t.ok()?;
+        return Some(t.o().value().to_string());
+    }
+    None
+}
+
 /// Returns the resource with the given suffix from the configured namespace.
 pub fn resource(iri: &SimpleIri) -> Result<Resource, InvalidIri> {
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
@@ -423,6 +440,7 @@ pub fn resource(iri: &SimpleIri) -> Result<Resource, InvalidIri> {
     let title = titles().get(&uri).unwrap_or(&local_suffix.to_owned()).to_string();
     let main_type = types().get(&local_suffix).map(std::clone::Clone::clone);
     let inverses = if config().show_inverse { filter(&connections(&ConnectionType::Inverse, iri)?, |_| true) } else { Vec::new() };
+    let bibtag = find_bibtag_iri(iri);
     if all_directs.is_empty() && inverses.is_empty() {
         let warning = format!("No triples found for {uri}. Did you configure the namespace correctly?");
         warn!("{warning}");
@@ -441,5 +459,6 @@ pub fn resource(iri: &SimpleIri) -> Result<Resource, InvalidIri> {
         directs: notdescriptions,
         inverses,
         depiction,
+        bibtag,
     })
 }
