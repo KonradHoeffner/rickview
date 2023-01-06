@@ -402,9 +402,9 @@ fn depiction_iri_generic<G: Graph>(g: &G, suffix: &str) -> Option<String> {
     let subject = namespace().get(suffix).ok()?;
     let foaf_depiction = IriRef::new_unchecked("http://xmlns.com/foaf/0.1/depiction");
     g.triples_matching(Some(subject), Some(foaf_depiction), Any)
-        .filter_map(|res| res.ok())
-        .map(|triple| triple.to_o())
-        .filter(|o| o.is_iri())
+        .filter_map(Result::ok)
+        .map(Triple::to_o)
+        .filter(Term::is_iri)
         .map(|o| o.iri().unwrap().as_str().to_owned())
         .next()
 }

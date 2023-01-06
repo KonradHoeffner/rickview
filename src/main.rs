@@ -20,7 +20,14 @@ mod resource;
 use crate::config::config;
 use about::About;
 use actix_web::middleware::Compress;
-use actix_web::{get, web, web::scope, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{
+    get,
+    http::header::{self, ETag, EntityTag},
+    web,
+    web::scope,
+    App, HttpRequest, HttpResponse, HttpServer, Responder,
+};
+use const_fnv1a_hash::fnv1a_hash_str_64;
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
 use std::error::Error;
@@ -30,7 +37,9 @@ use tinytemplate::TinyTemplate;
 static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
 static RICKVIEW_CSS: &str = std::include_str!("../data/rickview.css");
+static RICKVIEW_CSS_HASH: u64 = fnv1a_hash_str_64(RICKVIEW_CSS);
 static ROBOTO_CSS: &str = std::include_str!("../data/roboto.css");
+static ROBOTO_CSS_HASH: u64 = fnv1a_hash_str_64(ROBOTO_CSS);
 static ROBOTO300: &[u8] = std::include_bytes!("../fonts/roboto300.woff2");
 static INDEX: &str = std::include_str!("../data/index.html");
 static ABOUT: &str = std::include_str!("../data/about.html");
@@ -55,11 +64,25 @@ fn template() -> TinyTemplate<'static> {
     tt
 }
 
+fn etag(r: &HttpRequest, body: &'static str, hash: u64, ct: &str) -> impl Responder {
+    let shash = hash.to_string();
+    let quoted = format!("\"{shash}\"");
+    if let Some(e) = r.headers().get(header::IF_NONE_MATCH) {
+        if let Ok(s) = e.to_str() {
+            if s == quoted {
+                return HttpResponse::NotModified().finish();
+            }
+        }
+    }
+    let tag = ETag(EntityTag::new_strong(shash));
+    HttpResponse::Ok().content_type(ct).append_header(tag).body(body)
+}
+
 #[get("{_anypath:.*/|}rickview.css")]
-async fn rickview_css() -> impl Responder { HttpResponse::Ok().content_type("text/css").body(RICKVIEW_CSS) }
+async fn rickview_css(r: HttpRequest) -> impl Responder { etag(&r, RICKVIEW_CSS, RICKVIEW_CSS_HASH, "text/css") }
 
 #[get("{_anypath:.*/|}roboto.css")]
-async fn roboto_css() -> impl Responder { HttpResponse::Ok().content_type("text/css").body(ROBOTO_CSS) }
+async fn roboto_css(r: HttpRequest) -> impl Responder { etag(&r, ROBOTO_CSS, ROBOTO_CSS_HASH, "text/css") }
 
 #[get("{_anypath:.*/|}roboto300.woff2")]
 async fn roboto300() -> impl Responder { HttpResponse::Ok().content_type("font/woff2").body(ROBOTO300) }
