@@ -17,15 +17,26 @@ mod resource;
 
 use crate::{config::config, resource::Resource, rdf::{namespace, Piri}};
 use about::About;
-use actix_web::{get, web, web::scope, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{get, web, web::scope, App, HttpRequest, HttpResponse, HttpServer, Responder, http::header::{ETag, EntityTag, self}};
 use log::{debug, error, info, trace, warn};
-use std::time::Instant;
+use once_cell::sync::Lazy;
+use std::{time::Instant, hash::{Hash, Hasher}, collections::hash_map::DefaultHasher};
 use tinytemplate::TinyTemplate;
 use sophia::{term::SimpleIri, iri::Iri};
 
 static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 1150] = std::include_bytes!("../data/favicon-aksw.ico");
+static FAVICON_HASH: Lazy<EntityTag> = Lazy::new(|| {
+    let mut hasher = DefaultHasher::new();
+    hasher.write(FAVICON);
+    EntityTag::new_strong(format!("{:e}", hasher.finish()))
+});
 static CSS: &str = std::include_str!("../data/rickview.css");
+static CSS_HASH: Lazy<EntityTag> = Lazy::new(|| {
+    let mut hasher = DefaultHasher::new();
+    CSS.hash(&mut hasher);
+    EntityTag::new_strong(format!("{:e}", hasher.finish()))
+});
 static INDEX: &str = std::include_str!("../data/index.html");
 static ABOUT: &str = std::include_str!("../data/about.html");
 
@@ -75,10 +86,36 @@ fn template() -> TinyTemplate<'static> {
 }
 
 #[get("{_anypath:.*/|}rickview.css")]
-async fn css() -> impl Responder { HttpResponse::Ok().content_type("text/css").body(CSS) }
+async fn css(request: HttpRequest) -> impl Responder {
+    match request.headers().get(header::IF_NONE_MATCH) {
+        Some(e) => {
+            if e == &CSS_HASH.to_string() {
+                return HttpResponse::NotModified().finish();
+            }
+        },
+        None => {},
+    };
+    HttpResponse::Ok()
+        .content_type("text/css")
+        .append_header(ETag(CSS_HASH.clone()))
+        .body(CSS)
+}
 
 #[get("{_anypath:.*/|}favicon.ico")]
-async fn favicon() -> impl Responder { HttpResponse::Ok().content_type("image/x-icon").body(FAVICON.as_ref()) }
+async fn favicon(request: HttpRequest) -> impl Responder {
+    match request.headers().get(header::IF_NONE_MATCH) {
+        Some(e) => {
+            if e == &FAVICON_HASH.to_string() {
+                return HttpResponse::NotModified().finish();
+            }
+        },
+        None => {},
+    };
+    HttpResponse::Ok()
+        .content_type("image/x-icon")
+        .append_header(ETag(FAVICON_HASH.clone()))
+        .body(FAVICON.as_ref())
+}
 
 #[get("{suffix:.*|}")]
 async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
