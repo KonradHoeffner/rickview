@@ -58,7 +58,9 @@ impl fmt::Display for Piri {
 
 impl Piri {
     pub fn new(iri: IriBox) -> Self { Self { prefixed: get_prefixed_pair(&iri.as_iri()), iri } }
-    fn embrace(&self) -> String { format!("&lt;{self}&gt;") }
+    fn embrace(&self) -> String {
+        format!("&lt;{self}&gt;")
+    }
     pub fn prefixed_string(&self, bold: bool, embrace: bool) -> String {
         if let Some((p, s)) = &self.prefixed {
             if bold {
@@ -317,7 +319,10 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: &Sim
                 let (local, local_infos) = local_infos_link(g, &source.value(), &piri.to_string());
                 let title = if let Some(title) = titles().get(&piri.to_string()) { format!("<br><span>&#8618; {title}</span>") } else { String::new() };
                 let target = if local { "" } else { " target='_blank' " };
-                format!("<a href='{}'{target}>{}{title}</a>{local_infos}", piri.root_relative(), piri.prefixed_string(false, true))
+                let res = format!("<a href='{}'{target}>{}{title}</a>{local_infos}", piri.root_relative(), piri.prefixed_string(false, true));
+                if piri.to_string().starts_with("mailto:") {
+                    format!("<script>document.write(atob('{}'))</script>", base64::encode(res))
+                } else { res }
             }
             _ => target_term.value().to_string(), // BNode, Variable
         };

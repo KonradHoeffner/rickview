@@ -25,6 +25,7 @@ bytesize = "1.1.0"
 zstd = { version = "0.12.0", features = ["zstdmt"] }
 comrak = { version = "0.15.0", default-features = false, features = [] }
 once_cell = "1.17.0"
+base64 = "0.20.0"
 
 [features]
 default = ["rdfxml", "log", "hdt"]
