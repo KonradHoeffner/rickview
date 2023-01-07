@@ -450,6 +450,7 @@ pub fn resource(iri: &SimpleIri) -> Result<Resource, InvalidIri> {
     Ok(Resource {
         suffix: local_suffix.to_owned(),
         title_maybe_link: if ! local { format!("<a href='{}' target='_blank'>{}</a>", uri, title) } else { title.clone() },
+        edit_url: Some(format!("https://aksw.eccenca.dev/explore?graph=http://aksw.org/&resource={}&inlineView=true", uri.replace("#","%23"))),
         uri,
         duration: format!("{:?}", start.elapsed()),
         title,

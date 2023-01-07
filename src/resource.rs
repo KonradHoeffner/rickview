@@ -24,4 +24,5 @@ pub struct Resource {
     pub github_issue_url: Option<String>,
     pub depiction: Option<String>,
     pub bibtag: Option<String>,
+    pub edit_url: Option<String>,
 }

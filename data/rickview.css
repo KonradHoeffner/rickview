@@ -176,11 +176,6 @@ hgroup h2 > span a span {
 footer {
   min-height: 176px;
   color: #fff;
-  padding: 24px;
-}
-
-#download {
-  float: left;
 }
 
 .uppercase {
@@ -192,17 +187,34 @@ footer {
   text-decoration: none;
 }
 
-#footer-right{
-  float: right;
-  position: relative;
-  top: -7px;
+footer {
+    display: table;
+    table-layout: fixed;
+    width: 100%;
+}
+
+footer > div {
+    display: table-cell;
+    padding: 24px;
+}
+
+#footer-right {
   font-size: 12px;
   line-height: 24px;
 }
 
-#footer-right a {
+#footer-right a, .footer-edit a {
   color: #fff;
   cursor: pointer;
+}
+
+.footer-edit {
+    text-align: center;
+}
+
+.footer-edit a span {
+    font-size: 24px;
+    vertical-align: sub;
 }
 
 #footer-right ul li {

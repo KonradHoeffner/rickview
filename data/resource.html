@@ -104,6 +104,11 @@
       <div id="download">
         <a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">publish Linked Data with RickView</a>
       </div>
+      <div class="footer-edit">
+        {{ if edit_url }}
+        <a href="{edit_url}" rel="nofollow"><span>&#128393;</span> edit in corporate memory</a>
+        {{ endif }}
+      </div>
       <div id="footer-right">
         <ul>
           {{ if github_issue_url }}
