@@ -82,6 +82,14 @@ fn template() -> TinyTemplate<'static> {
         output.push_str(&o().unwrap());
         Ok(())
     });
+    tt.add_formatter("count", |json, output| {
+        let o = || -> Option<String> {
+            let s = json.as_array().unwrap_or_else(|| panic!("JSON value is not a array: {json}"));
+            Some(s.len().to_string())
+        };
+        output.push_str(&o().unwrap());
+        Ok(())
+    });
     tt
 }
 

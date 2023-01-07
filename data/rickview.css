@@ -241,6 +241,11 @@ div#inverses .td1 a.localinfo {
     color: #9e9e9e
 }
 
+.td2 > details > summary {
+    cursor: pointer;
+    list-style: none;
+}
+
 .exhibit-collectionSummaryWidget-results {
     text-transform: uppercase;
 }

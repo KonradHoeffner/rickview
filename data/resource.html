@@ -72,7 +72,7 @@
             <td class="td1">
               <label class="c1">is { entry.0 | unescaped } of</label>
             </td>
-            <td class="td2">{{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}<span class="c2">{ value | unescaped }</span>{{ endfor }}</td>
+            <td class="td2"><details><summary><span class="c2">{ entry.1 | count } resources</span></summary>{{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}<span class="c2">{ value | unescaped }</span>{{ endfor }}</details></td>
           </tr>
           {{ endfor }}
         </table>
