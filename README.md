@@ -54,6 +54,9 @@ If you don't, RickView will show a minimal example knowledge base.
 You can add custom HTML to the index page by adding a `data/body.html` file.
 Compile and run with `cargo run` and then open <http://localhost:8080> in your browser.
 
+## Supported File Formats
+The recognized formats and extensions are Turtle (`.ttl`), N-Triples (`.nt`), HDT (`.hdt`) as created by [hdt-cpp](https://github.com/rdfhdt/hdt-cpp) and zstd compressed HDT (`.hdt.zst`).
+
 ## Logging
 The default log level is "info" for RickView and "error" for libraries.
 Change the log level of RickView with the `log_level` configuration key or the `RICKVIEW_LOG_LEVEL` environment variable.
@@ -76,6 +79,7 @@ Implement a basic RDF browser similar to LodView in Rust with the following goal
 ## Stats
 All values are rounded and are measured on an Intel i9-12900k (16 cores, 24 threads) with 32 GB of DDR5-5200 RAM and a Samsung SSD 980 Pro 1 TB on Arch Linux, standard kernel 5.18.
 The qbench2 test URI is <http://www.linkedspending.aksw.org/instance/618ac3ec98384f44a9ef142356ce476d>.
+Stats for HDT, which uses much less RAM, are not measured yet. 
 
 * Linux x86-64 release binary size (strip, fat link time optimization, all features): 4.1 MB
 * Linux x86-64 release binary size (strip, no link time optimization, all features): 5.8 MB
@@ -175,10 +179,23 @@ I think this would be overkill, as there is already a default configuration file
 So my assumption is that you use the configuration file for local development and `.env` with Docker Compose.
 However if you need `.env` support outside of Docker Compose, just create an issue with a motivation and I may implement it.
 
-### Can I use it with DBpedia?
-RickView is not designed for large knowledge bases (many GB) such as the complete DBpedia, as it holds the knowledge base in RAM.
-In those cases, traditional RDF browsers based on a SPARQL endpoint are the better solution.
-However I do plan to test and if possible support knowledge bases up to around 2 GB of compressed size.
+### How can I use it with large knowledge bases?
+
+1. Convert your data to the default HDT format using [hdt-cpp](https://github.com/rdfhdt/hdt-cpp).
+2. Deactivate the title and type indexes by setting `large = true` in `data/config.toml` or setting the environment variable `RICKVIEW_LARGE=true`.
+
+Without the indexes, RickView's memory usage is only a few MB above the underlying [HDT Sophia adapter](https://github.com/konradhoeffner/hdt) in-memory graph,
+[see benchmarks](https://github.com/KonradHoeffner/sophia_benchmark/blob/master/benchmark_results.ipynb).
+For example, RickView on <http://linkedspending.aksw.org/> uses ~ 2.6 GB RAM and contains LinkedSpending 2015, which is 30 GB as uncompressed N-Triples and 413 MB as zstd compressed HDT.
+
+### When to use compression and why not support other compression formats?
+
+[HDT](https://www.rdfhdt.org/) is a compressed binary format that still supports fast querying.
+It can be further compressed but then RickView needs to uncompress it before loading, which in a test with a large knowledge base increased loading time from ~15s to ~17s.
+Because decompression is done in streaming mode, this restricts the available compressors and may even result in faster loading if you use a slow drive such as an HDD and a fast CPU.
+zstd was chosen because it compresses and decompresses quickly with a high ratio, supports streaming, and adds little overhead to the RickView binary.
+Brotli compresses extremely slowly on high compression settings while GZip results in much larger file sizes.
+If you need support for another streaming compressor, please [create an issue](https://github.com/konradhoeffner/rickview/issues).
 
 ### Why does it look exactly like LodView?
 1. LodView looks beautiful and works well, the only problems are performance and to a lesser degree simple containerized deployment.
