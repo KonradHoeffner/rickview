@@ -31,7 +31,7 @@ use zstd::stream::read::Decoder;
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 static CAP: usize = 100; // maximum number of values shown per property
 
-fn get_prefixed_pair(iri: &Iri) -> Option<(String, String)> {
+fn get_prefixed_pair(iri: &Iri<'_>) -> Option<(String, String)> {
     let (p, s) = prefixes().get_prefixed_pair(iri)?;
     Some((p.to_string(), s.to_string()))
 }
