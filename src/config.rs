@@ -55,11 +55,12 @@ impl Config {
             .set_override("cargo_pkg_version", VERSION)?
             .build()?
             .try_deserialize()?;
+        if !config.base.is_empty() && !config.base.starts_with('/') {
+            eprintln!("Warning: Non-empty base path '{}' does not start with a leading '/'.", config.base);
+        }
         if config.base.ends_with('/') {
             config.base.pop();
         }
-        // path relative to executable
-
         #[cfg(feature = "log")]
         {
             if std::env::var("RUST_LOG").is_err() {
@@ -67,6 +68,7 @@ impl Config {
             }
             env_logger::builder().format_timestamp(None).format_target(false).init();
         }
+        // path relative to executable
         match std::fs::File::open("data/body.html") {
             Ok(body_file) => {
                 let mut br = BufReader::new(body_file);
