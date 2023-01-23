@@ -18,12 +18,7 @@ jobs:
     steps:
       - name: Create Release
         id: create-release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
+        uses: softprops/action-gh-release@v1
   read-version:
     name: Read version
     runs-on: ubuntu-latest
@@ -35,7 +30,7 @@ jobs:
         env:
           REF: ${{ github.ref }}
         shell: bash
-        run: echo ::set-output name=VERSION::${REF/refs\/tags\//}
+        run: echo "VERSION=${REF/refs\/tags\//}" >> $GITHUB_OUTPUT
   build-upload:
     name: Build & Upload
     needs: [create-release, read-version]
@@ -61,7 +56,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2022-09-02
+          toolchain: nightly-2023-01-23
           target: ${{ matrix.target }}
           override: true
       - name: Set up cargo cache
@@ -88,14 +83,16 @@ jobs:
         env:
           BUILD_NAME: ${{ env.NAME }}-${{ needs.read-version.outputs.version }}-${{ matrix.target }}
         shell: bash
-        run: echo ::set-output name=BUILD_NAME::$BUILD_NAME
+        run: |
+          echo "BUILD_NAME=${BUILD_NAME}" >> $GITHUB_OUTPUT
+          echo "BUILD_NAME=${BUILD_NAME}" >> $GITHUB_ENV
       - name: Ready artifacts
         env:
           BUILD_NAME: ${{ steps.vars.outputs.BUILD_NAME }}
           TARGET: ${{ matrix.target }}
         shell: bash
         run: |
-          mkdir $BUILD_NAME
+          mkdir "${BUILD_NAME}"
           # cp target/$TARGET/release/$NAME LICENSE *.md $NAME.1 $BUILD_NAME
           cp target/$TARGET/release/$NAME $BUILD_NAME
       - name: Compress artifacts
