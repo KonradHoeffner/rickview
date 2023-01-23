@@ -3,6 +3,7 @@ use crate::rdf::GraphEnum;
 use crate::rdf::{graph, titles, types};
 use bytesize::ByteSize;
 use deepsize::DeepSizeOf;
+use sophia::graph::inmem::GraphWrapper;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 use serde::Serialize;
@@ -21,7 +22,7 @@ impl About {
         let graph_size = match graph() {
             #[cfg(feature = "hdt")]
             GraphEnum::HdtGraph(hdt_graph) => Some(ByteSize(hdt_graph.size_in_bytes() as u64).to_string()),
-            _ => None,
+            GraphEnum::FastGraph(fast_graph) => Some(fast_graph.get_wrapped().get_wrapped().len().to_string() + " triples"),
         };
         About {
             cargo_pkg_version: VERSION,
