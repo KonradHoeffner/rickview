@@ -37,7 +37,7 @@ pub struct Config {
 
 // path relative to source file
 static DEFAULT: &str = std::include_str!("../data/default.toml");
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 impl Config {
     pub fn new() -> Result<Self, ConfigError> {
@@ -68,6 +68,7 @@ impl Config {
             }
             env_logger::builder().format_timestamp(None).format_target(false).init();
         }
+
         // path relative to executable
         match std::fs::File::open("data/body.html") {
             Ok(body_file) => {

@@ -136,8 +136,8 @@ async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    trace!("{:?}", config());
-    info!("Serving {} at http://localhost:{}{}/", config().namespace, config().port, config().base);
+    let _ = config(); // needed to enable logging
+    info!("RickView {} serving {} at http://localhost:{}{}/", config::VERSION, config().namespace, config().port, config().base);
     HttpServer::new(move || {
         App::new().service(css).service(favicon).service(scope(&config().base).service(index).service(about_page).service(redirect).service(res_html))
     })

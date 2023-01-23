@@ -107,11 +107,14 @@ pub fn graph() -> &'static GraphEnum {
                         Some("zst") if filename.ends_with("hdt.zst") => {
                             let decoder = Decoder::with_buffer(BufReader::new(file)).expect("Error creating zstd decoder.");
                             let hdt = hdt::Hdt::new(BufReader::new(decoder)).expect("Error loading HDT.");
+                            info!("Decompressed and loaded HDT from {filename} in {:?}", t.elapsed());
                             return GraphEnum::HdtGraph(hdt::HdtGraph::new(hdt));
                         }
                         #[cfg(feature = "hdt")]
                         Some("hdt") => {
-                            return GraphEnum::HdtGraph(hdt::HdtGraph::new(hdt::Hdt::new(BufReader::new(file)).unwrap()));
+                            let hdt_graph = hdt::HdtGraph::new(hdt::Hdt::new(BufReader::new(file)).unwrap());
+                            info!("Loaded HDT from {filename} in {:?}", t.elapsed());
+                            return GraphEnum::HdtGraph(hdt_graph);
                         }
                         x => {
                             error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
@@ -127,7 +130,12 @@ pub fn graph() -> &'static GraphEnum {
             std::process::exit(1);
         });
         if log_enabled!(Level::Debug) {
-            info!("~{} FastGraph triples from {} in {:?}", g.triples().size_hint().0, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
+            info!(
+                "Loaded ~{} FastGraph triples from {} in {:?}",
+                g.triples().size_hint().0,
+                &config().kb_file.as_deref().unwrap_or("example kb"),
+                t.elapsed()
+            );
         }
         GraphEnum::FastGraph(g)
     })
