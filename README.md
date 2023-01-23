@@ -16,7 +16,7 @@ Try it out with the example knowledge base:
 
     services:
       rickview:
-        image: ghcr.io/konradhoeffner/rickview:0.0.7
+        image: ghcr.io/konradhoeffner/rickview:0.0.10
         environment:
           - RICKVIEW_KB_FILE=/rdf/hito.ttl
           - RICKVIEW_NAMESPACE=http://hitontology.eu/ontology/
