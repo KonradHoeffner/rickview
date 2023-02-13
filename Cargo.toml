@@ -1,6 +1,6 @@
 [package]
 name = "rickview"
-version = "0.0.10"
+version = "0.0.11-alpha.0"
 edition = "2021"
 license = "MIT"
 keywords = ["rdf", "semantic-web", "linked-data"]
@@ -11,7 +11,7 @@ readme = "README.md"
 repository = "https://github.com/konradhoeffner/rickview"
 
 [dependencies]
-sophia = "0.7" 
+sophia = "0.8.0-alpha.0"
 actix-web = "4"
 multimap = "0.8"
 tinytemplate = "1"
@@ -19,7 +19,7 @@ serde = { version = "1", features = ["derive"] }
 config = { version = "0.13", default-features = false, features = ["toml"] }
 log = "0.4"
 env_logger = { version = "0.10", default-features = false, features = ["auto-color"], optional = true }
-hdt = { version = "0.0.12", optional = true }
+hdt = { version = "0.0.13-alpha.2", optional = true }
 deepsize = { version = "0.2.0", default-features = false, features = ["std"] }
 bytesize = "1.1.0"
 zstd = { version = "0.12.0", features = ["zstdmt"] }

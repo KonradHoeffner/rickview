@@ -10,7 +10,7 @@
 //! An RDF browser is a web application that *resolves* RDF resources: given the HTTP(s) URL identifying a resource it returns an HTML summary.
 //! Besides HTML, the RDF serialization formats RDF/XML, Turtle and N-Triples are also available using content negotiation.
 //! Default configuration is stored in `data/default.toml`, which can be overriden in `data/config.toml` or environment variables.
-//! Configuration keys are in `lower\_snake\_ca`se, while environment variables are prefixed with RICKVIEW\_ and are `in SCREAMING\_SNAKE\`_CASE.
+//! Configuration keys are in `lower_snake_case`, while environment variables are prefixed with RICKVIEW\_ and are `in SCREAMING_SNAKE_CASE`.
 mod about;
 /// The main module uses Actix Web to serve resources as HTML and other formats.
 mod config;
@@ -59,7 +59,7 @@ async fn favicon() -> impl Responder { HttpResponse::Ok().content_type("image/x-
 #[get("{suffix:.*|}")]
 async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
     let t = Instant::now();
-    let prefixed = config().prefix.clone() + ":" + &suffix;
+    let prefixed = config().prefix.to_string() + ":" + &suffix;
     match rdf::resource(&suffix) {
         Err(_) => {
             let message = format!("No triples found for resource {prefixed}");
