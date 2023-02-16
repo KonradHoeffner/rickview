@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-FROM clux/muslrust:1.65.0-nightly-2022-09-02 AS chef
+FROM clux/muslrust:1.69.0-nightly-2023-02-15 AS chef
 USER root
 RUN cargo install cargo-chef
 WORKDIR /app

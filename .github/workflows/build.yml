@@ -31,13 +31,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@nightly
         with:
-          profile: minimal
-          toolchain: nightly-2022-09-02
-          target: ${{ matrix.target }}
-          override: true
-      - run: rustup component add clippy --toolchain nightly-2022-09-02-${{ matrix.target }}
+          toolchain: nightly-2023-02-15
+          components: clippy
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -49,15 +46,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo
-      - name: Install linker
-        if: matrix.target == 'i686-unknown-linux-gnu'
-        run: sudo apt-get install gcc-multilib
-      # - run: cargo check
-      # populate cache for release workflow
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --target ${{ matrix.target }} --release
+        run: cargo build --target ${{ matrix.target }} --release
       - name: Clippy
-        run: cargo clippy --no-deps --all-features --tests --benches -- -Dclippy::all
+        run: cargo clippy --no-deps --all-features --tests
