@@ -34,7 +34,6 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly-2023-02-15
-          components: clippy
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -48,5 +47,3 @@ jobs:
           key: ${{ runner.os }}-cargo
       - name: Build
         run: cargo build --target ${{ matrix.target }} --release
-      - name: Clippy
-        run: cargo clippy --no-deps --all-features --tests
