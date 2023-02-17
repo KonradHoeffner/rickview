@@ -1,6 +1,7 @@
 # RickView
 
 ![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg "Unsafe forbidden")
+[![Lint and Build](https://github.com/konradhoeffner/rickview/actions/workflows/lint_and_build.yml/badge.svg)](https://github.com/konradhoeffner/rickview/actions/workflows/lint_and_build.yml)
 
 A quick RDF viewer (browser).
 Layout copied from LodView.
