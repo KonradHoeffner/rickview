@@ -26,7 +26,10 @@ use tinytemplate::TinyTemplate;
 
 static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
-static CSS: &str = std::include_str!("../data/rickview.css");
+static RICKVIEW_CSS: &str = std::include_str!("../data/rickview.css");
+static ROBOTO_CSS: &str = std::include_str!("../data/roboto.css");
+static ROBOTO300: &[u8] = std::include_bytes!("../fonts/roboto300.woff2");
+static ROBOTO500: &[u8] = std::include_bytes!("../fonts/roboto500.woff2");
 static INDEX: &str = std::include_str!("../data/index.html");
 static ABOUT: &str = std::include_str!("../data/about.html");
 
@@ -51,7 +54,16 @@ fn template() -> TinyTemplate<'static> {
 }
 
 #[get("{_anypath:.*/|}rickview.css")]
-async fn css() -> impl Responder { HttpResponse::Ok().content_type("text/css").body(CSS) }
+async fn rickview_css() -> impl Responder { HttpResponse::Ok().content_type("text/css").body(RICKVIEW_CSS) }
+
+#[get("{_anypath:.*/|}roboto.css")]
+async fn roboto_css() -> impl Responder { HttpResponse::Ok().content_type("text/css").body(ROBOTO_CSS) }
+
+#[get("{_anypath:.*/|}roboto300.woff2")]
+async fn roboto300() -> impl Responder { HttpResponse::Ok().content_type("font/woff2").body(ROBOTO300) }
+
+#[get("{_anypath:.*/|}roboto500.woff2")]
+async fn roboto500() -> impl Responder { HttpResponse::Ok().content_type("font/woff2").body(ROBOTO500) }
 
 #[get("{_anypath:.*/|}favicon.ico")]
 async fn favicon() -> impl Responder { HttpResponse::Ok().content_type("image/x-icon").body(FAVICON.as_ref()) }
@@ -139,7 +151,13 @@ async fn main() -> std::io::Result<()> {
     let _ = config(); // needed to enable logging
     info!("RickView {} serving {} at http://localhost:{}{}/", config::VERSION, config().namespace, config().port, config().base);
     HttpServer::new(move || {
-        App::new().service(css).service(favicon).service(scope(&config().base).service(index).service(about_page).service(redirect).service(res_html))
+        App::new()
+            .service(rickview_css)
+            .service(roboto_css)
+            .service(roboto300)
+            .service(roboto500)
+            .service(favicon)
+            .service(scope(&config().base).service(index).service(about_page).service(redirect).service(res_html))
     })
     .bind(("0.0.0.0", config().port))?
     .run()
