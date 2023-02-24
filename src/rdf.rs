@@ -83,6 +83,11 @@ pub enum GraphEnum {
     HdtGraph(HdtGraph),
 }
 
+pub fn kb_reader(filename: &str) -> Result<BufReader<impl std::io::Read>, Box<dyn std::error::Error>> {
+    let reader = if filename.starts_with("http") { ureq::get(filename).call()?.into_reader() } else { Box::new(File::open(filename)?) };
+    Ok(BufReader::new(reader))
+}
+
 /// Load RDF graph from the RDF Turtle file specified in the config.
 pub fn graph() -> &'static GraphEnum {
     GRAPH.get_or_init(|| {
@@ -92,26 +97,26 @@ pub fn graph() -> &'static GraphEnum {
                 warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
                 turtle::parse_str(EXAMPLE_KB).collect_triples()
             }
-            Some(filename) => match File::open(filename) {
+            Some(filename) => match kb_reader(filename) {
                 Err(e) => {
                     error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", filename, e);
                     std::process::exit(1);
                 }
-                Ok(file) => {
-                    let reader = BufReader::new(&file);
+                Ok(br) => {
+                    let br = BufReader::new(br);
                     let triples = match Path::new(&filename).extension().and_then(std::ffi::OsStr::to_str) {
-                        Some("ttl") => turtle::parse_bufread(reader).collect_triples(),
-                        Some("nt") => nt::parse_bufread(reader).collect_triples(),
+                        Some("ttl") => turtle::parse_bufread(br).collect_triples(),
+                        Some("nt") => nt::parse_bufread(br).collect_triples(),
                         #[cfg(feature = "hdt")]
                         Some("zst") if filename.ends_with("hdt.zst") => {
-                            let decoder = Decoder::with_buffer(BufReader::new(file)).expect("Error creating zstd decoder.");
+                            let decoder = Decoder::with_buffer(br).expect("Error creating zstd decoder.");
                             let hdt = hdt::Hdt::new(BufReader::new(decoder)).expect("Error loading HDT.");
                             info!("Decompressed and loaded HDT from {filename} in {:?}", t.elapsed());
                             return GraphEnum::HdtGraph(hdt::HdtGraph::new(hdt));
                         }
                         #[cfg(feature = "hdt")]
                         Some("hdt") => {
-                            let hdt_graph = hdt::HdtGraph::new(hdt::Hdt::new(BufReader::new(file)).unwrap());
+                            let hdt_graph = hdt::HdtGraph::new(hdt::Hdt::new(br).unwrap());
                             info!("Loaded HDT from {filename} in {:?}", t.elapsed());
                             return GraphEnum::HdtGraph(hdt_graph);
                         }
