@@ -22,7 +22,7 @@ use sophia::iri::IriRef;
 use sophia::turtle::parser::{nt, turtle};
 use sophia::turtle::serializer::{nt::NtSerializer, turtle::TurtleConfig, turtle::TurtleSerializer};
 #[cfg(feature = "rdfxml")]
-use sophia::xml::serializer::RdfXmlSerializer;
+use sophia::xml::{self, serializer::RdfXmlSerializer};
 use std::{collections::BTreeMap, collections::BTreeSet, collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
 #[cfg(feature = "hdt")]
 use zstd::stream::read::Decoder;
@@ -107,6 +107,9 @@ pub fn graph() -> &'static GraphEnum {
                     let triples = match Path::new(&filename).extension().and_then(std::ffi::OsStr::to_str) {
                         Some("ttl") => turtle::parse_bufread(br).collect_triples(),
                         Some("nt") => nt::parse_bufread(br).collect_triples(),
+                        // error types not compatible
+                        #[cfg(feature = "rdfxml")]
+                        Some("rdf" | "owl") => Ok(xml::parser::parse_bufread(br).collect_triples().expect("Error parsing {filename} as RDF/XML.")),
                         #[cfg(feature = "hdt")]
                         Some("zst") if filename.ends_with("hdt.zst") => {
                             let decoder = Decoder::with_buffer(br).expect("Error creating zstd decoder.");
@@ -120,8 +123,12 @@ pub fn graph() -> &'static GraphEnum {
                             info!("Loaded HDT from {filename} in {:?}", t.elapsed());
                             return GraphEnum::HdtGraph(hdt_graph);
                         }
-                        x => {
-                            error!("Unknown extension: \"{:?}\": cannot parse knowledge base. Aborting.", x);
+                        Some(ext) => {
+                            error!("Unknown extension: \"{ext}\": cannot parse knowledge base. Aborting.");
+                            std::process::exit(1);
+                        }
+                        None => {
+                            error!("No extension in parse knowledge base file {filename}. Aborting.");
                             std::process::exit(1);
                         }
                     };
