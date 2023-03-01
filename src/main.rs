@@ -22,6 +22,7 @@ use about::About;
 use actix_web::middleware::Compress;
 use actix_web::{get, web, web::scope, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use log::{debug, error, info, trace, warn};
+use std::error::Error;
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
 
@@ -39,15 +40,15 @@ fn template() -> TinyTemplate<'static> {
     tt.add_template("index", INDEX).expect("Could not parse index page template");
     tt.add_template("about", ABOUT).expect("Could not parse about page template");
     tt.add_formatter("uri_to_suffix", |json, output| {
-        let o = || -> Option<String> {
+        let o = || -> String {
             let s = json.as_str().unwrap_or_else(|| panic!("JSON value is not a string: {json}"));
             let mut s = s.rsplit_once('/').unwrap_or_else(|| panic!("no '/' in URI '{s}'")).1;
             if s.contains('#') {
-                s = s.rsplit_once('#')?.1;
+                s = s.rsplit_once('#').unwrap().1;
             }
-            Some(s.to_owned())
+            s.to_owned()
         };
-        output.push_str(&o().unwrap());
+        output.push_str(&o());
         Ok(())
     });
     tt
@@ -64,6 +65,17 @@ async fn roboto300() -> impl Responder { HttpResponse::Ok().content_type("font/w
 
 #[get("{_anypath:.*/|}favicon.ico")]
 async fn favicon() -> impl Responder { HttpResponse::Ok().content_type("image/x-icon").body(FAVICON.as_ref()) }
+
+fn res_result(resource: &str, content_type: &str, result: Result<String, Box<dyn Error>>) -> HttpResponse {
+    match result {
+        Ok(s) => HttpResponse::Ok().content_type(content_type).body(s),
+        Err(err) => {
+            let message = format!("Internal server error. Could not render resource {resource}:\n{err}.");
+            error!("{}", message);
+            HttpResponse::InternalServerError().body(message)
+        }
+    }
+}
 
 #[get("{suffix:.*|}")]
 async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
@@ -95,12 +107,12 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                         }
                         if accept.contains("application/n-triples") {
                             debug!("{} N-Triples {:?}", prefixed, t.elapsed());
-                            return HttpResponse::Ok().content_type("application/n-triples").body(rdf::serialize_nt(&suffix));
+                            return res_result(&prefixed, "application/n-triples", rdf::serialize_nt(&suffix));
                         }
                         #[cfg(feature = "rdfxml")]
                         if accept.contains("application/rdf+xml") {
                             debug!("{} RDF {:?}", prefixed, t.elapsed());
-                            return HttpResponse::Ok().content_type("application/rdf+xml").body(rdf::serialize_rdfxml(&suffix));
+                            return res_result(&prefixed, "application/rdf+xml", rdf::serialize_rdfxml(&suffix));
                         }
                         warn!("{} accept header {} not recognized, using RDF Turtle", prefixed, accept);
                     }
@@ -110,7 +122,7 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                 }
             }
             debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
-            HttpResponse::Ok().content_type("application/turtle").body(rdf::serialize_turtle(&suffix))
+            res_result(&prefixed, "application/turtle", rdf::serialize_turtle(&suffix))
         }
     }
 }

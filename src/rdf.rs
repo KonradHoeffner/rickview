@@ -23,7 +23,10 @@ use sophia::turtle::parser::{nt, turtle};
 use sophia::turtle::serializer::{nt::NtSerializer, turtle::TurtleConfig, turtle::TurtleSerializer};
 #[cfg(feature = "rdfxml")]
 use sophia::xml::{self, serializer::RdfXmlSerializer};
-use std::{collections::BTreeMap, collections::BTreeSet, collections::HashMap, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock, time::Instant};
+use std::{
+    collections::BTreeMap, collections::BTreeSet, collections::HashMap, error::Error, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock,
+    time::Instant,
+};
 #[cfg(feature = "hdt")]
 use zstd::stream::read::Decoder;
 
@@ -119,7 +122,7 @@ pub fn graph() -> &'static GraphEnum {
                         }
                         #[cfg(feature = "hdt")]
                         Some("hdt") => {
-                            let hdt_graph = hdt::HdtGraph::new(hdt::Hdt::new(br).unwrap());
+                            let hdt_graph = hdt::HdtGraph::new(hdt::Hdt::new(br).unwrap_or_else(|e| panic!("Error loading HDT from {filename}: {e}")));
                             info!("Loaded HDT from {filename} in {:?}", t.elapsed());
                             return GraphEnum::HdtGraph(hdt_graph);
                         }
@@ -189,8 +192,8 @@ fn titles_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
                     Ok(iref) => {
                         let term = SimpleTerm::Iri(iref);
                         for tt in g.triples_matching(Any, Some(term), Any) {
-                            let t = tt.unwrap();
-                            let uri = t.s().as_simple().iri().unwrap().as_str().to_owned();
+                            let t = tt.expect("error fetching title triple");
+                            let uri = t.s().as_simple().iri().expect("invalid title subject IRI").as_str().to_owned();
                             match t.o().as_simple() {
                                 SimpleTerm::LiteralLanguage(lit, tag) => tagged.insert(tag.as_str().to_owned(), (uri, lit.to_string())),
                                 SimpleTerm::LiteralDatatype(lit, _) => tagged.insert(String::new(), (uri, lit.to_string())),
@@ -234,16 +237,16 @@ fn types_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
             for prop in config().type_properties.iter().rev() {
                 let iref = IriRef::new(prop.clone().into());
                 if iref.is_err() {
-                    error!("Invalid type property {prop}");
+                    error!("invalid type property {prop}");
                     continue;
                 }
                 let term = SimpleTerm::Iri(iref.unwrap());
                 for tt in g.triples_matching(Any, Some(term), Any) {
-                    let t = tt.unwrap();
+                    let t = tt.expect("error fetching type triple");
                     if !t.s().is_iri() {
                         continue;
                     }
-                    let suffix = t.s().as_simple().iri().unwrap().to_string().replace(&*config().namespace, "");
+                    let suffix = t.s().as_simple().iri().expect("invalid type subject IRI").to_string().replace(&*config().namespace, "");
                     match t.o().as_simple() {
                         SimpleTerm::Iri(iri) => {
                             types.insert(suffix, iri.to_string());
@@ -270,7 +273,7 @@ static TITLES: OnceLock<HashMap<String, String>> = OnceLock::new();
 static TYPES: OnceLock<HashMap<String, String>> = OnceLock::new();
 static NAMESPACE: OnceLock<Namespace<&'static str>> = OnceLock::new();
 
-fn namespace() -> &'static Namespace<&'static str> { NAMESPACE.get_or_init(|| Namespace::new(config().namespace.as_ref()).unwrap()) }
+fn namespace() -> &'static Namespace<&'static str> { NAMESPACE.get_or_init(|| Namespace::new(config().namespace.as_ref()).expect("namespace error")) }
 
 /// Whether the given resource is in subject or object position.
 enum ConnectionType {
@@ -304,7 +307,7 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str
     let mut map: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut connections: Vec<Connection> = Vec::new();
     for res in triples {
-        let triple = res.unwrap();
+        let triple = res.expect("error with connection triple");
         let target_term = match conn_type {
             ConnectionType::Direct => triple.o(),
             ConnectionType::Inverse => triple.s(),
@@ -346,7 +349,7 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str
 
 #[cfg(feature = "rdfxml")]
 /// Export all triples (s,p,o) for a given subject s as RDF/XML.
-pub fn serialize_rdfxml(suffix: &str) -> String {
+pub fn serialize_rdfxml(suffix: &str) -> Result<String, Box<dyn Error>> {
     match graph() {
         GraphEnum::FastGraph(g) => serialize_rdfxml_generic(g, suffix),
         #[cfg(feature = "hdt")]
@@ -354,27 +357,27 @@ pub fn serialize_rdfxml(suffix: &str) -> String {
     }
 }
 #[cfg(feature = "rdfxml")]
-pub fn serialize_rdfxml_generic<G: Graph>(g: &G, suffix: &str) -> String {
-    let iri = namespace().get(suffix).unwrap();
-    RdfXmlSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(iri), Any, Any)).unwrap().to_string()
+pub fn serialize_rdfxml_generic<G: Graph>(g: &G, suffix: &str) -> Result<String, Box<dyn Error>> {
+    let iri = namespace().get(suffix)?;
+    Ok(RdfXmlSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(iri), Any, Any))?.to_string())
 }
 
 /// Export all triples (s,p,o) for a given subject s as RDF Turtle using the config prefixes.
-pub fn serialize_turtle(suffix: &str) -> String {
+pub fn serialize_turtle(suffix: &str) -> Result<String, Box<dyn Error>> {
     match graph() {
         GraphEnum::FastGraph(g) => serialize_turtle_generic(g, suffix),
         #[cfg(feature = "hdt")]
         GraphEnum::HdtGraph(g) => serialize_turtle_generic(g, suffix),
     }
 }
-fn serialize_turtle_generic<G: Graph>(g: &G, suffix: &str) -> String {
-    let iri = namespace().get(suffix).unwrap();
+fn serialize_turtle_generic<G: Graph>(g: &G, suffix: &str) -> Result<String, Box<dyn Error>> {
+    let iri = namespace().get(suffix)?;
     let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map(prefixes().clone());
-    TurtleSerializer::new_stringifier_with_config(config).serialize_triples(g.triples_matching(Some(iri), Any, Any)).unwrap().to_string()
+    Ok(TurtleSerializer::new_stringifier_with_config(config).serialize_triples(g.triples_matching(Some(iri), Any, Any))?.to_string())
 }
 
 /// Export all triples (s,p,o) for a given subject s as N-Triples.
-pub fn serialize_nt(suffix: &str) -> String {
+pub fn serialize_nt(suffix: &str) -> Result<String, Box<dyn Error>> {
     match graph() {
         GraphEnum::FastGraph(g) => serialize_nt_generic(g, suffix),
         #[cfg(feature = "hdt")]
@@ -382,9 +385,9 @@ pub fn serialize_nt(suffix: &str) -> String {
     }
 }
 /// Helper function for [`serialize_nt`].
-fn serialize_nt_generic<G: Graph>(g: &G, suffix: &str) -> String {
-    let iri = namespace().get(suffix).unwrap();
-    NtSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(iri), Any, Any)).unwrap().to_string()
+fn serialize_nt_generic<G: Graph>(g: &G, suffix: &str) -> Result<String, Box<dyn Error>> {
+    let iri = namespace().get(suffix)?;
+    Ok(NtSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(iri), Any, Any))?.to_string())
 }
 
 /// Returns the resource with the given suffix from the configured namespace.
