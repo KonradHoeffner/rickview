@@ -11,7 +11,8 @@ html, body, div, span, object, iframe, h1, h2, h3, h4, h5, h6, blockquote, pre, 
 }
 
 body {
-  font-family: "Roboto", sans-serif;
+  font-family: "Roboto", "Noto Sans Math", sans-serif, "Symbola";
+  font-display: swap;
   font-weight: 300;
   line-height: 20px;
   font-size: 14px;
