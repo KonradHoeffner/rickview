@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>{title}</title>
     <link rel="stylesheet" href="rickview.css" type="text/css" />
     <link rel="stylesheet" href="roboto.css" type="text/css" />
@@ -14,7 +14,7 @@
           <h1>{title }</h1>
           <h2>
             {uri}
-            {{ if main_type }}
+			{{ if main_type }}
             <span class="instance">
               <a title="<{main_type}>" href="{main_type}" target="_blank">
                 <span class="instanceof">an entity of type:</span>
@@ -72,6 +72,12 @@
       </div>
       <div id="footer-right">
         <ul>
+          <li>
+            view as:
+            <a href="{uri | uri_to_suffix}?output=application/rdf%2Bxml">xml, </a>
+            <a href="{uri | uri_to_suffix}?output=application/n-triples">ntriples, </a>
+            <a href="{uri | uri_to_suffix}?output=application/turtle">turtle</a>
+          </li>
           {{ if github_issue_url }}
           <li>
             <a target="_blank" href="{github_issue_url}">create issue on GitHub</a>

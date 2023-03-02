@@ -22,6 +22,7 @@ use about::About;
 use actix_web::middleware::Compress;
 use actix_web::{get, web, web::scope, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use log::{debug, error, info, trace, warn};
+use serde::Deserialize;
 use std::error::Error;
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
@@ -77,8 +78,18 @@ fn res_result(resource: &str, content_type: &str, result: Result<String, Box<dyn
     }
 }
 
+#[derive(Deserialize)]
+struct Params {
+    output: Option<String>,
+}
+
 #[get("{suffix:.*|}")]
-async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Responder {
+async fn res_html(request: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
+    const NT: &str = "application/n-triples";
+    const TTL: &str = "application/turtle";
+    const XML: &str = "application/rdf+xml";
+    const HTML: &str = "text/html";
+    let output = params.output.as_deref();
     let t = Instant::now();
     let prefixed = config().prefix.to_string() + ":" + &suffix;
     match rdf::resource(&suffix) {
@@ -92,7 +103,16 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                 Some(a) => {
                     if let Ok(accept) = a.to_str() {
                         trace!("{} accept header {}", prefixed, accept);
-                        if accept.contains("text/html") {
+                        if accept.contains(NT) || output == Some(NT) {
+                            debug!("{} N-Triples {:?}", prefixed, t.elapsed());
+                            return res_result(&prefixed, NT, rdf::serialize_nt(&suffix));
+                        }
+                        #[cfg(feature = "rdfxml")]
+                        if accept.contains(XML) || output == Some(XML) {
+                            debug!("{} RDF/XML {:?}", prefixed, t.elapsed());
+                            return res_result(&prefixed, XML, rdf::serialize_rdfxml(&suffix));
+                        }
+                        if accept.contains(HTML) && output != Some(TTL) {
                             return match template().render("resource", &res) {
                                 Ok(html) => {
                                     debug!("{} HTML {:?}", prefixed, t.elapsed());
@@ -105,16 +125,7 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                                 }
                             };
                         }
-                        if accept.contains("application/n-triples") {
-                            debug!("{} N-Triples {:?}", prefixed, t.elapsed());
-                            return res_result(&prefixed, "application/n-triples", rdf::serialize_nt(&suffix));
-                        }
-                        #[cfg(feature = "rdfxml")]
-                        if accept.contains("application/rdf+xml") {
-                            debug!("{} RDF {:?}", prefixed, t.elapsed());
-                            return res_result(&prefixed, "application/rdf+xml", rdf::serialize_rdfxml(&suffix));
-                        }
-                        warn!("{} accept header {} not recognized, using RDF Turtle", prefixed, accept);
+                        warn!("{} accept header {} and 'output' parameter {:?} not recognized, using RDF Turtle", prefixed, accept, output);
                     }
                 }
                 None => {
@@ -122,7 +133,7 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>) -> impl Respo
                 }
             }
             debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
-            res_result(&prefixed, "application/turtle", rdf::serialize_turtle(&suffix))
+            res_result(&prefixed, TTL, rdf::serialize_turtle(&suffix))
         }
     }
 }
