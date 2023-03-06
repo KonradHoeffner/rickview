@@ -6,6 +6,7 @@
 #![allow(clippy::similar_names)]
 #![deny(rust_2018_idioms)]
 #![feature(once_cell)]
+#![feature(let_chains)]
 //! Lightweight and performant RDF browser.
 //! An RDF browser is a web application that *resolves* RDF resources: given the HTTP(s) URL identifying a resource it returns an HTML summary.
 //! Besides HTML, the RDF serialization formats RDF/XML, Turtle and N-Triples are also available using content negotiation.
@@ -31,7 +32,10 @@ use const_fnv1a_hash::fnv1a_hash_str_64;
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
 use std::error::Error;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 use tinytemplate::TinyTemplate;
 
 static RESOURCE: &str = std::include_str!("../data/resource.html");
@@ -43,6 +47,7 @@ static ROBOTO_CSS_HASH: u64 = fnv1a_hash_str_64(ROBOTO_CSS);
 static ROBOTO300: &[u8] = std::include_bytes!("../fonts/roboto300.woff2");
 static INDEX: &str = std::include_str!("../data/index.html");
 static ABOUT: &str = std::include_str!("../data/about.html");
+static RUN_ID: AtomicU32 = AtomicU32::new(0);
 
 fn template() -> TinyTemplate<'static> {
     let mut tt = TinyTemplate::new();
@@ -64,7 +69,8 @@ fn template() -> TinyTemplate<'static> {
     tt
 }
 
-fn etag(r: &HttpRequest, body: &'static str, hash: u64, ct: &str) -> impl Responder {
+fn hash_etag(r: &HttpRequest, body: &'static str, hash: u64, ct: &str) -> impl Responder {
+    // Base64 is more efficient, but adding another dependency isn't worth it.
     let shash = hash.to_string();
     let quoted = format!("\"{shash}\"");
     if let Some(e) = r.headers().get(header::IF_NONE_MATCH) {
@@ -79,10 +85,10 @@ fn etag(r: &HttpRequest, body: &'static str, hash: u64, ct: &str) -> impl Respon
 }
 
 #[get("{_anypath:.*/|}rickview.css")]
-async fn rickview_css(r: HttpRequest) -> impl Responder { etag(&r, RICKVIEW_CSS, RICKVIEW_CSS_HASH, "text/css") }
+async fn rickview_css(r: HttpRequest) -> impl Responder { hash_etag(&r, RICKVIEW_CSS, RICKVIEW_CSS_HASH, "text/css") }
 
 #[get("{_anypath:.*/|}roboto.css")]
-async fn roboto_css(r: HttpRequest) -> impl Responder { etag(&r, ROBOTO_CSS, ROBOTO_CSS_HASH, "text/css") }
+async fn roboto_css(r: HttpRequest) -> impl Responder { hash_etag(&r, ROBOTO_CSS, ROBOTO_CSS_HASH, "text/css") }
 
 #[get("{_anypath:.*/|}roboto300.woff2")]
 async fn roboto300() -> impl Responder { HttpResponse::Ok().content_type("font/woff2").body(ROBOTO300) }
@@ -107,11 +113,21 @@ struct Params {
 }
 
 #[get("{suffix:.*|}")]
-async fn res_html(request: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
+async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
     const NT: &str = "application/n-triples";
     const TTL: &str = "application/turtle";
     const XML: &str = "application/rdf+xml";
     const HTML: &str = "text/html";
+    let id = RUN_ID.load(Ordering::Relaxed).to_string();
+    let quoted = format!("\"{id}\"");
+    if let Some(e) = r.headers().get(header::IF_NONE_MATCH) {
+        if let Ok(s) = e.to_str() {
+            if s == quoted {
+                return HttpResponse::NotModified().finish();
+            }
+        }
+    }
+    let etag = ETag(EntityTag::new_strong(id));
     let output = params.output.as_deref();
     let t = Instant::now();
     let prefixed = config().prefix.to_string() + ":" + &suffix;
@@ -119,10 +135,10 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>, params: web::
         Err(_) => {
             let message = format!("No triples found for resource {prefixed}");
             warn!("{}", message);
-            HttpResponse::NotFound().content_type("text/plain").body(message)
+            HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(message)
         }
         Ok(res) => {
-            match request.head().headers().get("Accept") {
+            match r.head().headers().get("Accept") {
                 Some(a) => {
                     if let Ok(accept) = a.to_str() {
                         trace!("{} accept header {}", prefixed, accept);
@@ -139,21 +155,19 @@ async fn res_html(request: HttpRequest, suffix: web::Path<String>, params: web::
                             return match template().render("resource", &res) {
                                 Ok(html) => {
                                     debug!("{} HTML {:?}", prefixed, t.elapsed());
-                                    HttpResponse::Ok().content_type("text/html; charset-utf-8").body(html)
+                                    HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(html)
                                 }
                                 Err(err) => {
                                     let message = format!("Internal server error. Could not render resource {prefixed}:\n{err}.");
                                     error!("{}", message);
-                                    HttpResponse::InternalServerError().body(message)
+                                    HttpResponse::InternalServerError().append_header(etag).body(message)
                                 }
                             };
                         }
-                        warn!("{} accept header {} and 'output' parameter {:?} not recognized, using RDF Turtle", prefixed, accept, output);
+                        warn!("{} accept header {} and 'output' param {:?} not recognized or Turtle, using RDF Turtle", prefixed, accept, output);
                     }
                 }
-                None => {
-                    warn!("{} accept header missing, using RDF Turtle", prefixed);
-                }
+                None => warn!("{} accept header missing, using RDF Turtle", prefixed),
             }
             debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
             res_result(&prefixed, TTL, rdf::serialize_turtle(&suffix))
@@ -191,6 +205,9 @@ async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // we don't care about the upper bits as they rarely change
+    RUN_ID.store(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u32, Ordering::Relaxed);
+    println!("run id {RUN_ID:?}");
     let _ = config(); // needed to enable logging
     info!("RickView {} serving {} at http://localhost:{}{}/", config::VERSION, config().namespace, config().port, config().base);
     HttpServer::new(move || {
