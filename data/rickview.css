@@ -1,5 +1,5 @@
 /* taken from LodView */
-html, body, div, span, object, iframe, h1, h2, h3, h4, h5, h6, blockquote, pre, abbr, address, cite, code, del, dfn, em, img, ins, kbd, q, samp, small, strong, sub, sup, var, b, i, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption, tbody, tfoot, thead, tr, th, td, article, aside, canvas, details, figcaption, figure, footer, header, hgroup, menu, nav, section, summary, time, mark, audio, video {
+html, body, div, span, object, iframe, h1, h2, h3, h4, h5, h6, blockquote, pre, abbr, address, cite, code, del, dfn, em, img, ins, kbd, q, samp, small, strong, sub, sup, var, b, i, dl, dt, dd, ol, fieldset, form, label, legend, table, caption, tbody, tfoot, thead, tr, th, td, article, aside, canvas, details, figcaption, figure, footer, header, hgroup, menu, nav, section, summary, time, mark, audio, video {
   margin: 0;
   padding: 0;
   border: 0;
@@ -11,7 +11,8 @@ html, body, div, span, object, iframe, h1, h2, h3, h4, h5, h6, blockquote, pre, 
 }
 
 body {
-  font-family: "Roboto", sans-serif;
+  font-family: "Roboto", "Noto Sans Math", sans-serif, "Symbola";
+  font-display: swap;
   font-weight: 300;
   line-height: 20px;
   font-size: 14px;
@@ -23,7 +24,10 @@ hgroup {
   min-height: 210px;
   color: #fff;
   padding: 0 24px;
-  background-color: #914848;
+  background-color: rgba(197, 0, 123, 0.6);
+}
+hgroup a {
+  color: #fff;
 }
 
 hgroup h1 {
@@ -32,6 +36,15 @@ hgroup h1 {
   line-height: 32px;
   font-weight: 300;
   margin-right: 100px;
+}
+
+hgroup img.depiction {
+  margin-top: -120px;
+  float: right;
+  max-width: 98px;
+  max-height: 118px;
+  border: 1px solid aliceblue;
+  padding: 1px;
 }
 
 hgroup h2 {
@@ -43,12 +56,12 @@ hgroup h2 {
 header div#abstract {
   padding: 24px;
   color: #fff;
-  background-color: #7d3e3e;
+  background-color: rgba(236, 116, 4, 0.6);
 }
 
 aside {
   display: block;
-  background-color: #eee;
+  background-color: rgba(137, 186, 23, 0.9);
   color: #fff;
   padding: 0;
   font-size: 0px;
@@ -67,7 +80,7 @@ h3 {
   font-size: 11px;
 }
 
-div#directs {
+div#directs, div#publications {
   padding: 24px;
   background: #fff;
   color: #212121;
@@ -92,7 +105,7 @@ div#directs a, div#inverses a {
   color: #212121;
 }
 
-div#directs a:hover, div#inverses a:hover {
+div#directs a:hover, div#inverses a:hover, div#publications a:hover {
   text-decoration: underline;
 }
 
@@ -108,6 +121,12 @@ a {
   vertical-align: baseline;
   background: transparent;
   text-decoration: none;
+}
+
+#directs #custom a {
+  cursor: revert;
+  color: revert;
+  text-decoration: revert;
 }
 
 .td1 {
@@ -158,11 +177,6 @@ hgroup h2 > span a span {
 footer {
   min-height: 176px;
   color: #fff;
-  padding: 24px;
-}
-
-#download {
-  float: left;
 }
 
 .uppercase {
@@ -174,17 +188,34 @@ footer {
   text-decoration: none;
 }
 
-#footer-right{
-  float: right;
-  position: relative;
-  top: -7px;
+footer {
+    display: table;
+    table-layout: fixed;
+    width: 100%;
+}
+
+footer > div {
+    display: table-cell;
+    padding: 24px;
+}
+
+#footer-right {
   font-size: 12px;
   line-height: 24px;
 }
 
-#footer-right a {
+#footer-right a, .footer-edit a {
   color: #fff;
   cursor: pointer;
+}
+
+.footer-edit {
+    text-align: center;
+}
+
+.footer-edit a span {
+    font-size: 24px;
+    vertical-align: sub;
 }
 
 #footer-right ul li {
@@ -199,4 +230,124 @@ footer {
 div.datatype {
  color: #9e9e9e;
  float: right;
+}
+
+div#directs a.localinfo, div#inverses a.localinfo {
+    color: #9e9e9e;
+}
+div#directs .td1 a.localinfo {
+    color: #cecece
+}
+div#inverses .td1 a.localinfo {
+    color: #9e9e9e
+}
+
+.td2 > details > summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.exhibit-collectionSummaryWidget-results {
+    text-transform: uppercase;
+}
+
+#publications ol {
+    margin-left: 1em;
+    margin-right: 15em;
+}
+
+#publications ol li {
+    padding: 1ex;
+    padding-left: 0;
+    margin-left: 2em;
+    list-style: none;
+}
+
+#publications ol li div:first-letter {
+    margin-left: -1em;
+}
+
+#publications details > summary {
+    cursor: pointer;
+    direction: rtl;
+    font-size: 111%;
+}
+
+#publications details {
+    font-size: 90%;
+}
+
+#publications div.exhibit-collectionView-group h1 {
+    font-size: 100%;
+    font-weight: 400;
+}
+
+#publications a, #publications strong em, #publications strong.author {
+    font-weight: 300;
+}
+
+#publications strong.author span {
+    font-weight: 400;
+}
+
+#publications em {
+    padding-right: 2pt;
+}
+
+#publications .meta a.link {
+    float: right;
+    color: #9e9e9e;
+}
+
+.hideme, .exhibit-busyIndicator, div.exhibit-toolboxWidget-popup {
+    display: none;
+}
+
+@media (max-width: 950px) {
+    .td1 {
+        width: 10em;
+        min-width: 10em;
+    }
+
+    td .c2 {
+        width: 100%;
+        min-width: 100%;
+    }
+
+    #publications ol {
+        margin-right: 2em;
+    }
+}
+
+@media (max-width: 480px) {
+    hgroup {
+        min-height: inherit;
+    }
+
+    hgroup h1 {
+        padding-top: 10px;
+    }
+
+    hgroup img.depiction {
+        margin-top: -34px;
+        max-height: 56px;
+        max-width: 50px;
+    }
+
+    td {
+        display: block;
+        display: grid;
+    }
+
+    .td1 .td2 {
+        margin-left: -1em;
+    }
+
+    .td2 {
+        padding-left: 2em;
+    }
+
+    hgroup h2 .instance {
+        padding-left: 2em;
+    }
 }

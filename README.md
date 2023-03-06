@@ -15,16 +15,12 @@ Try it out with the example knowledge base:
 ### Docker Compose Example
 
     services:
-      ontology: # if you need a separate build step, otherwise remove this service and use a bind mount
-        build: ./ontology # merge all Turtle files into one
-        volumes:
-          - rdf:/ontology/dist
       rickview:
-        build: ./rickview
+        image: ghcr.io/konradhoeffner/rickview:0.0.7
         environment:
           - RICKVIEW_KB_FILE=/rdf/hito.ttl
-          - RICKVIEW_NAMESPACE=http://hitontology/ontology/
-          - RICKVIEW_BASE_PATH=/ontology
+          - RICKVIEW_NAMESPACE=http://hitontology.eu/ontology/
+          - RICKVIEW_BASE=/ontology
           - RICKVIEW_TITLE=HITO
           - RICKVIEW_SUBTITLE=Health IT Ontology
           - RICKVIEW_EXAMPLES=Study SoftwareProduct ApplicationSystemTypeCatalogue
@@ -35,7 +31,7 @@ Try it out with the example knowledge base:
         volumes:
           - rdf:/rdf
         ports:
-          - "127.0.0.1:8104:8080"
+          - "127.0.0.1:8080:8080"
         restart: unless-stopped
 
 ## Precompiled Binaries
@@ -55,6 +51,7 @@ Configuration keys are in lower\_snake\_case, while environment variables are pr
 For example, `namespace = "http://hitontology.eu/ontology/"` in `config.toml` is equivalent to `RICKVIEW_NAMESPACE=http://hitontology.eu/ontology/` as an environment variable.
 You need to provide a knowledge base in RDF Turtle or HDT format, whose default path is `data/kb.ttl`.
 If you don't, RickView will show a minimal example knowledge base.
+You can add custom HTML to the index page by adding a `data/body.html` file.
 Compile and run with `cargo run` and then open <http://localhost:8080> in your browser.
 
 ## Logging

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>{title}</title>
+    <link rel="stylesheet" href="/rickview.css" type="text/css" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link href="//fonts.googleapis.com/css?family=Roboto:100,300,500&amp;subset=latin-ext,latin,greek-ext,greek,cyrillic-ext,vietnamese,cyrillic&amp;display=swap" rel="stylesheet" type="text/css" />
+    <link href="//fonts.googleapis.com/css?family=Noto+Sans+Math:400&amp;text=%E2%A4%AF%E2%A4%AE%E2%A4%B0%E2%86%AA" rel="stylesheet" type="text/css" />
+    <link href="//fontlibrary.org/face/symbola" rel="stylesheet" type="text/css" />
+    {{ if bibtag }}
+    <script>
+      function exhibitAddId() \{
+        Exhibit.wait(function()\{ Exhibit.Controls["id"] = \{ f: function(args,roots,rootValueTypes,defaultRootName,database) \{
+          return new Exhibit.Expression._Collection([roots[defaultRootName]], "text")
+        } } })
+      }
+    </script>
+    <script onload="exhibitAddId()" src="https://api.simile-widgets.org/exhibit/3.1.1/exhibit-api.js" type="text/javascript" async></script>
+    <link href="https://www.bibsonomy.org/json/user/aksw/{bibtag}?items=1000&callback=cb" type="application/jsonp" rel="exhibit/data" ex:jsonp-callback="cb" async />
+    {{ endif }}
+  </head>
+  <body>
+    <article>
+      <header>
+        <hgroup>
+          <h1>{ title_maybe_link | unescaped }</h1>
+          {{ if depiction }}
+          <img class="depiction" src="{ depiction }" decoding="async" />
+          {{ endif }}
+          <h2>
+            {uri}
+            {{ if main_type }}
+            <span class="instance">
+              <a title="<{main_type}>" href="{main_type | uri_to_local}">
+                <span class="instanceof">an entity of type:</span>
+                <span>{ main_type | uri_to_suffix }</span>
+              </a>
+            </span>
+            {{ endif }}
+          </h2>
+        </hgroup>
+        <div id="abstract">
+          <table>
+            {{ for entry in descriptions }}
+            <tr>
+              <td class="td1">
+                <label class="c1">{ entry.0 | unescaped }</label>
+              </td>
+              <td>{{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}<span class="c2">{ value | unescaped }</span>{{ endfor }}</td>
+            </tr>
+            {{ endfor }}
+          </table>
+        </div>
+        <aside class="empty"></aside>
+        <div id="directs">
+          <table>
+            {{ for entry in directs }}
+            <tr>
+              <td class="td1">
+                <label class="c1">{ entry.0 | unescaped }</label>
+              </td>
+              <td class="td2">{{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}<span class="c2">{ value | unescaped }</span>{{ endfor }}</td>
+            </tr>
+            {{ endfor }}
+          </table>
+        </div>
+      </header>
+      <aside class="empty"></aside>
+      <div id="inverses">
+        <h3>inverse relations</h3>
+        <table>
+          {{ for entry in inverses }}
+          <tr>
+            <td class="td1">
+              <label class="c1">is { entry.0 | unescaped } of</label>
+            </td>
+            <td class="td2"><details><summary><span class="c2">{ entry.1 | count } resources</span></summary>{{ for value in entry.1 }} {{ if not @first }}<br />{{ endif }}<span class="c2">{ value | unescaped }</span>{{ endfor }}</details></td>
+          </tr>
+          {{ endfor }}
+        </table>
+      </div>
+      {{ if bibtag }}
+      <aside class="empty"></aside>
+      <div id="publications">
+        <div ex:role="view" ex:grouped="false" ex:orders=".year,.label" ex:directions="descending,ascending" ex:showSummary="true" ex:showDuplicates="false">
+          <div ex:role="lens" ex:itemTypes="Publication" style="display: none">
+            <span ex:content="if(.url <> '', concat('<a href=', .url, '>', .label, '</a>'), .label)"></span>
+            <span ex:if-exists=".author">
+              <span class="meta"><em>by</em> <strong class="author" ex:content=".author"></strong></span>
+            </span>
+            <span class="meta">
+              <span ex:content="if(exists(.booktitle), concat('<em>in</em> ', .booktitle), '')"></span>
+              <span class="journal" ex:content="if(exists(.journal), concat('<em>in</em> ', .journal), '')"></span>
+              <span ex:if-exists=".editor">(Editors: <span class="editor" ex:content=".editor"></span>)</span>
+              <a class="link" ex:href-content="id()" target="_blank">[Bibsonomy<span class="hideme"> of <span ex:content=".label"></span></span>]</a>
+            </span>
+            <span class="note" ex:content="if(exists(.note), concat('<br/><em>Note:</em> ', .note), '')"></span>
+            <span class="abstract" ex:content="if(exists(.abstract), concat('<br/><details><summary>Abstract</summary> ', .abstract, '</details>'), '')"></span>
+          </div>
+        </div>
+      </div>
+      {{ endif }}
+      {duration}
+    </article>
+    <footer>
+      <div id="download">
+        <a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">publish Linked Data with RickView</a>
+      </div>
+      <div class="footer-edit">
+        {{ if edit_url }}
+        <a href="{edit_url}" rel="nofollow"><span>&#128393;</span> edit in corporate memory</a>
+        {{ endif }}
+      </div>
+      <div id="footer-right">
+        <ul>
+          {{ if github_issue_url }}
+          <li>
+            <a target="_blank" href="{github_issue_url}">create issue on GitHub</a>
+          </li>
+          {{ endif }}
+        </ul>
+      </div>
+    </footer>
+  </body>
+</html>

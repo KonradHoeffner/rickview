@@ -1,6 +1,8 @@
 use config::{ConfigError, Environment, File, FileFormat};
+use log::{debug, error};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::io::{BufReader, Read};
 use std::sync::OnceLock;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -27,8 +29,13 @@ pub struct Config {
     pub doc: Option<String>,
     pub log_level: Option<String>,
     pub cargo_pkg_version: String,
+    /// if data/body.html is present, it is inserted into index.html on rendering
+    pub body: Option<String>,
+    /// disable memory and CPU intensive preprocessing on large knowledge bases
+    pub large: bool,
 }
 
+// path relative to source file
 static DEFAULT: &str = std::include_str!("../data/default.toml");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -51,6 +58,30 @@ impl Config {
         if config.base.ends_with('/') {
             config.base.pop();
         }
+        // path relative to executable
+
+        #[cfg(feature = "log")]
+        {
+            if std::env::var("RUST_LOG").is_err() {
+                std::env::set_var("RUST_LOG", format!("rickview={}", config.log_level.as_ref().unwrap_or(&"info".to_owned())));
+            }
+            env_logger::builder().format_timestamp(None).format_target(false).init();
+        }
+        match std::fs::File::open("data/body.html") {
+            Ok(body_file) => {
+                let mut br = BufReader::new(body_file);
+                let mut s = String::new();
+                match br.read_to_string(&mut s) {
+                    Ok(_) => config.body = Some(s),
+                    Err(e) => error!("Cannot read data/body.html: {e:?}"),
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                debug!("data/body.html does not exist, skipping.");
+            }
+            Err(e) => error!("Cannot open data/body.html: {e:?}"),
+        }
+
         Ok(config)
     }
 }

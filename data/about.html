@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
-    <title>{title}</title>
+    <title>About RickView {cargo_pkg_version}+</title>
     <link rel="stylesheet" href="/rickview.css" type="text/css" />
     <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link href="//fonts.googleapis.com/css?family=Roboto:100,300,500&amp;subset=latin-ext,latin,greek-ext,greek,cyrillic-ext,vietnamese,cyrillic&amp;display=swap" rel="stylesheet" type="text/css" />
@@ -14,26 +14,16 @@
     <article>
       <header>
         <hgroup>
-          <h1>{title}</h1>
-          <h2>{subtitle}</h2>
+          <h1>About RickView {cargo_pkg_version}+</h1>
         </hgroup>
         <div id="abstract">
-          {{ if examples }} Examples:
-          <ul>
-            {{ for c in examples }}
-            <li><a href="{c | uri_to_local}">{c | uri_to_prefixed}</a></li>
-            {{ endfor }}
-          </ul>
-          {{ endif }}
         </div>
         <aside class="empty"></aside>
         <div id="directs">
-          {{ if body }}<div id="custom">{ body | unescaped }</div>{{ endif }}
-          See also:
           <ul>
-            {{ if homepage }}<li><a href="{homepage}">Homepage</a></li>{{ endif }}
-			{{ if endpoint }}<li><a href="{endpoint}">SPARQL Endpoint</a></li>{{ endif }}
-			{{ if doc }}<li><a href="{doc}">Documentation</a></li>{{ endif }}
+			<li>title index {num_titles} entries with size {titles_size}</li>
+			<li>type index {num_types} entries with size {types_size}</li>
+			<li>graph size {graph_size}</li>
           </ul>
         </div>
       </header>
@@ -46,7 +36,6 @@
       <div id="footer-right">
         <ul>
           <li>
-            {{if github}}<a target="_blank" href="{github}">create Ontology issue on GitHub</a>{{ endif }}
           </li>
         </ul>
       </div>

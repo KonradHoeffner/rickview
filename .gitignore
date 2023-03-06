@@ -1,5 +1,8 @@
+Cargo.lock
 /target
 data/*.toml
 !data/default.toml
 data/*.ttl
 !data/example.ttl
+data/*.hdt
+!data/example.hdt
