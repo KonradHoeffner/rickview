@@ -28,7 +28,7 @@ use actix_web::{
     web::scope,
     App, HttpRequest, HttpResponse, HttpServer, Responder,
 };
-use const_fnv1a_hash::fnv1a_hash_str_64;
+use const_fnv1a_hash::fnv1a_hash_str_32;
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
 use std::error::Error;
@@ -37,17 +37,28 @@ use std::time::Instant;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tinytemplate::TinyTemplate;
+#[macro_use]
+extern crate lazy_static;
 
 static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
 static RICKVIEW_CSS: &str = std::include_str!("../data/rickview.css");
-static RICKVIEW_CSS_HASH: u64 = fnv1a_hash_str_64(RICKVIEW_CSS);
+// extremely low risk of collision, worst case is out of date CSS
+static RICKVIEW_CSS_HASH: u32 = fnv1a_hash_str_32(RICKVIEW_CSS);
 static ROBOTO_CSS: &str = std::include_str!("../data/roboto.css");
-static ROBOTO_CSS_HASH: u64 = fnv1a_hash_str_64(ROBOTO_CSS);
+static ROBOTO_CSS_HASH: u32 = fnv1a_hash_str_32(ROBOTO_CSS);
 static ROBOTO300: &[u8] = std::include_bytes!("../fonts/roboto300.woff2");
 static INDEX: &str = std::include_str!("../data/index.html");
 static ABOUT: &str = std::include_str!("../data/about.html");
 static RUN_ID: AtomicU32 = AtomicU32::new(0);
+
+lazy_static! {
+    // 8 chars hexadecimal, not worth it to add base64 dependency to save 2 chars
+    static ref RICKVIEW_CSS_SHASH: String = format!("{RICKVIEW_CSS_HASH:x}");
+    static ref RICKVIEW_CSS_SHASH_QUOTED: String = format!("\"{}\"",*RICKVIEW_CSS_SHASH);
+    static ref ROBOTO_CSS_SHASH: String = format!("{ROBOTO_CSS_HASH:x}");
+    static ref ROBOTO_CSS_SHASH_QUOTED: String = format!("\"{}\"",*ROBOTO_CSS_SHASH);
+}
 
 fn template() -> TinyTemplate<'static> {
     let mut tt = TinyTemplate::new();
@@ -69,10 +80,7 @@ fn template() -> TinyTemplate<'static> {
     tt
 }
 
-fn hash_etag(r: &HttpRequest, body: &'static str, hash: u64, ct: &str) -> impl Responder {
-    // Base64 is more efficient, but adding another dependency isn't worth it.
-    let shash = hash.to_string();
-    let quoted = format!("\"{shash}\"");
+fn hash_etag(r: &HttpRequest, body: &'static str, shash: &str, quoted: &str, ct: &str) -> impl Responder {
     if let Some(e) = r.headers().get(header::IF_NONE_MATCH) {
         if let Ok(s) = e.to_str() {
             if s == quoted {
@@ -80,16 +88,17 @@ fn hash_etag(r: &HttpRequest, body: &'static str, hash: u64, ct: &str) -> impl R
             }
         }
     }
-    let tag = ETag(EntityTag::new_strong(shash));
-    HttpResponse::Ok().content_type(ct).append_header(tag).body(body)
+    let tag = ETag(EntityTag::new_strong(shash.to_owned()));
+    HttpResponse::Ok().content_type(ct).append_header((header::CACHE_CONTROL, "public, max-age=31536000, immutable")).append_header(tag).body(body)
 }
 
 #[get("{_anypath:.*/|}rickview.css")]
-async fn rickview_css(r: HttpRequest) -> impl Responder { hash_etag(&r, RICKVIEW_CSS, RICKVIEW_CSS_HASH, "text/css") }
+async fn rickview_css(r: HttpRequest) -> impl Responder { hash_etag(&r, RICKVIEW_CSS, &RICKVIEW_CSS_SHASH, &RICKVIEW_CSS_SHASH_QUOTED, "text/css") }
 
 #[get("{_anypath:.*/|}roboto.css")]
-async fn roboto_css(r: HttpRequest) -> impl Responder { hash_etag(&r, ROBOTO_CSS, ROBOTO_CSS_HASH, "text/css") }
+async fn roboto_css(r: HttpRequest) -> impl Responder { hash_etag(&r, ROBOTO_CSS, &ROBOTO_CSS_SHASH, &ROBOTO_CSS_SHASH_QUOTED, "text/css") }
 
+// cached automatically by browser
 #[get("{_anypath:.*/|}roboto300.woff2")]
 async fn roboto300() -> impl Responder { HttpResponse::Ok().content_type("font/woff2").body(ROBOTO300) }
 
@@ -105,6 +114,14 @@ fn res_result(resource: &str, content_type: &str, result: Result<String, Box<dyn
             HttpResponse::InternalServerError().body(message)
         }
     }
+}
+
+fn add_hashes(body: &str) -> String {
+    body.replacen("rickview.css", &format!("rickview.css?{}", *RICKVIEW_CSS_SHASH), 1).replacen(
+        "roboto.css",
+        &format!("roboto.css?{}", *ROBOTO_CSS_SHASH),
+        1,
+    )
 }
 
 #[derive(Deserialize)]
@@ -155,7 +172,7 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
                             return match template().render("resource", &res) {
                                 Ok(html) => {
                                     debug!("{} HTML {:?}", prefixed, t.elapsed());
-                                    HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(html)
+                                    HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html))
                                 }
                                 Err(err) => {
                                     let message = format!("Internal server error. Could not render resource {prefixed}:\n{err}.");
@@ -178,7 +195,7 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
 #[get("/")]
 async fn index() -> impl Responder {
     match template().render("index", config()) {
-        Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
+        Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
         Err(e) => {
             let message = format!("Could not render index page: {e:?}");
             error!("{}", message);
@@ -190,7 +207,7 @@ async fn index() -> impl Responder {
 #[get("/about")]
 async fn about_page() -> impl Responder {
     match template().render("about", &About::new()) {
-        Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
+        Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
         Err(e) => {
             let message = format!("Could not render about page: {e:?}");
             error!("{}", message);
@@ -207,7 +224,6 @@ async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append
 async fn main() -> std::io::Result<()> {
     // we don't care about the upper bits as they rarely change
     RUN_ID.store(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u32, Ordering::Relaxed);
-    println!("run id {RUN_ID:?}");
     let _ = config(); // needed to enable logging
     info!("RickView {} serving {} at http://localhost:{}{}/", config::VERSION, config().namespace, config().port, config().base);
     HttpServer::new(move || {

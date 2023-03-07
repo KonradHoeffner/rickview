@@ -1087,7 +1087,7 @@ checksum = "bd69ab1e90258b7769f0b5c46bfd802b8206d0707ced4ca4b9d5681b744de1be"
 
 [[package]]
 name = "rickview"
-version = "0.0.11-alpha.7"
+version = "0.0.11-alpha.9"
 dependencies = [
  "actix-web",
  "bytesize",
@@ -1096,6 +1096,7 @@ dependencies = [
  "deepsize",
  "env_logger",
  "hdt",
+ "lazy_static",
  "log",
  "multimap",
  "serde",

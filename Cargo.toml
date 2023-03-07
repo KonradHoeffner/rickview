@@ -1,6 +1,6 @@
 [package]
 name = "rickview"
-version = "0.0.11-alpha.7"
+version = "0.0.11-alpha.9"
 edition = "2021"
 license = "MIT"
 keywords = ["rdf", "semantic-web", "linked-data"]
@@ -25,6 +25,7 @@ bytesize = "1.1.0"
 zstd = { version = "0.12.0", features = ["zstdmt"] }
 ureq = "2.6.2"
 const-fnv1a-hash = "1.1.0"
+lazy_static = "1.4.0"
 
 [features]
 default = ["rdfxml", "log", "hdt"]
