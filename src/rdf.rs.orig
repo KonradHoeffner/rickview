@@ -1,62 +1,85 @@
 //! Load the RDF graph and summarize RDF resources.
 #![allow(rustdoc::bare_urls)]
-use crate::config::config;
-use crate::resource::Resource;
+use crate::{config::config, resource::Resource};
 #[cfg(feature = "hdt")]
 use hdt::HdtGraph;
 use log::*;
 use multimap::MultiMap;
 use sophia::api::graph::Graph;
+use sophia::api::ns::Namespace;
 use sophia::api::prefix::{Prefix, PrefixMap};
-use sophia::api::prelude::{Triple, TripleSource};
+use sophia::api::prelude::Triple;
+use sophia::api::prelude::TripleSource;
 use sophia::api::serializer::{Stringifier, TripleSerializer};
-use sophia::api::term::bnode_id::BnodeId;
 use sophia::api::term::matcher::Any;
-use sophia::api::term::{SimpleTerm, Term};
+use sophia::api::term::SimpleTerm;
+use sophia::api::term::Term;
+use sophia::api::MownStr;
 use sophia::inmem::graph::FastGraph;
-use sophia::iri::{Iri, IriRef};
+use sophia::iri::InvalidIri;
+use sophia::iri::Iri;
+use sophia::iri::IriRef;
 use sophia::turtle::parser::{nt, turtle};
-use sophia::turtle::serializer::nt::NtSerializer;
-use sophia::turtle::serializer::turtle::{TurtleConfig, TurtleSerializer};
+use sophia::turtle::serializer::{nt::NtSerializer, turtle::TurtleConfig, turtle::TurtleSerializer};
 #[cfg(feature = "rdfxml")]
+<<<<<<< HEAD
 use sophia::xml::{self, serializer::RdfXmlSerializer};
-use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::error::Error;
-use std::fmt;
-use std::fs::File;
-use std::io::BufReader;
-use std::path::Path;
-use std::sync::OnceLock;
-use std::time::Instant;
+=======
+use sophia::serializer::xml::RdfXmlSerializer;
+use sophia::{
+    graph::{inmem::sync::FastGraph, *},
+    iri::{error::InvalidIri, AsIri, Iri, IriBox},
+    ns::Namespace,
+    parser::{nt, turtle},
+    prefix::{PrefixBox, PrefixMap},
+    serializer::{
+        nt::NtSerializer,
+        turtle::{TurtleConfig, TurtleSerializer},
+        Stringifier, TripleSerializer,
+    },
+    term,
+    term::{RefTerm, TTerm, Term, Term::*, SimpleIri},
+    triple::{stream::TripleSource, Triple},
+};
+>>>>>>> d99c60f (rewrite code to work on arbitrary IRIs, not only suffixes)
+use std::{
+    collections::BTreeMap, collections::BTreeSet, collections::HashMap, error::Error, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock,
+    time::Instant,
+};
 #[cfg(feature = "hdt")]
 use zstd::stream::read::Decoder;
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 static CAP: usize = 100; // maximum number of values shown per property
-static SKOLEM_START: &str = ".well-known/genid/";
 
 type PrefixItem = (Prefix<Box<str>>, Iri<Box<str>>);
 
+<<<<<<< HEAD
 // Prefixed IRI
 struct Piri {
     full: String,
-    //iri: Iri<&'a str>,
+    iri: Iri<String>,
+=======
+pub struct Piri {
+    iri: IriBox,
+>>>>>>> d99c60f (rewrite code to work on arbitrary IRIs, not only suffixes)
     prefixed: Option<(String, String)>,
     //prefixed: Option<(Prefix<&'a str>, String)>,
 }
 
-//impl fmt::Display for Piri<'_> {
 impl fmt::Display for Piri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.full) }
 }
 
-//impl<'a> Piri<'a> {
 impl Piri {
-    //fn from_suffix(iri: Iri<&str>) -> Self { Piri::new(Iri::new_unchecked(config().namespace.to_string() + suffix)) }
-    //fn new(iri: Iri<&'a str>) -> Self {
-    fn new(iri: Iri<&str>) -> Self {
-        Self { prefixed: prefixes().get_prefixed_pair(iri).map(|(p, ms)| (p.to_string(), String::from(ms))), full: iri.as_str().to_owned() }
+<<<<<<< HEAD
+    fn from_suffix(suffix: &str) -> Self { Piri::new(Iri::new_unchecked(config().namespace.to_string() + suffix)) }
+    fn new(iri: Iri<String>) -> Self {
+        Self { prefixed: prefixes().get_prefixed_pair(iri.clone()).map(|(p, ms)| (p.to_string(), String::from(ms))), full: iri.as_str().to_owned(), iri }
     }
+=======
+    pub fn new(iri: IriBox) -> Self { Self { prefixed: get_prefixed_pair(&iri.as_iri()), iri } }
+>>>>>>> d99c60f (rewrite code to work on arbitrary IRIs, not only suffixes)
     fn embrace(&self) -> String { format!("&lt;{self}&gt;") }
     fn prefixed_string(&self, bold: bool, embrace: bool) -> String {
         if let Some((p, s)) = &self.prefixed {
@@ -71,16 +94,14 @@ impl Piri {
             self.to_string()
         }
     }
-    fn short(&self) -> String { self.prefixed_string(false, false) }
-    fn suffix(&self) -> String { self.prefixed.as_ref().map_or_else(|| self.full.clone(), |pair| pair.1.clone()) }
-    fn root_relative(&self) -> String { self.full.replace(config().namespace.as_str(), &(config().base.clone() + "/")) }
+    pub fn short(&self) -> String { self.prefixed_string(false, false) }
+
+    fn root_relative(&self) -> String { self.full.replace(&*config().namespace, &(config().base.clone() + "/")) }
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
 }
 
-//impl<'a> From<IriRef<&'a str>> for Piri<'a> {
-//    fn from(iref: IriRef<&'a str>) -> Piri<'a> { Piri::new(Iri::new_unchecked(&iref)) }
-impl From<IriRef<&str>> for Piri {
-    fn from(iref: IriRef<&str>) -> Piri { Piri::new(Iri::new_unchecked(&iref)) }
+impl From<IriRef<MownStr<'_>>> for Piri {
+    fn from(iref: IriRef<MownStr<'_>>) -> Piri { Piri::new(Iri::new_unchecked(iref.as_str().to_owned())) }
 }
 
 // Graph cannot be made into a trait object as of Rust 1.67 and Sophia 0.7, see https://github.com/pchampin/sophia_rs/issues/122.
@@ -169,7 +190,7 @@ fn prefixes() -> &'static Vec<PrefixItem> {
         for (prefix, iri) in &config().namespaces {
             p.push((Prefix::new_unchecked(prefix.clone()), Iri::new_unchecked(iri.clone())));
         }
-        p.push((Prefix::new_unchecked(config().prefix.clone()), config().namespace.clone()));
+        p.push((Prefix::new_unchecked(config().prefix.clone()), Iri::new_unchecked(config().namespace.clone())));
         p
     })
 }
@@ -200,10 +221,6 @@ fn titles_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
                         let term = SimpleTerm::Iri(iref);
                         for tt in g.triples_matching(Any, Some(term), Any) {
                             let t = tt.expect("error fetching title triple");
-                            // ignore blank node labels as title because they usually don't have any
-                            if t.s().is_blank_node() {
-                                continue;
-                            }
                             let uri = t.s().as_simple().iri().expect("invalid title subject IRI").as_str().to_owned();
                             match t.o().as_simple() {
                                 SimpleTerm::LiteralLanguage(lit, tag) => tagged.insert(tag.as_str().to_owned(), (uri, lit.to_string())),
@@ -257,7 +274,7 @@ fn types_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
                     if !t.s().is_iri() {
                         continue;
                     }
-                    let suffix = t.s().as_simple().iri().expect("invalid type subject IRI").to_string().replace(config().namespace.as_str(), "");
+                    let suffix = t.s().as_simple().iri().expect("invalid type subject IRI").to_string().replace(&*config().namespace, "");
                     match t.o().as_simple() {
                         SimpleTerm::Iri(iri) => {
                             types.insert(suffix, iri.to_string());
@@ -282,6 +299,13 @@ static PREFIXES: OnceLock<Vec<PrefixItem>> = OnceLock::new();
 static TITLES: OnceLock<HashMap<String, String>> = OnceLock::new();
 /// Map of RDF resource suffixes to at most one type URI each. Result of [types].
 static TYPES: OnceLock<HashMap<String, String>> = OnceLock::new();
+static NAMESPACE: OnceLock<Namespace<&'static str>> = OnceLock::new();
+
+<<<<<<< HEAD
+fn namespace() -> &'static Namespace<&'static str> { NAMESPACE.get_or_init(|| Namespace::new(config().namespace.as_ref()).expect("namespace error")) }
+=======
+pub fn namespace() -> &'static Namespace<&'static str> { NAMESPACE.get_or_init(|| Namespace::new(config().namespace.as_ref()).unwrap()) }
+>>>>>>> d99c60f (rewrite code to work on arbitrary IRIs, not only suffixes)
 
 /// Whether the given resource is in subject or object position.
 enum ConnectionType {
@@ -297,26 +321,31 @@ struct Connection {
 }
 
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
-fn connections(conn_type: &ConnectionType, iri: Iri<&str>) -> Vec<Connection> {
+<<<<<<< HEAD
+fn connections(conn_type: &ConnectionType, suffix: &str) -> Vec<Connection> {
+=======
+fn connections(conn_type: &ConnectionType, source: &SimpleIri) -> Result<Vec<Connection>, InvalidIri> {
+>>>>>>> d99c60f (rewrite code to work on arbitrary IRIs, not only suffixes)
     match graph() {
-        GraphEnum::FastGraph(g) => connections_generic(g, conn_type, iri),
+        GraphEnum::FastGraph(g) => connections_generic(g, conn_type, source),
         #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => connections_generic(g, conn_type, iri),
+        GraphEnum::HdtGraph(g) => connections_generic(g, conn_type, source),
     }
 }
 
+<<<<<<< HEAD
 /// Helper function for [connections].
-fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: Iri<&str>) -> Vec<Connection> {
-    let bnode;
-    let term = if let Some(id) = source.as_str().split(SKOLEM_START).nth(1) {
-        bnode = BnodeId::new_unchecked(id);
-        bnode.as_simple()
-    } else {
-        source.as_simple()
-    };
+fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str) -> Vec<Connection> {
+    let source = Piri::from_suffix(suffix);
     let triples = match conn_type {
-        ConnectionType::Direct => g.triples_matching(Some(term), Any, Any),
-        ConnectionType::Inverse => g.triples_matching(Any, Any, Some(term)),
+        ConnectionType::Direct => g.triples_matching(Some(source.iri), Any, Any),
+        ConnectionType::Inverse => g.triples_matching(Any, Any, Some(source.iri)),
+=======
+fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: &SimpleIri) -> Result<Vec<Connection>, InvalidIri> {
+    let triples = match conn_type {
+        ConnectionType::Direct => g.triples_with_s(source),
+        ConnectionType::Inverse => g.triples_with_o(source),
+>>>>>>> d99c60f (rewrite code to work on arbitrary IRIs, not only suffixes)
     };
     let mut map: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut connections: Vec<Connection> = Vec::new();
@@ -329,22 +358,16 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: Iri<
         let target_html = match target_term.as_simple() {
             SimpleTerm::LiteralLanguage(lit, tag) => format!("{lit} @{}", tag.as_str()),
 
-            SimpleTerm::LiteralDatatype(lit, dt) => format!(r#"{lit}<div class="datatype">{}</div>"#, Piri::from(dt.as_ref()).short()),
+            SimpleTerm::LiteralDatatype(lit, dt) => format!(r#"{lit}<div class="datatype">{}</div>"#, Piri::from(dt).short()),
 
             SimpleTerm::Iri(iri) => {
-                let piri = Piri::from(iri.as_ref());
+                let piri = Piri::from(iri);
                 let title = if let Some(title) = titles().get(&piri.to_string()) { format!("<br><span>&#8618; {title}</span>") } else { String::new() };
-                let target = if piri.to_string().starts_with(config().namespace.as_str()) { "" } else { " target='_blank' " };
+                let target = if piri.to_string().starts_with(&*config().namespace) { "" } else { " target='_blank' " };
                 format!("<a href='{}'{target}>{}{title}</a>", piri.root_relative(), piri.prefixed_string(false, true))
             }
-            // https://www.w3.org/TR/rdf11-concepts/ Section 3.5 Replacing Blank Nodes with IRIs
-            SimpleTerm::BlankNode(blank) => {
-                let id = blank.as_str();
-                let r = IriRef::new_unchecked(SKOLEM_START.to_owned() + id);
-                let iri = config().namespace.resolve(r);
-                format!("<a href='{}'>_:{id}</a>", Piri::new(iri.as_ref()).root_relative())
-            }
-            _ => format!("{target_term:?}"),
+            SimpleTerm::BlankNode(blank) => "_:".to_owned() + blank.as_str(),
+            _ => format!("{target_term:?}"), // Variable, Triple, ?
         };
         if let SimpleTerm::Iri(iri) = triple.p().as_simple() {
             if let Some(values) = map.get_mut(iri.as_str()) {
@@ -362,14 +385,18 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: Iri<
         if len > CAP {
             target_htmls.push("...".to_string());
         }
-        connections.push(Connection { prop: prop.as_str().to_owned(), prop_html: Piri::new(Iri::new_unchecked(&prop)).property_anchor(), target_htmls });
+        connections.push(Connection { prop: prop.as_str().to_owned(), prop_html: Piri::new(Iri::new_unchecked(prop)).property_anchor(), target_htmls });
     }
     connections
 }
 
 #[cfg(feature = "rdfxml")]
 /// Export all triples (s,p,o) for a given subject s as RDF/XML.
-pub fn serialize_rdfxml(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
+<<<<<<< HEAD
+pub fn serialize_rdfxml(suffix: &str) -> Result<String, Box<dyn Error>> {
+=======
+pub fn serialize_rdfxml(iri: &SimpleIri) -> String {
+>>>>>>> d99c60f (rewrite code to work on arbitrary IRIs, not only suffixes)
     match graph() {
         GraphEnum::FastGraph(g) => serialize_rdfxml_generic(g, iri),
         #[cfg(feature = "hdt")]
@@ -377,90 +404,131 @@ pub fn serialize_rdfxml(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
     }
 }
 #[cfg(feature = "rdfxml")]
-pub fn serialize_rdfxml_generic<G: Graph>(g: &G, iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
+<<<<<<< HEAD
+pub fn serialize_rdfxml_generic<G: Graph>(g: &G, suffix: &str) -> Result<String, Box<dyn Error>> {
+    let iri = namespace().get(suffix)?;
     Ok(RdfXmlSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(iri), Any, Any))?.to_string())
 }
 
 /// Export all triples (s,p,o) for a given subject s as RDF Turtle using the config prefixes.
-pub fn serialize_turtle(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
+pub fn serialize_turtle(suffix: &str) -> Result<String, Box<dyn Error>> {
+=======
+pub fn serialize_rdfxml_generic<G: Graph>(g: &G, iri: &SimpleIri) -> String {
+    RdfXmlSerializer::new_stringifier().serialize_triples(g.triples_with_s(iri)).unwrap().to_string()
+}
+
+/// Export all triples (s,p,o) for a given subject s as RDF Turtle using the config prefixes.
+pub fn serialize_turtle(iri: &SimpleIri) -> String {
+>>>>>>> d99c60f (rewrite code to work on arbitrary IRIs, not only suffixes)
     match graph() {
         GraphEnum::FastGraph(g) => serialize_turtle_generic(g, iri),
         #[cfg(feature = "hdt")]
         GraphEnum::HdtGraph(g) => serialize_turtle_generic(g, iri),
     }
 }
-fn serialize_turtle_generic<G: Graph>(g: &G, iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
+<<<<<<< HEAD
+fn serialize_turtle_generic<G: Graph>(g: &G, suffix: &str) -> Result<String, Box<dyn Error>> {
+    let iri = namespace().get(suffix)?;
     let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map(prefixes().clone());
     Ok(TurtleSerializer::new_stringifier_with_config(config).serialize_triples(g.triples_matching(Some(iri), Any, Any))?.to_string())
 }
 
 /// Export all triples (s,p,o) for a given subject s as N-Triples.
-pub fn serialize_nt(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
+pub fn serialize_nt(suffix: &str) -> Result<String, Box<dyn Error>> {
+=======
+fn serialize_turtle_generic<G: Graph>(g: &G, iri: &SimpleIri) -> String {
+    let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map(prefixes().clone());
+    TurtleSerializer::new_stringifier_with_config(config).serialize_triples(g.triples_with_s(iri)).unwrap().to_string()
+}
+
+/// Export all triples (s,p,o) for a given subject s as N-Triples.
+pub fn serialize_nt(iri: &SimpleIri) -> String {
+>>>>>>> d99c60f (rewrite code to work on arbitrary IRIs, not only suffixes)
     match graph() {
         GraphEnum::FastGraph(g) => serialize_nt_generic(g, iri),
         #[cfg(feature = "hdt")]
         GraphEnum::HdtGraph(g) => serialize_nt_generic(g, iri),
     }
 }
+<<<<<<< HEAD
 /// Helper function for [`serialize_nt`].
-fn serialize_nt_generic<G: Graph>(g: &G, iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
+fn serialize_nt_generic<G: Graph>(g: &G, suffix: &str) -> Result<String, Box<dyn Error>> {
+    let iri = namespace().get(suffix)?;
     Ok(NtSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(iri), Any, Any))?.to_string())
 }
 
-fn depiction_iri(iri: Iri<&str>) -> Option<String> {
+fn depiction_iri(suffix: &str) -> Option<String> {
     match graph() {
-        GraphEnum::FastGraph(g) => depiction_iri_generic(g, iri),
+        GraphEnum::FastGraph(g) => depiction_iri_generic(g, suffix),
         #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => depiction_iri_generic(g, iri),
+        GraphEnum::HdtGraph(g) => depiction_iri_generic(g, suffix),
     }
 }
 
-fn depiction_iri_generic<G: Graph>(g: &G, iri: Iri<&str>) -> Option<String> {
+fn depiction_iri_generic<G: Graph>(g: &G, suffix: &str) -> Option<String> {
+    let subject = namespace().get(suffix).ok()?;
     let foaf_depiction = IriRef::new_unchecked("http://xmlns.com/foaf/0.1/depiction");
-    g.triples_matching(Some(iri), Some(foaf_depiction), Any)
+    g.triples_matching(Some(subject), Some(foaf_depiction), Any)
         .filter_map(Result::ok)
         .map(Triple::to_o)
         .filter(Term::is_iri)
         .map(|o| o.iri().unwrap().as_str().to_owned())
         .next()
+=======
+fn serialize_nt_generic<G: Graph>(g: &G, iri: &SimpleIri) -> String {
+    NtSerializer::new_stringifier().serialize_triples(g.triples_with_s(iri)).unwrap().to_string()
+>>>>>>> d99c60f (rewrite code to work on arbitrary IRIs, not only suffixes)
 }
 
-/// Returns the resource with the given IRI from the configured namespace.
-pub fn resource(subject: Iri<&str>) -> Resource {
+/// Returns the resource with the given suffix from the configured namespace.
+pub fn resource(iri: &SimpleIri) -> Result<Resource, InvalidIri> {
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
         cons.iter().filter(|c| key_predicate(&c.prop)).map(|c| (c.prop_html.clone(), c.target_htmls.clone())).collect()
     }
-    //let suffix = str::replace(suffix, " ", "%20");
+    let suffix = str::replace(suffix, " ", "%20");
     let start = Instant::now();
-    //let subject = namespace().get(&suffix)?;
-    let piri = Piri::new(subject.as_ref());
-    let suffix = piri.suffix();
-    //let uri = subject.iriref().as_str().to_owned();
+<<<<<<< HEAD
+    let subject = namespace().get(&suffix)?;
+    let uri = subject.iriref().as_str().to_owned();
 
-    let all_directs = connections(&ConnectionType::Direct, subject);
-    let descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
+    let all_directs = connections(&ConnectionType::Direct, &suffix);
+    let mut descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !config().description_properties.contains(key));
-    let title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
+    let title = titles().get(&uri).unwrap_or(&suffix.clone()).to_string();
     let main_type = types().get(&suffix).map(std::clone::Clone::clone);
-    let inverses = if config().show_inverse { filter(&connections(&ConnectionType::Inverse, subject), |_| true) } else { Vec::new() };
-    /*
+    let inverses = if config().show_inverse { filter(&connections(&ConnectionType::Inverse, &suffix), |_| true) } else { Vec::new() };
+=======
+    let subject = iri;
+    let uri = subject.clone().value().to_string();
+
+    let all_directs = connections(&ConnectionType::Direct, iri)?;
+    let mut descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
+    let notdescriptions = filter(&all_directs, |key| !config().description_properties.contains(key));
+    let local = subject.value().starts_with(&config().namespace);
+    let local_suffix = if local { subject.value().replace(&config().namespace, "") } else { subject.value().to_string() };
+    let title = titles().get(&uri).unwrap_or(&local_suffix.to_owned()).to_string();
+    let main_type = types().get(&local_suffix).map(std::clone::Clone::clone);
+    let inverses = if config().show_inverse { filter(&connections(&ConnectionType::Inverse, iri)?, |_| true) } else { Vec::new() };
+>>>>>>> d99c60f (rewrite code to work on arbitrary IRIs, not only suffixes)
     if all_directs.is_empty() && inverses.is_empty() {
-        /*let warning = format!("No triples found for {uri}. Did you configure the namespace correctly?");
+        let warning = format!("No triples found for {uri}. Did you configure the namespace correctly?");
         warn!("{warning}");
-        descriptions.push(("Warning".to_owned(), vec![warning]));*/
-        return None;
+        descriptions.push(("Warning".to_owned(), vec![warning]));
     }
-    */
-    Resource {
-        //suffix: suffix.clone(),
-        uri: piri.full,
+    Ok(Resource {
+<<<<<<< HEAD
+        suffix: suffix.clone(),
+=======
+        suffix: local_suffix.to_owned(),
+>>>>>>> d99c60f (rewrite code to work on arbitrary IRIs, not only suffixes)
+        uri,
         duration: format!("{:?}", start.elapsed()),
         title,
-        github_issue_url: config().github.as_ref().map(|g| format!("{g}/issues/new?title={suffix}")),
+        github_issue_url: config().github.as_ref().map(|g| format!("{g}/issues/new?title={local_suffix}")),
         main_type,
         descriptions,
         directs: notdescriptions,
         inverses,
-        depiction: depiction_iri(subject),
-    }
+        depiction: depiction_iri(&suffix),
+    })
 }
