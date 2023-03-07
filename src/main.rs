@@ -22,7 +22,7 @@ use crate::config::config;
 use about::About;
 use actix_web::middleware::Compress;
 use actix_web::{
-    get,
+    get, head,
     http::header::{self, ETag, EntityTag},
     web,
     web::scope,
@@ -216,6 +216,9 @@ async fn about_page() -> impl Responder {
     }
 }
 
+#[head("{_anypath:.*}")]
+async fn head() -> HttpResponse { HttpResponse::MethodNotAllowed().body("RickView does not support HEAD requests.") }
+
 // redirect /base to correct index page /base/
 #[get("")]
 async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append_header(("location", config().base.clone() + "/")).finish() }
@@ -233,6 +236,7 @@ async fn main() -> std::io::Result<()> {
             .service(roboto_css)
             .service(roboto300)
             .service(favicon)
+            .service(head)
             .service(scope(&config().base).service(index).service(about_page).service(redirect).service(res_html))
     })
     .bind(("0.0.0.0", config().port))?
