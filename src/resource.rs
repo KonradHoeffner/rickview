@@ -10,7 +10,7 @@ pub struct Property {
 #[derive(Serialize)]
 pub struct Resource {
     pub uri: String,
-    pub suffix: String,
+    //pub suffix: String,
     pub title: String,
     pub main_type: Option<String>,
     /// HTML representations of properties and descriptions of this resource.
