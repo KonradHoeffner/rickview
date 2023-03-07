@@ -27,6 +27,7 @@ use actix_web::{get, head, web, App, HttpRequest, HttpResponse, HttpServer, Resp
 use const_fnv1a_hash::fnv1a_hash_str_32;
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
+use sophia::iri::Iri;
 use std::error::Error;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
