@@ -149,42 +149,61 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
     let t = Instant::now();
     let prefixed = config().prefix.to_string() + ":" + &suffix;
     match rdf::resource(&suffix) {
+        // TODO: eliminate this case by converting suffix to IRI in this method
         Err(_) => {
             let message = format!("No triples found for resource {prefixed}");
             warn!("{}", message);
             HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(message)
         }
-        Ok(res) => {
-            match r.head().headers().get("Accept") {
-                Some(a) => {
-                    if let Ok(accept) = a.to_str() {
-                        trace!("{} accept header {}", prefixed, accept);
-                        if accept.contains(NT) || output == Some(NT) {
-                            debug!("{} N-Triples {:?}", prefixed, t.elapsed());
-                            return res_result(&prefixed, NT, rdf::serialize_nt(&suffix));
+        // TODO: simplify and integrate with the main match case
+        // no triples found
+        Ok(mut res) if res.directs.is_empty() && res.inverses.is_empty() => {
+            let warning = format!("No triples found for {suffix}. Did you configure the namespace correctly?");
+            warn!("{}", warning);
+            if let Some(a) = r.head().headers().get("Accept") {
+                if let Ok(accept) = a.to_str() {
+                    if accept.contains(HTML) {
+                        res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
+                        // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
+                        if let Ok(html) = template().render("resource", &res) {
+                            return HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html));
                         }
-                        #[cfg(feature = "rdfxml")]
-                        if accept.contains(XML) || output == Some(XML) {
-                            debug!("{} RDF/XML {:?}", prefixed, t.elapsed());
-                            return res_result(&prefixed, XML, rdf::serialize_rdfxml(&suffix));
-                        }
-                        if accept.contains(HTML) && output != Some(TTL) {
-                            return match template().render("resource", &res) {
-                                Ok(html) => {
-                                    debug!("{} HTML {:?}", prefixed, t.elapsed());
-                                    HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html))
-                                }
-                                Err(err) => {
-                                    let message = format!("Internal server error. Could not render resource {prefixed}:\n{err}.");
-                                    error!("{}", message);
-                                    HttpResponse::InternalServerError().append_header(etag).body(message)
-                                }
-                            };
-                        }
-                        warn!("{} accept header {} and 'output' param {:?} not recognized or Turtle, using RDF Turtle", prefixed, accept, output);
                     }
                 }
-                None => warn!("{} accept header missing, using RDF Turtle", prefixed),
+            }
+            // return 404 with plain text
+            HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(warning)
+        }
+        Ok(res) => {
+            if let Some(a) = r.head().headers().get("Accept") {
+                if let Ok(accept) = a.to_str() {
+                    trace!("{} accept header {}", prefixed, accept);
+                    if accept.contains(NT) || output == Some(NT) {
+                        debug!("{} N-Triples {:?}", prefixed, t.elapsed());
+                        return res_result(&prefixed, NT, rdf::serialize_nt(&suffix));
+                    }
+                    #[cfg(feature = "rdfxml")]
+                    if accept.contains(XML) || output == Some(XML) {
+                        debug!("{} RDF/XML {:?}", prefixed, t.elapsed());
+                        return res_result(&prefixed, XML, rdf::serialize_rdfxml(&suffix));
+                    }
+                    if accept.contains(HTML) && output != Some(TTL) {
+                        return match template().render("resource", &res) {
+                            Ok(html) => {
+                                debug!("{} HTML {:?}", prefixed, t.elapsed());
+                                HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html))
+                            }
+                            Err(err) => {
+                                let message = format!("Internal server error. Could not render resource {prefixed}:\n{err}.");
+                                error!("{}", message);
+                                HttpResponse::InternalServerError().append_header(etag).body(message)
+                            }
+                        };
+                    }
+                    warn!("{} accept header {} and 'output' param {:?} not recognized or Turtle, using RDF Turtle", prefixed, accept, output);
+                }
+            } else {
+                warn!("{} accept header missing, using RDF Turtle", prefixed);
             }
             debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
             res_result(&prefixed, TTL, rdf::serialize_turtle(&suffix))
@@ -226,8 +245,9 @@ async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // we don't care about the upper bits as they rarely change
+    #[allow(clippy::cast_possible_truncation)]
     RUN_ID.store(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u32, Ordering::Relaxed);
-    let _ = config(); // needed to enable logging
+    config(); // enable logging
     info!("RickView {} serving {} at http://localhost:{}{}/", config::VERSION, config().namespace, config().port, config().base);
     HttpServer::new(move || {
         App::new()

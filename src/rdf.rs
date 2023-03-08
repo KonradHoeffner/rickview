@@ -420,16 +420,18 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let uri = subject.iriref().as_str().to_owned();
 
     let all_directs = connections(&ConnectionType::Direct, &suffix);
-    let mut descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
+    let descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !config().description_properties.contains(key));
     let title = titles().get(&uri).unwrap_or(&suffix.clone()).to_string();
     let main_type = types().get(&suffix).map(std::clone::Clone::clone);
     let inverses = if config().show_inverse { filter(&connections(&ConnectionType::Inverse, &suffix), |_| true) } else { Vec::new() };
+    /*
     if all_directs.is_empty() && inverses.is_empty() {
         let warning = format!("No triples found for {uri}. Did you configure the namespace correctly?");
         warn!("{warning}");
         descriptions.push(("Warning".to_owned(), vec![warning]));
     }
+    */
     Ok(Resource {
         suffix: suffix.clone(),
         uri,
