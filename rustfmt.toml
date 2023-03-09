@@ -11,4 +11,5 @@ where_single_line = true
 fn_single_line = true
 group_imports = "One"
 condense_wildcard_suffixes = true
+imports_granularity = "Module"
 # ***************************************

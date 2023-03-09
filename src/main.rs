@@ -20,22 +20,16 @@ mod resource;
 
 use crate::config::config;
 use about::About;
+use actix_web::http::header::{self, ETag, EntityTag};
 use actix_web::middleware::Compress;
-use actix_web::{
-    get, head,
-    http::header::{self, ETag, EntityTag},
-    web,
-    web::scope,
-    App, HttpRequest, HttpResponse, HttpServer, Responder,
-};
+use actix_web::web::scope;
+use actix_web::{get, head, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use const_fnv1a_hash::fnv1a_hash_str_32;
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
 use std::error::Error;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::Instant;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tinytemplate::TinyTemplate;
 #[macro_use]
 extern crate lazy_static;

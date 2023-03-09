@@ -1,5 +1,4 @@
-use crate::rdf::GraphEnum;
-use crate::rdf::{graph, titles, types};
+use crate::rdf::{graph, titles, types, GraphEnum};
 use bytesize::ByteSize;
 use deepsize::DeepSizeOf;
 use sophia::api::graph::Graph;

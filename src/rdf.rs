@@ -1,6 +1,7 @@
 //! Load the RDF graph and summarize RDF resources.
 #![allow(rustdoc::bare_urls)]
-use crate::{config::config, resource::Resource};
+use crate::config::config;
+use crate::resource::Resource;
 #[cfg(feature = "hdt")]
 use hdt::HdtGraph;
 use log::*;
@@ -8,25 +9,26 @@ use multimap::MultiMap;
 use sophia::api::graph::Graph;
 use sophia::api::ns::Namespace;
 use sophia::api::prefix::{Prefix, PrefixMap};
-use sophia::api::prelude::Triple;
-use sophia::api::prelude::TripleSource;
+use sophia::api::prelude::{Triple, TripleSource};
 use sophia::api::serializer::{Stringifier, TripleSerializer};
 use sophia::api::term::matcher::Any;
-use sophia::api::term::SimpleTerm;
-use sophia::api::term::Term;
+use sophia::api::term::{SimpleTerm, Term};
 use sophia::api::MownStr;
 use sophia::inmem::graph::FastGraph;
-use sophia::iri::InvalidIri;
-use sophia::iri::Iri;
-use sophia::iri::IriRef;
+use sophia::iri::{InvalidIri, Iri, IriRef};
 use sophia::turtle::parser::{nt, turtle};
-use sophia::turtle::serializer::{nt::NtSerializer, turtle::TurtleConfig, turtle::TurtleSerializer};
+use sophia::turtle::serializer::nt::NtSerializer;
+use sophia::turtle::serializer::turtle::{TurtleConfig, TurtleSerializer};
 #[cfg(feature = "rdfxml")]
 use sophia::xml::{self, serializer::RdfXmlSerializer};
-use std::{
-    collections::BTreeMap, collections::BTreeSet, collections::HashMap, error::Error, fmt, fs::File, io::BufReader, path::Path, sync::OnceLock,
-    time::Instant,
-};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::error::Error;
+use std::fmt;
+use std::fs::File;
+use std::io::BufReader;
+use std::path::Path;
+use std::sync::OnceLock;
+use std::time::Instant;
 #[cfg(feature = "hdt")]
 use zstd::stream::read::Decoder;
 
