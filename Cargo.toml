@@ -13,7 +13,7 @@ repository = "https://github.com/konradhoeffner/rickview"
 [dependencies]
 sophia = "0.8.0-alpha.0"
 actix-web = "4"
-multimap = "0.8"
+multimap = "0.9"
 tinytemplate = "1"
 serde = { version = "1", features = ["derive"] }
 config = { version = "0.13", default-features = false, features = ["toml"] }
