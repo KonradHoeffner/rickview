@@ -5,7 +5,6 @@
 #![allow(clippy::unused_async)]
 #![allow(clippy::similar_names)]
 #![deny(rust_2018_idioms)]
-#![feature(once_cell)]
 #![feature(let_chains)]
 //! Lightweight and performant RDF browser.
 //! An RDF browser is a web application that *resolves* RDF resources: given the HTTP(s) URL identifying a resource it returns an HTML summary.
