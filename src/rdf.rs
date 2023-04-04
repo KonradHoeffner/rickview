@@ -11,6 +11,7 @@ use sophia::api::ns::Namespace;
 use sophia::api::prefix::{Prefix, PrefixMap};
 use sophia::api::prelude::{Triple, TripleSource};
 use sophia::api::serializer::{Stringifier, TripleSerializer};
+use sophia::api::term::bnode_id::BnodeId;
 use sophia::api::term::matcher::Any;
 use sophia::api::term::{SimpleTerm, Term};
 use sophia::api::MownStr;
@@ -34,6 +35,7 @@ use zstd::stream::read::Decoder;
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 static CAP: usize = 100; // maximum number of values shown per property
+static SKOLEM_START: &str = ".well-known/genid/";
 
 type PrefixItem = (Prefix<Box<str>>, Iri<Box<str>>);
 
@@ -302,9 +304,19 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Vec<Connection> {
 /// Helper function for [connections].
 fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str) -> Vec<Connection> {
     let source = Piri::from_suffix(suffix);
-    let triples = match conn_type {
-        ConnectionType::Direct => g.triples_matching(Some(source.iri), Any, Any),
-        ConnectionType::Inverse => g.triples_matching(Any, Any, Some(source.iri)),
+    // Term cannot be made a trait object
+    let triples = match suffix.split(SKOLEM_START).nth(1) {
+        Some(id) => {
+            let bnode_id = BnodeId::new_unchecked(id);
+            match conn_type {
+                ConnectionType::Direct => g.triples_matching(Some(bnode_id), Any, Any),
+                ConnectionType::Inverse => g.triples_matching(Any, Any, Some(bnode_id)),
+            }
+        }
+        None => match conn_type {
+            ConnectionType::Direct => g.triples_matching(Some(source.iri), Any, Any),
+            ConnectionType::Inverse => g.triples_matching(Any, Any, Some(source.iri)),
+        },
     };
     let mut map: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut connections: Vec<Connection> = Vec::new();
@@ -325,8 +337,13 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str
                 let target = if piri.to_string().starts_with(&*config().namespace) { "" } else { " target='_blank' " };
                 format!("<a href='{}'{target}>{}{title}</a>", piri.root_relative(), piri.prefixed_string(false, true))
             }
-            SimpleTerm::BlankNode(blank) => "_:".to_owned() + blank.as_str(),
-            _ => format!("{target_term:?}"), // Variable, Triple, ?
+            // https://www.w3.org/TR/rdf11-concepts/ Section 3.5 Replacing Blank Nodes with IRIs
+            SimpleTerm::BlankNode(blank) => {
+                let id = blank.as_str();
+                let piri = Piri::from_suffix(&(SKOLEM_START.to_owned() + id));
+                format!("<a href='{}'>_:{id}</a>", piri.root_relative())
+            }
+            _ => format!("{target_term:?}"),
         };
         if let SimpleTerm::Iri(iri) = triple.p().as_simple() {
             if let Some(values) = map.get_mut(iri.as_str()) {
@@ -424,7 +441,7 @@ pub fn resource(suffix: &str) -> Result<Resource, InvalidIri> {
     let all_directs = connections(&ConnectionType::Direct, &suffix);
     let descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !config().description_properties.contains(key));
-    let title = titles().get(&uri).unwrap_or(&suffix.clone()).to_string();
+    let title = titles().get(&uri).unwrap_or(&suffix.clone()).to_string().replace(SKOLEM_START, "Blank Node ");
     let main_type = types().get(&suffix).map(std::clone::Clone::clone);
     let inverses = if config().show_inverse { filter(&connections(&ConnectionType::Inverse, &suffix), |_| true) } else { Vec::new() };
     /*
