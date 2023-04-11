@@ -197,6 +197,10 @@ fn titles_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
                         let term = SimpleTerm::Iri(iref);
                         for tt in g.triples_matching(Any, Some(term), Any) {
                             let t = tt.expect("error fetching title triple");
+                            // ignore blank node labels as title because they usually don't have any
+                            if t.s().is_blank_node() {
+                                continue;
+                            }
                             let uri = t.s().as_simple().iri().expect("invalid title subject IRI").as_str().to_owned();
                             match t.o().as_simple() {
                                 SimpleTerm::LiteralLanguage(lit, tag) => tagged.insert(tag.as_str().to_owned(), (uri, lit.to_string())),
@@ -304,19 +308,16 @@ fn connections(conn_type: &ConnectionType, suffix: &str) -> Vec<Connection> {
 /// Helper function for [connections].
 fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str) -> Vec<Connection> {
     let source = Piri::from_suffix(suffix);
-    // Term cannot be made a trait object
-    let triples = match suffix.split(SKOLEM_START).nth(1) {
-        Some(id) => {
-            let bnode_id = BnodeId::new_unchecked(id);
-            match conn_type {
-                ConnectionType::Direct => g.triples_matching(Some(bnode_id), Any, Any),
-                ConnectionType::Inverse => g.triples_matching(Any, Any, Some(bnode_id)),
-            }
-        }
-        None => match conn_type {
-            ConnectionType::Direct => g.triples_matching(Some(source.iri), Any, Any),
-            ConnectionType::Inverse => g.triples_matching(Any, Any, Some(source.iri)),
-        },
+    let bnode;
+    let term = if let Some(id) = suffix.split(SKOLEM_START).nth(1) {
+        bnode = BnodeId::new_unchecked(id);
+        bnode.as_simple()
+    } else {
+        source.iri.as_simple()
+    };
+    let triples = match conn_type {
+        ConnectionType::Direct => g.triples_matching(Some(term), Any, Any),
+        ConnectionType::Inverse => g.triples_matching(Any, Any, Some(term)),
     };
     let mut map: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut connections: Vec<Connection> = Vec::new();
