@@ -27,7 +27,7 @@ use actix_web::{get, head, web, App, HttpRequest, HttpResponse, HttpServer, Resp
 use const_fnv1a_hash::fnv1a_hash_str_32;
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
-use sophia::iri::Iri;
+use sophia::iri::{Iri, IriRef};
 use std::error::Error;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -143,67 +143,59 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
     let output = params.output.as_deref();
     let t = Instant::now();
     let prefixed = config().prefix.to_string() + ":" + &suffix;
-    match rdf::resource(&suffix) {
-        // TODO: eliminate this case by converting suffix to IRI in this method
-        Err(_) => {
-            let message = format!("No triples found for resource {prefixed}");
-            warn!("{}", message);
-            HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(message)
-        }
-        // TODO: simplify and integrate with the main match case
-        // no triples found
-        Ok(mut res) if res.directs.is_empty() && res.inverses.is_empty() => {
-            let warning = format!("No triples found for {suffix}. Did you configure the namespace correctly?");
-            warn!("{}", warning);
-            if let Some(a) = r.head().headers().get("Accept") {
-                if let Ok(accept) = a.to_str() {
-                    if accept.contains(HTML) {
-                        res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
-                        // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
-                        if let Ok(html) = template().render("resource", &res) {
-                            return HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html));
-                        }
+    let namespace = Iri::new_unchecked(config().namespace);
+    let iri = namespace.resolve(IriRef::new_unchecked(suffix.as_str()));
+    let mut res = rdf::resource(&iri);
+    // no triples found
+    if res.directs.is_empty() && res.inverses.is_empty() {
+        let warning = format!("No triples found for {suffix}. Did you configure the namespace correctly?");
+        warn!("{}", warning);
+        if let Some(a) = r.head().headers().get("Accept") {
+            if let Ok(accept) = a.to_str() {
+                if accept.contains(HTML) {
+                    res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
+                    // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
+                    if let Ok(html) = template().render("resource", &res) {
+                        return HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html));
                     }
                 }
             }
-            // return 404 with plain text
-            HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(warning)
         }
-        Ok(res) => {
-            if let Some(a) = r.head().headers().get("Accept") {
-                if let Ok(accept) = a.to_str() {
-                    trace!("{} accept header {}", prefixed, accept);
-                    if accept.contains(NT) || output == Some(NT) {
-                        debug!("{} N-Triples {:?}", prefixed, t.elapsed());
-                        return res_result(&prefixed, NT, rdf::serialize_nt(&suffix));
-                    }
-                    #[cfg(feature = "rdfxml")]
-                    if accept.contains(XML) || output == Some(XML) {
-                        debug!("{} RDF/XML {:?}", prefixed, t.elapsed());
-                        return res_result(&prefixed, XML, rdf::serialize_rdfxml(&suffix));
-                    }
-                    if accept.contains(HTML) && output != Some(TTL) {
-                        return match template().render("resource", &res) {
-                            Ok(html) => {
-                                debug!("{} HTML {:?}", prefixed, t.elapsed());
-                                HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html))
-                            }
-                            Err(err) => {
-                                let message = format!("Internal server error. Could not render resource {prefixed}:\n{err}.");
-                                error!("{}", message);
-                                HttpResponse::InternalServerError().append_header(etag).body(message)
-                            }
-                        };
-                    }
-                    warn!("{} accept header {} and 'output' param {:?} not recognized or Turtle, using RDF Turtle", prefixed, accept, output);
-                }
-            } else {
-                warn!("{} accept header missing, using RDF Turtle", prefixed);
-            }
-            debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
-            res_result(&prefixed, TTL, rdf::serialize_turtle(&suffix))
-        }
+        // return 404 with plain text
+        return HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(warning)
     }
+    if let Some(a) = r.head().headers().get("Accept") {
+        if let Ok(accept) = a.to_str() {
+            trace!("{} accept header {}", prefixed, accept);
+            if accept.contains(NT) || output == Some(NT) {
+                debug!("{} N-Triples {:?}", prefixed, t.elapsed());
+                return res_result(&prefixed, NT, rdf::serialize_nt(&suffix));
+            }
+            #[cfg(feature = "rdfxml")]
+            if accept.contains(XML) || output == Some(XML) {
+                debug!("{} RDF/XML {:?}", prefixed, t.elapsed());
+                return res_result(&prefixed, XML, rdf::serialize_rdfxml(&suffix));
+            }
+            if accept.contains(HTML) && output != Some(TTL) {
+                return match template().render("resource", &res) {
+                    Ok(html) => {
+                        debug!("{} HTML {:?}", prefixed, t.elapsed());
+                        HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html))
+                    }
+                    Err(err) => {
+                        let message = format!("Internal server error. Could not render resource {prefixed}:\n{err}.");
+                        error!("{}", message);
+                        HttpResponse::InternalServerError().append_header(etag).body(message)
+                    }
+                };
+            }
+            warn!("{} accept header {} and 'output' param {:?} not recognized or Turtle, using RDF Turtle", prefixed, accept, output);
+        }
+    } else {
+        warn!("{} accept header missing, using RDF Turtle", prefixed);
+    }
+    debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
+    res_result(&prefixed, TTL, rdf::serialize_turtle(&suffix))
 }
 
 #[get("/")]

@@ -16,7 +16,7 @@ use sophia::api::term::matcher::Any;
 use sophia::api::term::{SimpleTerm, Term};
 use sophia::api::MownStr;
 use sophia::inmem::graph::FastGraph;
-use sophia::iri::{InvalidIri, Iri, IriRef};
+use sophia::iri::{Iri, IriRef};
 use sophia::turtle::parser::{nt, turtle};
 use sophia::turtle::serializer::nt::NtSerializer;
 use sophia::turtle::serializer::turtle::{TurtleConfig, TurtleSerializer};
@@ -297,16 +297,17 @@ struct Connection {
 }
 
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
-fn connections(conn_type: &ConnectionType, suffix: &str) -> Vec<Connection> {
+fn connections(conn_type: &ConnectionType, piri: Piri) -> Vec<Connection> {
     match graph() {
-        GraphEnum::FastGraph(g) => connections_generic(g, conn_type, suffix),
+        GraphEnum::FastGraph(g) => connections_generic(g, conn_type, piri),
         #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => connections_generic(g, conn_type, suffix),
+        GraphEnum::HdtGraph(g) => connections_generic(g, conn_type, piri),
     }
 }
 
 /// Helper function for [connections].
-fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str) -> Vec<Connection> {
+fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: Piri) -> Vec<Connection> {
+    /*
     let source = Piri::from_suffix(suffix);
     let bnode;
     let term = if let Some(id) = suffix.split(SKOLEM_START).nth(1) {
@@ -315,9 +316,10 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, suffix: &str
     } else {
         source.iri.as_simple()
     };
+    */
     let triples = match conn_type {
-        ConnectionType::Direct => g.triples_matching(Some(term), Any, Any),
-        ConnectionType::Inverse => g.triples_matching(Any, Any, Some(term)),
+        ConnectionType::Direct => g.triples_matching(Some(source.iri), Any, Any),
+        ConnectionType::Inverse => g.triples_matching(Any, Any, Some(source.iri)),
     };
     let mut map: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut connections: Vec<Connection> = Vec::new();
@@ -430,21 +432,23 @@ fn depiction_iri_generic<G: Graph>(g: &G, suffix: &str) -> Option<String> {
 }
 
 /// Returns the resource with the given IRI from the configured namespace.
-pub fn resource(subject: &Iri<String>) -> Some(Resource) {
+pub fn resource(subject: &Iri<String>) -> Resource {
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
         cons.iter().filter(|c| key_predicate(&c.prop)).map(|c| (c.prop_html.clone(), c.target_htmls.clone())).collect()
     }
     //let suffix = str::replace(suffix, " ", "%20");
     let start = Instant::now();
     //let subject = namespace().get(&suffix)?;
-    let uri = subject.iriref().as_str().to_owned();
+    let piri = Iri::new(subject);
+    let suffix = &piri.prefixed.1;
+    //let uri = subject.iriref().as_str().to_owned();
 
-    let all_directs = connections(&ConnectionType::Direct, &uri);
+    let all_directs = connections(&ConnectionType::Direct, &piri);
     let descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !config().description_properties.contains(key));
-    let title = titles().get(&uri).unwrap_or(&suffix.clone()).to_string().replace(SKOLEM_START, "Blank Node ");
-    let main_type = types().get(&suffix).map(std::clone::Clone::clone);
-    let inverses = if config().show_inverse { filter(&connections(&ConnectionType::Inverse, &suffix), |_| true) } else { Vec::new() };
+    let title = titles().get(&piri.full).unwrap_or(suffix.clone()).to_string().replace(SKOLEM_START, "Blank Node ");
+    let main_type = types().get(suffix).map(std::clone::Clone::clone);
+    let inverses = if config().show_inverse { filter(&connections(&ConnectionType::Inverse, suffix), |_| true) } else { Vec::new() };
     /*
     if all_directs.is_empty() && inverses.is_empty() {
         /*let warning = format!("No triples found for {uri}. Did you configure the namespace correctly?");
@@ -453,9 +457,9 @@ pub fn resource(subject: &Iri<String>) -> Some(Resource) {
         return None;
     }
     */
-    Some(Resource {
+    Resource {
         //suffix: suffix.clone(),
-        uri,
+        uri: piri.iri,
         duration: format!("{:?}", start.elapsed()),
         title,
         github_issue_url: config().github.as_ref().map(|g| format!("{g}/issues/new?title={suffix}")),
@@ -464,5 +468,5 @@ pub fn resource(subject: &Iri<String>) -> Some(Resource) {
         directs: notdescriptions,
         inverses,
         depiction: depiction_iri(&suffix),
-    })
+    }
 }
