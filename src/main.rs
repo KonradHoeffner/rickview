@@ -27,7 +27,7 @@ use actix_web::{get, head, web, App, HttpRequest, HttpResponse, HttpServer, Resp
 use const_fnv1a_hash::fnv1a_hash_str_32;
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
-use sophia::iri::{Iri, IriRef};
+use sophia::iri::IriRef;
 use std::error::Error;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -144,7 +144,7 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
     let t = Instant::now();
     let prefixed = config().prefix.to_string() + ":" + &suffix;
     let iri = config().namespace.resolve(IriRef::new_unchecked(suffix.as_str()));
-    let mut res = rdf::resource(&iri);
+    let mut res = rdf::resource(iri.as_ref());
     // no triples found
     if res.directs.is_empty() && res.inverses.is_empty() {
         let warning = format!("No triples found for {suffix}. Did you configure the namespace correctly?");
@@ -168,12 +168,12 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
             trace!("{} accept header {}", prefixed, accept);
             if accept.contains(NT) || output == Some(NT) {
                 debug!("{} N-Triples {:?}", prefixed, t.elapsed());
-                return res_result(&prefixed, NT, rdf::serialize_nt(&iri));
+                return res_result(&prefixed, NT, rdf::serialize_nt(iri.as_ref()));
             }
             #[cfg(feature = "rdfxml")]
             if accept.contains(XML) || output == Some(XML) {
                 debug!("{} RDF/XML {:?}", prefixed, t.elapsed());
-                return res_result(&prefixed, XML, rdf::serialize_rdfxml(&iri));
+                return res_result(&prefixed, XML, rdf::serialize_rdfxml(iri.as_ref()));
             }
             if accept.contains(HTML) && output != Some(TTL) {
                 return match template().render("resource", &res) {
@@ -194,7 +194,7 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
         warn!("{} accept header missing, using RDF Turtle", prefixed);
     }
     debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
-    res_result(&prefixed, TTL, rdf::serialize_turtle(&iri))
+    res_result(&prefixed, TTL, rdf::serialize_turtle(iri.as_ref()))
 }
 
 #[get("/")]
@@ -234,7 +234,7 @@ async fn main() -> std::io::Result<()> {
     #[allow(clippy::cast_possible_truncation)]
     RUN_ID.store(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u32, Ordering::Relaxed);
     config(); // enable logging
-    info!("RickView {} serving {} at http://localhost:{}{}/", config::VERSION, config().namespace, config().port, config().base);
+    info!("RickView {} serving {} at http://localhost:{}{}/", config::VERSION, config().namespace.as_str(), config().port, config().base);
     HttpServer::new(move || {
         App::new()
             .wrap(Compress::default())

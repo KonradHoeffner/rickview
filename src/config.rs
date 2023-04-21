@@ -15,7 +15,7 @@ pub struct Config {
     pub port: u16,
     pub github: Option<String>,
     pub prefix: Box<str>,
-    #[serde(with = "IriSerde")]
+    #[serde(with = "iri_serde")]
     pub namespace: Iri<Box<str>>,
     pub namespaces: HashMap<Box<str>, Box<str>>,
     pub examples: Vec<String>,
@@ -37,7 +37,7 @@ pub struct Config {
     pub large: bool,
 }
 
-mod IriSerde {
+mod iri_serde {
     use serde::{Deserialize, Deserializer, Serializer};
     use sophia::iri::Iri;
     pub fn serialize<S>(namespace: &Iri<Box<str>>, serializer: S) -> Result<S::Ok, S::Error>
