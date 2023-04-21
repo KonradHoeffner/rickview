@@ -143,8 +143,7 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
     let output = params.output.as_deref();
     let t = Instant::now();
     let prefixed = config().prefix.to_string() + ":" + &suffix;
-    let namespace = Iri::new_unchecked(config().namespace);
-    let iri = namespace.resolve(IriRef::new_unchecked(suffix.as_str()));
+    let iri = config().namespace.resolve(IriRef::new_unchecked(suffix.as_str()));
     let mut res = rdf::resource(&iri);
     // no triples found
     if res.directs.is_empty() && res.inverses.is_empty() {
@@ -162,19 +161,19 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
             }
         }
         // return 404 with plain text
-        return HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(warning)
+        return HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(warning);
     }
     if let Some(a) = r.head().headers().get("Accept") {
         if let Ok(accept) = a.to_str() {
             trace!("{} accept header {}", prefixed, accept);
             if accept.contains(NT) || output == Some(NT) {
                 debug!("{} N-Triples {:?}", prefixed, t.elapsed());
-                return res_result(&prefixed, NT, rdf::serialize_nt(&suffix));
+                return res_result(&prefixed, NT, rdf::serialize_nt(&iri));
             }
             #[cfg(feature = "rdfxml")]
             if accept.contains(XML) || output == Some(XML) {
                 debug!("{} RDF/XML {:?}", prefixed, t.elapsed());
-                return res_result(&prefixed, XML, rdf::serialize_rdfxml(&suffix));
+                return res_result(&prefixed, XML, rdf::serialize_rdfxml(&iri));
             }
             if accept.contains(HTML) && output != Some(TTL) {
                 return match template().render("resource", &res) {
@@ -195,7 +194,7 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
         warn!("{} accept header missing, using RDF Turtle", prefixed);
     }
     debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
-    res_result(&prefixed, TTL, rdf::serialize_turtle(&suffix))
+    res_result(&prefixed, TTL, rdf::serialize_turtle(&iri))
 }
 
 #[get("/")]

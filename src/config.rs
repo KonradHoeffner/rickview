@@ -1,6 +1,7 @@
 use config::{ConfigError, Environment, File, FileFormat};
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
+use sophia::iri::Iri;
 use std::collections::{HashMap, HashSet};
 use std::io::{BufReader, Read};
 use std::sync::OnceLock;
@@ -14,7 +15,8 @@ pub struct Config {
     pub port: u16,
     pub github: Option<String>,
     pub prefix: Box<str>,
-    pub namespace: Box<str>,
+    #[serde(with = "IriSerde")]
+    pub namespace: Iri<Box<str>>,
     pub namespaces: HashMap<Box<str>, Box<str>>,
     pub examples: Vec<String>,
     pub title_properties: Vec<String>,
@@ -33,6 +35,21 @@ pub struct Config {
     pub body: Option<String>,
     /// disable memory and CPU intensive preprocessing on large knowledge bases
     pub large: bool,
+}
+
+mod IriSerde {
+    use serde::{Deserialize, Deserializer, Serializer};
+    use sophia::iri::Iri;
+    pub fn serialize<S>(namespace: &Iri<Box<str>>, serializer: S) -> Result<S::Ok, S::Error>
+    where S: Serializer {
+        serializer.serialize_str(namespace.as_str())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Iri<Box<str>>, D::Error>
+    where D: Deserializer<'de> {
+        let s = Box::<str>::deserialize(deserializer)?;
+        Iri::new(s).map_err(serde::de::Error::custom)
+    }
 }
 
 // path relative to source file
