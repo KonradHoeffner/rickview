@@ -1,6 +1,6 @@
 [package]
 name = "rickview"
-version = "0.0.12"
+version = "0.1.0"
 edition = "2021"
 license = "MIT"
 keywords = ["rdf", "semantic-web", "linked-data"]
@@ -19,7 +19,7 @@ serde = { version = "1", features = ["derive"] }
 config = { version = "0.13", default-features = false, features = ["toml"] }
 log = "0.4"
 env_logger = { version = "0.10", default-features = false, features = ["auto-color"], optional = true }
-hdt = { version = "0.0.13", optional = true }
+hdt = { version = "0.1.2", optional = true }
 deepsize = { version = "0.2.0", default-features = false, features = ["std"] }
 bytesize = "1.1.0"
 zstd = { version = "0.12.0", features = ["zstdmt"] }
