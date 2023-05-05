@@ -17,9 +17,9 @@ Try it out with the example knowledge base:
 
     services:
       rickview:
-        image: ghcr.io/konradhoeffner/rickview:0.0.12
+        image: ghcr.io/konradhoeffner/rickview
         environment:
-          - RICKVIEW_KB_FILE=/rdf/hito.ttl
+          - RICKVIEW_KB_FILE=https://raw.githubusercontent.com/hitontology/ontology/dist/all.ttl
           - RICKVIEW_NAMESPACE=http://hitontology.eu/ontology/
           - RICKVIEW_BASE=/ontology
           - RICKVIEW_TITLE=HITO
@@ -28,9 +28,7 @@ Try it out with the example knowledge base:
           - RICKVIEW_HOMEPAGE=https://hitontology.eu
           - RICKVIEW_ENDPOINT=https://hitontology.eu/sparql
           - RICKVIEW_GITHUB=https://github.com/hitontology/ontology
-          - RICKVIEW_DOC=https://hitontology.github.io/ontology/index-en.html
-        volumes:
-          - rdf:/rdf
+          - RICKVIEW_DOC=https://hitontology.github.io/ontology/
         ports:
           - "127.0.0.1:8080:8080"
         restart: unless-stopped
@@ -172,8 +170,9 @@ According to [Hitzler 2021](https://cacm.acm.org/magazines/2021/2/250085-a-revie
 Instead, limited duration research grants motivate the proliferation of countless research prototypes, which are not optimized for any of those criteria, are not maintained after the project ends and finally compete for resources on crowded servers if they do not break down completely.
 
 ### Can you implement feature X?
-As RickView is still in the prototype stage, I would be very interested in hearing from you using it for your knowledge bases and am happy to assist you setting it up.
+I am very interested in hearing from you using it for your knowledge bases and am happy to assist you setting it up.
 Feature and pull requests are welcome, however the goal of RickView is to stay minimalistic and not serve every use case.
+Please also consider filling out the [survey](https://forms.gle/wqxdVdn4pDLXgyYZA) so I can see which features are most requested.
 
 ### Why no .env support?
 I think this would be overkill, as there is already a default configuration file, a custom configuration file, environment variables and Docker Compose supports `.env` out of the box as well.
