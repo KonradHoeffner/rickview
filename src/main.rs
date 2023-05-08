@@ -188,7 +188,9 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
                     }
                 };
             }
-            warn!("{} accept header {} and 'output' param {:?} not recognized or Turtle, using RDF Turtle", prefixed, accept, output);
+            if !accept.contains(TTL) {
+                warn!("{} accept header {} and 'output' param {:?} not recognized, default to RDF Turtle", prefixed, accept, output);
+            }
         }
     } else {
         warn!("{} accept header missing, using RDF Turtle", prefixed);

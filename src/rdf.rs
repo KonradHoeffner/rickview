@@ -12,7 +12,7 @@ use sophia::api::prelude::{Triple, TripleSource};
 use sophia::api::serializer::{Stringifier, TripleSerializer};
 use sophia::api::term::bnode_id::BnodeId;
 use sophia::api::term::matcher::Any;
-use sophia::api::term::{SimpleTerm, Term};
+use sophia::api::term::{FromTerm, SimpleTerm, Term};
 use sophia::inmem::graph::FastGraph;
 use sophia::iri::{Iri, IriRef};
 use sophia::turtle::parser::{nt, turtle};
@@ -296,6 +296,15 @@ struct Connection {
     target_htmls: Vec<String>,
 }
 
+/// Map skolemized IRIs back to blank nodes. Keep deskolemized IRIs as they are.
+fn deskolemize<'a>(iri: &'a Iri<&str>) -> SimpleTerm<'a> {
+    if let Some(id) = iri.as_str().split(SKOLEM_START).nth(1) {
+        SimpleTerm::from_term(BnodeId::new_unchecked(id.to_owned()))
+    } else {
+        iri.as_simple()
+    }
+}
+
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
 fn connections(conn_type: &ConnectionType, iri: Iri<&str>) -> Vec<Connection> {
     match graph() {
@@ -307,13 +316,7 @@ fn connections(conn_type: &ConnectionType, iri: Iri<&str>) -> Vec<Connection> {
 
 /// Helper function for [connections].
 fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: Iri<&str>) -> Vec<Connection> {
-    let bnode;
-    let term = if let Some(id) = source.as_str().split(SKOLEM_START).nth(1) {
-        bnode = BnodeId::new_unchecked(id);
-        bnode.as_simple()
-    } else {
-        source.as_simple()
-    };
+    let term = deskolemize(&source);
     let triples = match conn_type {
         ConnectionType::Direct => g.triples_matching(Some(term), Any, Any),
         ConnectionType::Inverse => g.triples_matching(Any, Any, Some(term)),
@@ -378,7 +381,7 @@ pub fn serialize_rdfxml(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
 }
 #[cfg(feature = "rdfxml")]
 pub fn serialize_rdfxml_generic<G: Graph>(g: &G, iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
-    Ok(RdfXmlSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(iri), Any, Any))?.to_string())
+    Ok(RdfXmlSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
 }
 
 /// Export all triples (s,p,o) for a given subject s as RDF Turtle using the config prefixes.
@@ -391,7 +394,7 @@ pub fn serialize_turtle(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
 }
 fn serialize_turtle_generic<G: Graph>(g: &G, iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
     let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map(prefixes().clone());
-    Ok(TurtleSerializer::new_stringifier_with_config(config).serialize_triples(g.triples_matching(Some(iri), Any, Any))?.to_string())
+    Ok(TurtleSerializer::new_stringifier_with_config(config).serialize_triples(g.triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
 }
 
 /// Export all triples (s,p,o) for a given subject s as N-Triples.
@@ -404,7 +407,7 @@ pub fn serialize_nt(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
 }
 /// Helper function for [`serialize_nt`].
 fn serialize_nt_generic<G: Graph>(g: &G, iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
-    Ok(NtSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(iri), Any, Any))?.to_string())
+    Ok(NtSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
 }
 
 fn depiction_iri(iri: Iri<&str>) -> Option<String> {
