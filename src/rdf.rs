@@ -10,7 +10,7 @@ use sophia::api::graph::Graph;
 use sophia::api::prefix::{Prefix, PrefixMap};
 use sophia::api::prelude::{Triple, TripleSource};
 use sophia::api::serializer::{Stringifier, TripleSerializer};
-//use sophia::api::term::bnode_id::BnodeId;
+use sophia::api::term::bnode_id::BnodeId;
 use sophia::api::term::matcher::Any;
 use sophia::api::term::{SimpleTerm, Term};
 use sophia::inmem::graph::FastGraph;
@@ -55,10 +55,7 @@ impl Piri {
     //fn from_suffix(iri: Iri<&str>) -> Self { Piri::new(Iri::new_unchecked(config().namespace.to_string() + suffix)) }
     //fn new(iri: Iri<&'a str>) -> Self {
     fn new(iri: Iri<&str>) -> Self {
-        Self {
-            prefixed: prefixes().get_prefixed_pair(iri.clone()).map(|(p, ms)| (p.to_string(), String::from(ms))),
-            full: iri.as_str().to_owned(), /*iri*/
-        }
+        Self { prefixed: prefixes().get_prefixed_pair(iri).map(|(p, ms)| (p.to_string(), String::from(ms))), full: iri.as_str().to_owned() }
     }
     fn embrace(&self) -> String { format!("&lt;{self}&gt;") }
     fn prefixed_string(&self, bold: bool, embrace: bool) -> String {
@@ -75,7 +72,7 @@ impl Piri {
         }
     }
     fn short(&self) -> String { self.prefixed_string(false, false) }
-    fn suffix(&self) -> String { self.prefixed.as_ref().map(|pair| pair.1.clone()).unwrap_or_else(|| self.full.clone()) }
+    fn suffix(&self) -> String { self.prefixed.as_ref().map_or_else(|| self.full.clone(), |pair| pair.1.clone()) }
     fn root_relative(&self) -> String { self.full.replace(config().namespace.as_str(), &(config().base.clone() + "/")) }
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
 }
@@ -310,19 +307,16 @@ fn connections(conn_type: &ConnectionType, iri: Iri<&str>) -> Vec<Connection> {
 
 /// Helper function for [connections].
 fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: Iri<&str>) -> Vec<Connection> {
-    /*
-    let source = Piri::from_suffix(suffix);
     let bnode;
-    let term = if let Some(id) = suffix.split(SKOLEM_START).nth(1) {
+    let term = if let Some(id) = source.as_str().split(SKOLEM_START).nth(1) {
         bnode = BnodeId::new_unchecked(id);
         bnode.as_simple()
     } else {
-        source.iri.as_simple()
+        source.as_simple()
     };
-    */
     let triples = match conn_type {
-        ConnectionType::Direct => g.triples_matching(Some(source), Any, Any),
-        ConnectionType::Inverse => g.triples_matching(Any, Any, Some(source)),
+        ConnectionType::Direct => g.triples_matching(Some(term), Any, Any),
+        ConnectionType::Inverse => g.triples_matching(Any, Any, Some(term)),
     };
     let mut map: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut connections: Vec<Connection> = Vec::new();
