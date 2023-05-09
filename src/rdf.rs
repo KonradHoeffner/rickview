@@ -433,12 +433,9 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
         cons.iter().filter(|c| key_predicate(&c.prop)).map(|c| (c.prop_html.clone(), c.target_htmls.clone())).collect()
     }
-    //let suffix = str::replace(suffix, " ", "%20");
     let start = Instant::now();
-    //let subject = namespace().get(&suffix)?;
     let piri = Piri::new(subject.as_ref());
     let suffix = piri.suffix();
-    //let uri = subject.iriref().as_str().to_owned();
 
     let all_directs = connections(&ConnectionType::Direct, subject);
     let descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
@@ -446,16 +443,7 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     let title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
     let main_type = types().get(&suffix).map(std::clone::Clone::clone);
     let inverses = if config().show_inverse { filter(&connections(&ConnectionType::Inverse, subject), |_| true) } else { Vec::new() };
-    /*
-    if all_directs.is_empty() && inverses.is_empty() {
-        /*let warning = format!("No triples found for {uri}. Did you configure the namespace correctly?");
-        warn!("{warning}");
-        descriptions.push(("Warning".to_owned(), vec![warning]));*/
-        return None;
-    }
-    */
     Resource {
-        //suffix: suffix.clone(),
         uri: piri.full,
         duration: format!("{:?}", start.elapsed()),
         title,
