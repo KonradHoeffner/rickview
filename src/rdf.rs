@@ -11,7 +11,7 @@ use sophia::api::prefix::{Prefix, PrefixMap};
 use sophia::api::prelude::{Triple, TripleSource};
 use sophia::api::serializer::{Stringifier, TripleSerializer};
 use sophia::api::term::bnode_id::BnodeId;
-use sophia::api::term::matcher::Any;
+use sophia::api::term::matcher::{Any, TermMatcher};
 use sophia::api::term::{FromTerm, SimpleTerm, Term};
 use sophia::inmem::graph::FastGraph;
 use sophia::iri::{Iri, IriRef};
@@ -21,6 +21,7 @@ use sophia::turtle::serializer::turtle::{TurtleConfig, TurtleSerializer};
 #[cfg(feature = "rdfxml")]
 use sophia::xml::{self, serializer::RdfXmlSerializer};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::convert::Infallible;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
@@ -91,6 +92,23 @@ pub enum GraphEnum {
     FastGraph(FastGraph),
     #[cfg(feature = "hdt")]
     HdtGraph(HdtGraph),
+}
+
+impl GraphEnum {
+    //fn triples_matching<'s, S, P, O>(&'s self, sm: S, pm: P, om: O) -> Box<dyn Iterator<Item = [SimpleTerm<'static>; 3]> + '_>
+    fn triples_matching<'s, S, P, O>(&'s self, sm: S, pm: P, om: O) -> Box<dyn Iterator<Item = Result<[SimpleTerm<'static>; 3], Infallible>> + '_>
+    where
+        S: TermMatcher + 's,
+        P: TermMatcher + 's,
+        O: TermMatcher + 's,
+    {
+        match self {
+            // both graphs produce infallible results
+            GraphEnum::FastGraph(g) => Box::new(g.triples_matching(sm, pm, om).flatten().map(|triple| Ok(triple.map(SimpleTerm::from_term)))),
+            #[cfg(feature = "hdt")]
+            GraphEnum::HdtGraph(g) => Box::new(g.triples_matching(sm, pm, om).flatten().map(|triple| Ok(triple.map(SimpleTerm::from_term)))),
+        }
+    }
 }
 
 pub fn kb_reader(filename: &str) -> Result<BufReader<impl std::io::Read>, Box<dyn std::error::Error>> {
@@ -177,16 +195,8 @@ fn prefixes() -> &'static Vec<PrefixItem> {
 /// Maps RDF resource URIs to at most one title each, for example `http://example.com/resource/ExampleResource` -> "example resource".
 /// Prioritizes `title_properties` earlier in the list.
 pub fn titles() -> &'static HashMap<String, String> {
-    // Code duplication due to Rusts type system, Sophia Graph cannot be used as a trait object.
-    match graph() {
-        GraphEnum::FastGraph(g) => titles_generic(g),
-        #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => titles_generic(g),
-    }
-}
-/// Helper function for [titles].
-fn titles_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
     TITLES.get_or_init(|| {
+        let g = graph();
         // tag, uri, title
         let mut tagged = MultiMap::<String, (String, String)>::new();
         let mut titles = HashMap::<String, String>::new();
@@ -205,7 +215,7 @@ fn titles_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
                                 continue;
                             }
                             let uri = t.s().as_simple().iri().expect("invalid title subject IRI").as_str().to_owned();
-                            match t.o().as_simple() {
+                            match t.o() {
                                 SimpleTerm::LiteralLanguage(lit, tag) => tagged.insert(tag.as_str().to_owned(), (uri, lit.to_string())),
                                 SimpleTerm::LiteralDatatype(lit, _) => tagged.insert(String::new(), (uri, lit.to_string())),
                                 _ => warn!("Invalid title value {:?}, skipping", t.o().as_simple()),
@@ -233,15 +243,6 @@ fn titles_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
 /// Maps RDF resource suffixes to at most one type URI each, for example "`ExampleResource`" -> `http://example.com/resource/ExampleClass`.
 /// Prioritizes `type_properties` earlier in the list.
 pub fn types() -> &'static HashMap<String, String> {
-    // Code duplication due to Rusts type system, Sophia Graph cannot be used as a trait object.
-    match graph() {
-        GraphEnum::FastGraph(g) => types_generic(g),
-        #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => types_generic(g),
-    }
-}
-/// Helper function for [types].
-fn types_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
     TYPES.get_or_init(|| {
         let mut types = HashMap::<String, String>::new();
         if !config().large {
@@ -252,7 +253,7 @@ fn types_generic<G: Graph>(g: &G) -> &'static HashMap<String, String> {
                     continue;
                 }
                 let term = SimpleTerm::Iri(iref.unwrap());
-                for tt in g.triples_matching(Any, Some(term), Any) {
+                for tt in graph().triples_matching(Any, Some(term), Any) {
                     let t = tt.expect("error fetching type triple");
                     if !t.s().is_iri() {
                         continue;
@@ -306,16 +307,8 @@ fn deskolemize<'a>(iri: &'a Iri<&str>) -> SimpleTerm<'a> {
 }
 
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
-fn connections(conn_type: &ConnectionType, iri: Iri<&str>) -> Vec<Connection> {
-    match graph() {
-        GraphEnum::FastGraph(g) => connections_generic(g, conn_type, iri),
-        #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => connections_generic(g, conn_type, iri),
-    }
-}
-
-/// Helper function for [connections].
-fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: Iri<&str>) -> Vec<Connection> {
+fn connections(conn_type: &ConnectionType, source: Iri<&str>) -> Vec<Connection> {
+    let g = graph();
     let term = deskolemize(&source);
     let triples = match conn_type {
         ConnectionType::Direct => g.triples_matching(Some(term), Any, Any),
@@ -373,54 +366,24 @@ fn connections_generic<G: Graph>(g: &G, conn_type: &ConnectionType, source: Iri<
 #[cfg(feature = "rdfxml")]
 /// Export all triples (s,p,o) for a given subject s as RDF/XML.
 pub fn serialize_rdfxml(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
-    match graph() {
-        GraphEnum::FastGraph(g) => serialize_rdfxml_generic(g, iri),
-        #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => serialize_rdfxml_generic(g, iri),
-    }
-}
-#[cfg(feature = "rdfxml")]
-pub fn serialize_rdfxml_generic<G: Graph>(g: &G, iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
-    Ok(RdfXmlSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
+    Ok(RdfXmlSerializer::new_stringifier().serialize_triples(graph().triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
 }
 
 /// Export all triples (s,p,o) for a given subject s as RDF Turtle using the config prefixes.
 pub fn serialize_turtle(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
-    match graph() {
-        GraphEnum::FastGraph(g) => serialize_turtle_generic(g, iri),
-        #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => serialize_turtle_generic(g, iri),
-    }
-}
-fn serialize_turtle_generic<G: Graph>(g: &G, iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
     let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map(prefixes().clone());
-    Ok(TurtleSerializer::new_stringifier_with_config(config).serialize_triples(g.triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
+    Ok(TurtleSerializer::new_stringifier_with_config(config).serialize_triples(graph().triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
 }
 
 /// Export all triples (s,p,o) for a given subject s as N-Triples.
 pub fn serialize_nt(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
-    match graph() {
-        GraphEnum::FastGraph(g) => serialize_nt_generic(g, iri),
-        #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => serialize_nt_generic(g, iri),
-    }
-}
-/// Helper function for [`serialize_nt`].
-fn serialize_nt_generic<G: Graph>(g: &G, iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
-    Ok(NtSerializer::new_stringifier().serialize_triples(g.triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
+    Ok(NtSerializer::new_stringifier().serialize_triples(graph().triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
 }
 
 fn depiction_iri(iri: Iri<&str>) -> Option<String> {
-    match graph() {
-        GraphEnum::FastGraph(g) => depiction_iri_generic(g, iri),
-        #[cfg(feature = "hdt")]
-        GraphEnum::HdtGraph(g) => depiction_iri_generic(g, iri),
-    }
-}
-
-fn depiction_iri_generic<G: Graph>(g: &G, iri: Iri<&str>) -> Option<String> {
     let foaf_depiction = IriRef::new_unchecked("http://xmlns.com/foaf/0.1/depiction");
-    g.triples_matching(Some(iri), Some(foaf_depiction), Any)
+    graph()
+        .triples_matching(Some(iri), Some(foaf_depiction), Any)
         .filter_map(Result::ok)
         .map(Triple::to_o)
         .filter(Term::is_iri)
