@@ -27,7 +27,7 @@ use actix_web::{get, head, web, App, HttpRequest, HttpResponse, HttpServer, Resp
 use const_fnv1a_hash::fnv1a_hash_str_32;
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
-use sophia::iri::IriRef;
+use sophia::iri::{Iri, IriRef};
 use std::error::Error;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -124,8 +124,16 @@ struct Params {
     output: Option<String>,
 }
 
-#[get("{suffix:.*|}")]
+#[get("/{suffix:.*}")]
 async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
+    let suffix = if suffix.is_empty() { "/".to_owned().into() } else { suffix };
+    res_html_sync(&r, &suffix, &params)
+}
+
+#[get("")]
+async fn base(r: HttpRequest, params: web::Query<Params>) -> impl Responder { res_html_sync(&r, "", &params) }
+
+fn res_html_sync(r: &HttpRequest, suffix: &str, params: &web::Query<Params>) -> impl Responder {
     const NT: &str = "application/n-triples";
     const TTL: &str = "application/turtle";
     const XML: &str = "application/rdf+xml";
@@ -142,11 +150,19 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
     let etag = ETag(EntityTag::new_strong(id));
     let output = params.output.as_deref();
     let t = Instant::now();
-    let prefixed = config().prefix.to_string() + ":" + &suffix;
-    let iri = config().namespace.resolve(IriRef::new_unchecked(suffix.as_str()));
+    let prefixed = config().prefix.to_string() + ":" + suffix;
+    let iri = if suffix.is_empty() {
+        Iri::new_unchecked(config().namespace.as_str().strip_suffix('/').expect("empty namespace").to_owned())
+    } else {
+        config().namespace.resolve(IriRef::new_unchecked(suffix))
+    };
     let mut res = rdf::resource(iri.as_ref());
     // no triples found
     if res.directs.is_empty() && res.inverses.is_empty() {
+        // resource URI equal to namespace with or without trailing slash takes precedence
+        if suffix.is_empty() || suffix == "/" {
+            return index();
+        }
         let warning = format!("No triples found for {suffix}. Did you configure the namespace correctly?");
         warn!("{}", warning);
         if let Some(a) = r.head().headers().get("Accept") {
@@ -199,8 +215,7 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
     res_result(&prefixed, TTL, rdf::serialize_turtle(iri.as_ref()))
 }
 
-#[get("/")]
-async fn index() -> impl Responder {
+fn index() -> HttpResponse {
     match template().render("index", config()) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
         Err(e) => {
@@ -227,8 +242,8 @@ async fn about_page() -> impl Responder {
 async fn head() -> HttpResponse { HttpResponse::MethodNotAllowed().body("RickView does not support HEAD requests.") }
 
 // redirect /base to correct index page /base/
-#[get("")]
-async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append_header(("location", config().base.clone() + "/")).finish() }
+//#[get("")]
+//async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append_header(("location", config().base.clone() + "/")).finish() }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -245,7 +260,7 @@ async fn main() -> std::io::Result<()> {
             .service(roboto300)
             .service(favicon)
             .service(head)
-            .service(scope(&config().base).service(index).service(about_page).service(redirect).service(res_html))
+            .service(scope(&config().base).service(about_page).service(base).service(res_html))
     })
     .bind(("0.0.0.0", config().port))?
     .run()
