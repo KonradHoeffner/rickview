@@ -1,19 +1,22 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
 @prefix owl: <http://www.w3.org/2002/07/owl#>.
-@prefix ex: <http://example.com/resource/>.
+@prefix : <http://example.com/resource/>.
 
-ex:ExClass
+:ExClass
   a owl:Class;
   rdfs:comment "an example class"@en;
   rdfs:label "example class"@en.
 
-ex:ExInstance
-  ex:exProperty 5;
-  a ex:ExClass;
+:ExInstance
+  :exProperty 5, ( :a :b :c);
+  :blankTest [ :exProperty :o11, :o12; :p2 :o21, :o22, :o23; :p3 [:nested :o11, :o12]];
+  a :ExClass;
   rdfs:comment "an example instance."@en;
   rdfs:label "example instance"@en.
 
-ex:exProperty
+:o11 rdfs:label "object 11"@en.
+
+:exProperty
   a owl:DatatypeProperty;
-  rdfs:domain ex:ExClass;
+  rdfs:domain :ExClass;
   rdfs:label "Beispielproperty"@de, "example property"@en.
