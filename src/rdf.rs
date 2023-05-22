@@ -32,6 +32,7 @@ use std::time::Instant;
 #[cfg(feature = "hdt")]
 use zstd::stream::read::Decoder;
 
+const BLANK_RECURSIVE: bool = false;
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 static CAP: usize = 100; // maximum number of values shown per property
 static SKOLEM_START: &str = ".well-known/genid/";
@@ -41,20 +42,14 @@ type PrefixItem = (Prefix<Box<str>>, Iri<Box<str>>);
 // Prefixed IRI
 struct Piri {
     full: String,
-    //iri: Iri<&'a str>,
     prefixed: Option<(String, String)>,
-    //prefixed: Option<(Prefix<&'a str>, String)>,
 }
 
-//impl fmt::Display for Piri<'_> {
 impl fmt::Display for Piri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.full) }
 }
 
-//impl<'a> Piri<'a> {
 impl Piri {
-    //fn from_suffix(iri: Iri<&str>) -> Self { Piri::new(Iri::new_unchecked(config().namespace.to_string() + suffix)) }
-    //fn new(iri: Iri<&'a str>) -> Self {
     fn new(iri: Iri<&str>) -> Self {
         Self { prefixed: prefixes().get_prefixed_pair(iri).map(|(p, ms)| (p.to_string(), String::from(ms))), full: iri.as_str().to_owned() }
     }
@@ -78,8 +73,6 @@ impl Piri {
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
 }
 
-//impl<'a> From<IriRef<&'a str>> for Piri<'a> {
-//    fn from(iref: IriRef<&'a str>) -> Piri<'a> { Piri::new(Iri::new_unchecked(&iref)) }
 impl From<IriRef<&str>> for Piri {
     fn from(iref: IriRef<&str>) -> Piri { Piri::new(Iri::new_unchecked(&iref)) }
 }
@@ -95,7 +88,6 @@ pub enum GraphEnum {
 }
 
 impl GraphEnum {
-    //fn triples_matching<'s, S, P, O>(&'s self, sm: S, pm: P, om: O) -> Box<dyn Iterator<Item = [SimpleTerm<'static>; 3]> + '_>
     fn triples_matching<'s, S, P, O>(&'s self, sm: S, pm: P, om: O) -> Box<dyn Iterator<Item = Result<[SimpleTerm<'static>; 3], Infallible>> + '_>
     where
         S: TermMatcher + 's,
@@ -297,6 +289,10 @@ struct Connection {
     target_htmls: Vec<String>,
 }
 
+impl From<Connection> for (String, Vec<String>) {
+    fn from(c: Connection) -> Self { (c.prop_html, c.target_htmls) }
+}
+
 /// Map skolemized IRIs back to blank nodes. Keep deskolemized IRIs as they are.
 fn deskolemize<'a>(iri: &'a Iri<&str>) -> SimpleTerm<'a> {
     if let Some(id) = iri.as_str().split(SKOLEM_START).nth(1) {
@@ -307,15 +303,14 @@ fn deskolemize<'a>(iri: &'a Iri<&str>) -> SimpleTerm<'a> {
 }
 
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
-fn connections(conn_type: &ConnectionType, source: Iri<&str>) -> Vec<Connection> {
+fn connections(conn_type: &ConnectionType, source: &SimpleTerm<'_>) -> Vec<Connection> {
     let g = graph();
-    let term = deskolemize(&source);
     let triples = match conn_type {
-        ConnectionType::Direct => g.triples_matching(Some(term), Any, Any),
-        ConnectionType::Inverse => g.triples_matching(Any, Any, Some(term)),
+        ConnectionType::Direct => g.triples_matching(Some(source), Any, Any),
+        ConnectionType::Inverse => g.triples_matching(Any, Any, Some(source)),
     };
     let mut map: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    let mut connections: Vec<Connection> = Vec::new();
+    let mut conns: Vec<Connection> = Vec::new();
     for res in triples {
         let triple = res.expect("error with connection triple");
         let target_term = match conn_type {
@@ -336,9 +331,19 @@ fn connections(conn_type: &ConnectionType, source: Iri<&str>) -> Vec<Connection>
             // https://www.w3.org/TR/rdf11-concepts/ Section 3.5 Replacing Blank Nodes with IRIs
             SimpleTerm::BlankNode(blank) => {
                 let id = blank.as_str();
+                // prevent infinite loop
+                let sub_html = if BLANK_RECURSIVE && matches!(conn_type, ConnectionType::Direct) && !source.is_blank_node() {
+                    connections(&ConnectionType::Direct, target_term)
+                        .into_iter()
+                        .map(|c| c.target_htmls.iter().map(|html| c.prop_html.clone() + " " + html + "").collect::<Vec<_>>().join("<br>"))
+                        .collect::<Vec<_>>()
+                        .join("<br>")
+                } else {
+                    String::new()
+                };
                 let r = IriRef::new_unchecked(SKOLEM_START.to_owned() + id);
                 let iri = config().namespace.resolve(r);
-                format!("<a href='{}'>_:{id}</a>", Piri::new(iri.as_ref()).root_relative())
+                format!("<a href='{}'>_:{id}</a><br>{sub_html}", Piri::new(iri.as_ref()).root_relative())
             }
             _ => format!("{target_term:?}"),
         };
@@ -358,9 +363,9 @@ fn connections(conn_type: &ConnectionType, source: Iri<&str>) -> Vec<Connection>
         if len > CAP {
             target_htmls.push("...".to_string());
         }
-        connections.push(Connection { prop: prop.as_str().to_owned(), prop_html: Piri::new(Iri::new_unchecked(&prop)).property_anchor(), target_htmls });
+        conns.push(Connection { prop: prop.as_str().to_owned(), prop_html: Piri::new(Iri::new_unchecked(&prop)).property_anchor(), target_htmls });
     }
-    connections
+    conns
 }
 
 #[cfg(feature = "rdfxml")]
@@ -396,16 +401,18 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
         cons.iter().filter(|c| key_predicate(&c.prop)).map(|c| (c.prop_html.clone(), c.target_htmls.clone())).collect()
     }
+    let convert = |v: Vec<Connection>| v.into_iter().map(Connection::into).collect();
     let start = Instant::now();
     let piri = Piri::new(subject.as_ref());
     let suffix = piri.suffix();
 
-    let all_directs = connections(&ConnectionType::Direct, subject);
+    let source = deskolemize(&subject);
+    let all_directs = connections(&ConnectionType::Direct, &source);
     let descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
     let notdescriptions = filter(&all_directs, |key| !config().description_properties.contains(key));
     let title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
     let main_type = types().get(&suffix).map(std::clone::Clone::clone);
-    let inverses = if config().show_inverse { filter(&connections(&ConnectionType::Inverse, subject), |_| true) } else { Vec::new() };
+    let inverses = if config().show_inverse { convert(connections(&ConnectionType::Inverse, &source)) } else { Vec::new() };
     Resource {
         uri: piri.full,
         duration: format!("{:?}", start.elapsed()),
