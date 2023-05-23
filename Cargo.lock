@@ -1131,7 +1131,7 @@ checksum = "bd69ab1e90258b7769f0b5c46bfd802b8206d0707ced4ca4b9d5681b744de1be"
 
 [[package]]
 name = "rickview"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "actix-web",
  "bytesize",
