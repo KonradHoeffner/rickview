@@ -415,6 +415,7 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     let inverses = if config().show_inverse { convert(connections(&ConnectionType::Inverse, &source)) } else { Vec::new() };
     Resource {
         uri: piri.full,
+        base: config().base.clone(),
         duration: format!("{:?}", start.elapsed()),
         title,
         github_issue_url: config().github.as_ref().map(|g| format!("{g}/issues/new?title={suffix}")),
