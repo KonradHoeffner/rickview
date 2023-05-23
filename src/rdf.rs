@@ -32,7 +32,6 @@ use std::time::Instant;
 #[cfg(feature = "hdt")]
 use zstd::stream::read::Decoder;
 
-const BLANK_RECURSIVE: bool = false;
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 static CAP: usize = 100; // maximum number of values shown per property
 static SKOLEM_START: &str = ".well-known/genid/";
@@ -332,7 +331,7 @@ fn connections(conn_type: &ConnectionType, source: &SimpleTerm<'_>) -> Vec<Conne
             SimpleTerm::BlankNode(blank) => {
                 let id = blank.as_str();
                 // prevent infinite loop
-                let sub_html = if BLANK_RECURSIVE && matches!(conn_type, ConnectionType::Direct) && !source.is_blank_node() {
+                let sub_html = if matches!(conn_type, ConnectionType::Direct) && !source.is_blank_node() {
                     connections(&ConnectionType::Direct, target_term)
                         .into_iter()
                         .map(|c| c.target_htmls.iter().map(|html| c.prop_html.clone() + " " + html + "").collect::<Vec<_>>().join("<br>"))
