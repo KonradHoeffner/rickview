@@ -118,7 +118,7 @@ pub fn graph() -> &'static GraphEnum {
             }
             Some(filename) => match kb_reader(filename) {
                 Err(e) => {
-                    error!("Cannot open knowledge base '{}': {}. Check kb_file in data/config.toml or env var RICKVIEW_KB_FILE.", filename, e);
+                    error!("Cannot open '{}': {}. Check kb_file data/config.toml or env var RICKVIEW_KB_FILE. EXITING RICKVIEW.", filename, e);
                     std::process::exit(1);
                 }
                 Ok(br) => {
