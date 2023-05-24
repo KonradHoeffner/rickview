@@ -301,6 +301,23 @@ fn deskolemize<'a>(iri: &'a Iri<&str>) -> SimpleTerm<'a> {
     }
 }
 
+fn blank_html(mut cons: Vec<Connection>) -> String {
+    // temporary manchester syntax emulation for someValuesFrom
+    cons.sort_by(|a, b| a.prop.cmp(&b.prop));
+    if cons.len() == 3
+        && cons[0].prop == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+        && cons[1].prop == "http://www.w3.org/2002/07/owl#onProperty"
+        && cons[2].prop == "http://www.w3.org/2002/07/owl#someValuesFrom"
+    {
+        format!("{} some {}", cons[1].target_htmls.join(", "), cons[2].target_htmls.join(", "))
+    } else {
+        cons.into_iter()
+            .map(|c| c.target_htmls.iter().map(|html| c.prop_html.clone() + " " + html + "").collect::<Vec<_>>().join("<br>"))
+            .collect::<Vec<_>>()
+            .join("<br>")
+    }
+}
+
 /// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
 fn connections(conn_type: &ConnectionType, source: &SimpleTerm<'_>) -> Vec<Connection> {
     let g = graph();
@@ -332,11 +349,7 @@ fn connections(conn_type: &ConnectionType, source: &SimpleTerm<'_>) -> Vec<Conne
                 let id = blank.as_str();
                 // prevent infinite loop
                 let sub_html = if matches!(conn_type, ConnectionType::Direct) && !source.is_blank_node() {
-                    connections(&ConnectionType::Direct, target_term)
-                        .into_iter()
-                        .map(|c| c.target_htmls.iter().map(|html| c.prop_html.clone() + " " + html + "").collect::<Vec<_>>().join("<br>"))
-                        .collect::<Vec<_>>()
-                        .join("<br>")
+                    blank_html(connections(&ConnectionType::Direct, target_term))
                 } else {
                     String::new()
                 };
