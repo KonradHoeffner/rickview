@@ -276,20 +276,19 @@ static TITLES: OnceLock<HashMap<String, String>> = OnceLock::new();
 static TYPES: OnceLock<HashMap<String, String>> = OnceLock::new();
 
 /// Whether the given resource is in subject or object position.
-enum ConnectionType {
+enum PropertyType {
     Direct,
     Inverse,
 }
 
 #[derive(Debug)]
-struct Connection {
-    prop: String,
+struct Property {
     prop_html: String,
     target_htmls: Vec<String>,
 }
 
-impl From<Connection> for (String, Vec<String>) {
-    fn from(c: Connection) -> Self { (c.prop_html, c.target_htmls) }
+impl From<Property> for (String, Vec<String>) {
+    fn from(p: Property) -> Self { (p.prop_html, p.target_htmls) }
 }
 
 /// Map skolemized IRIs back to blank nodes. Keep deskolemized IRIs as they are.
@@ -301,37 +300,34 @@ fn deskolemize<'a>(iri: &'a Iri<&str>) -> SimpleTerm<'a> {
     }
 }
 
-fn blank_html(mut cons: Vec<Connection>) -> String {
-    // temporary manchester syntax emulation for someValuesFrom
-    cons.sort_by(|a, b| a.prop.cmp(&b.prop));
-    if cons.len() == 3
-        && cons[0].prop == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-        && cons[1].prop == "http://www.w3.org/2002/07/owl#onProperty"
-        && cons[2].prop == "http://www.w3.org/2002/07/owl#someValuesFrom"
-    {
-        format!("{} some {}", cons[1].target_htmls.join(", "), cons[2].target_htmls.join(", "))
-    } else {
-        cons.into_iter()
-            .map(|c| c.target_htmls.iter().map(|html| c.prop_html.clone() + " " + html + "").collect::<Vec<_>>().join("<br>"))
-            .collect::<Vec<_>>()
-            .join("<br>")
+fn blank_html(props: BTreeMap<String, Property>) -> String {
+    // temporary manchester syntax emulation
+
+    if let Some(on_property) = props.get("http://www.w3.org/2002/07/owl#onProperty") {
+        if let Some(some) = props.get("http://www.w3.org/2002/07/owl#someValuesFrom") {
+            return format!("{} <b>some</b> {}", on_property.target_htmls.join(", "), some.target_htmls.join(", "));
+        }
     }
+    props
+        .into_values()
+        .map(|p| p.target_htmls.iter().map(|html| p.prop_html.clone() + " " + html + "").collect::<Vec<_>>().join("<br>"))
+        .collect::<Vec<_>>()
+        .join("<br>")
 }
 
-/// For a given resource r, get either all direct connections (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
-fn connections(conn_type: &ConnectionType, source: &SimpleTerm<'_>) -> Vec<Connection> {
+/// For a given resource r, get either all direct properties (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
+fn properties(conn_type: &PropertyType, source: &SimpleTerm<'_>) -> BTreeMap<String, Property> {
     let g = graph();
     let triples = match conn_type {
-        ConnectionType::Direct => g.triples_matching(Some(source), Any, Any),
-        ConnectionType::Inverse => g.triples_matching(Any, Any, Some(source)),
+        PropertyType::Direct => g.triples_matching(Some(source), Any, Any),
+        PropertyType::Inverse => g.triples_matching(Any, Any, Some(source)),
     };
     let mut map: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    let mut conns: Vec<Connection> = Vec::new();
     for res in triples {
         let triple = res.expect("error with connection triple");
         let target_term = match conn_type {
-            ConnectionType::Direct => triple.o(),
-            ConnectionType::Inverse => triple.s(),
+            PropertyType::Direct => triple.o(),
+            PropertyType::Inverse => triple.s(),
         };
         let target_html = match target_term.as_simple() {
             SimpleTerm::LiteralLanguage(lit, tag) => format!("{lit} @{}", tag.as_str()),
@@ -348,8 +344,8 @@ fn connections(conn_type: &ConnectionType, source: &SimpleTerm<'_>) -> Vec<Conne
             SimpleTerm::BlankNode(blank) => {
                 let id = blank.as_str();
                 // prevent infinite loop
-                let sub_html = if matches!(conn_type, ConnectionType::Direct) && !source.is_blank_node() {
-                    blank_html(connections(&ConnectionType::Direct, target_term))
+                let sub_html = if matches!(conn_type, PropertyType::Direct) && !source.is_blank_node() {
+                    blank_html(properties(&PropertyType::Direct, target_term))
                 } else {
                     String::new()
                 };
@@ -369,15 +365,16 @@ fn connections(conn_type: &ConnectionType, source: &SimpleTerm<'_>) -> Vec<Conne
             }
         };
     }
-    for (prop, values) in map {
-        let len = values.len();
-        let mut target_htmls: Vec<String> = values.into_iter().take(CAP).collect();
-        if len > CAP {
-            target_htmls.push("...".to_string());
-        }
-        conns.push(Connection { prop: prop.as_str().to_owned(), prop_html: Piri::new(Iri::new_unchecked(&prop)).property_anchor(), target_htmls });
-    }
-    conns
+    map.into_iter()
+        .map(|(prop, values)| {
+            let len = values.len();
+            let mut target_htmls: Vec<String> = values.into_iter().take(CAP).collect();
+            if len > CAP {
+                target_htmls.push("...".to_string());
+            }
+            (prop.clone(), Property { prop_html: Piri::new(Iri::new_unchecked(&prop)).property_anchor(), target_htmls })
+        })
+        .collect()
 }
 
 #[cfg(feature = "rdfxml")]
@@ -410,21 +407,18 @@ fn depiction_iri(iri: Iri<&str>) -> Option<String> {
 
 /// Returns the resource with the given IRI from the configured namespace.
 pub fn resource(subject: Iri<&str>) -> Resource {
-    fn filter(cons: &[Connection], key_predicate: fn(&str) -> bool) -> Vec<(String, Vec<String>)> {
-        cons.iter().filter(|c| key_predicate(&c.prop)).map(|c| (c.prop_html.clone(), c.target_htmls.clone())).collect()
-    }
-    let convert = |v: Vec<Connection>| v.into_iter().map(Connection::into).collect();
     let start = Instant::now();
     let piri = Piri::new(subject.as_ref());
     let suffix = piri.suffix();
+    let convert = |m: BTreeMap<String, Property>| -> Vec<_> { m.into_values().map(Property::into).collect() };
 
     let source = deskolemize(&subject);
-    let all_directs = connections(&ConnectionType::Direct, &source);
-    let descriptions = filter(&all_directs, |key| config().description_properties.contains(key));
-    let notdescriptions = filter(&all_directs, |key| !config().description_properties.contains(key));
+    let mut all_directs = properties(&PropertyType::Direct, &source);
+    let descriptions = convert(all_directs.drain_filter(|k, _v| config().description_properties.contains(k)).collect());
+    let directs = convert(all_directs);
     let title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
     let main_type = types().get(&suffix).map(std::clone::Clone::clone);
-    let inverses = if config().show_inverse { convert(connections(&ConnectionType::Inverse, &source)) } else { Vec::new() };
+    let inverses = if config().show_inverse { convert(properties(&PropertyType::Inverse, &source)) } else { Vec::new() };
     Resource {
         uri: piri.full,
         base: config().base.clone(),
@@ -433,7 +427,7 @@ pub fn resource(subject: Iri<&str>) -> Resource {
         github_issue_url: config().github.as_ref().map(|g| format!("{g}/issues/new?title={suffix}")),
         main_type,
         descriptions,
-        directs: notdescriptions,
+        directs,
         inverses,
         depiction: depiction_iri(subject),
     }

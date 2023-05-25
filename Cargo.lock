@@ -703,9 +703,9 @@ dependencies = [
 
 [[package]]
 name = "io-lifetimes"
-version = "1.0.10"
+version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c66c74d2ae7e79a5a8f7ac924adbe38ee42a859c6539ad869eb51f0b52dc220"
+checksum = "eae7b9aee968036d54dce06cebaefd919e4472e753296daccd6d344e3e2df0c2"
 dependencies = [
  "hermit-abi 0.3.1",
  "libc",
@@ -1125,9 +1125,9 @@ checksum = "436b050e76ed2903236f032a59761c1eb99e1b0aead2c257922771dab1fc8c78"
 
 [[package]]
 name = "resiter"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd69ab1e90258b7769f0b5c46bfd802b8206d0707ced4ca4b9d5681b744de1be"
+checksum = "cbc95d56eb1865f69288945759cc0879d60ee68168dce676730275804ad2b276"
 
 [[package]]
 name = "rickview"
@@ -1356,15 +1356,16 @@ dependencies = [
 
 [[package]]
 name = "sophia"
-version = "0.8.0-alpha.0"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4adb413550dc2389f8fa1da4404856b2bdf8943524959432450bd7e0a3f1c917"
+checksum = "8f08bbb11593198902ffdef619461ae2e12356932fb0c46b714478448e5e912f"
 dependencies = [
  "sophia_api",
  "sophia_c14n",
  "sophia_inmem",
  "sophia_iri",
  "sophia_isomorphism",
+ "sophia_resource",
  "sophia_rio",
  "sophia_turtle",
  "sophia_xml",
@@ -1372,23 +1373,24 @@ dependencies = [
 
 [[package]]
 name = "sophia_api"
-version = "0.8.0-alpha.0"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c4a75eac93569c19d6933e1530b6b0197b3a34439dd9b31bae4293b828459cd"
+checksum = "e083c95bb85ef444b5ab6857dabe28e20ab612df4fbe38d6124025b56c2405d3"
 dependencies = [
  "lazy_static",
  "mownstr",
  "regex",
  "resiter",
+ "serde",
  "sophia_iri",
  "thiserror",
 ]
 
 [[package]]
 name = "sophia_c14n"
-version = "0.8.0-alpha.0"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f844a1170bfb68c961ff26f8f7b0423f38b4a48633f1bf424967c5e3f343b8a3"
+checksum = "cd4ab3356ff9f1ec0b37e3b95e4d248e81fcfe032a5b75d2b88914807f1c4c8a"
 dependencies = [
  "hmac-sha256",
  "sophia_api",
@@ -1398,40 +1400,53 @@ dependencies = [
 
 [[package]]
 name = "sophia_inmem"
-version = "0.8.0-alpha.0"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ae0881927a1a152bf4418683851826d2323225c9bc72b6c872122850d39e7f8"
+checksum = "457ebe36df482e8ea002c07846b9ae42141befbd222943da0200d284d263cd9e"
 dependencies = [
  "sophia_api",
 ]
 
 [[package]]
 name = "sophia_iri"
-version = "0.8.0-alpha.0"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b43135864127a386db97a59ac73cabc9a2645a5b874c6f2c6c0e3eca3d0f4df"
+checksum = "7c21c0ff640fc9a920014fc80ca6fa0c5aba245fcdd54711b881dbd001545a08"
 dependencies = [
  "lazy_static",
  "oxiri",
  "regex",
+ "serde",
  "thiserror",
 ]
 
 [[package]]
 name = "sophia_isomorphism"
-version = "0.8.0-alpha.0"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcefaff1b011c981e3897d29e06319c928cf8c1d4386887fd0296bdc6c2e570f"
+checksum = "f9c8c69c8bcb5315a913dd39fb6e14bd15bfc1bc5e0e66aab35fc4ee72df84ba"
 dependencies = [
  "sophia_api",
  "sophia_iri",
 ]
 
 [[package]]
-name = "sophia_rio"
-version = "0.8.0-alpha.0"
+name = "sophia_resource"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "519c48011e4d4e1e9db4d7c8d0346232e345343e4a6ae1eeaa8b008f77878e84"
+checksum = "898f49a509fc31a01431be5256f34d82819092521ca0a574457b82c8d86f226f"
+dependencies = [
+ "sophia_api",
+ "sophia_iri",
+ "sophia_turtle",
+ "thiserror",
+]
+
+[[package]]
+name = "sophia_rio"
+version = "0.8.0-alpha.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2801106d9e6a328ad32f882d75425b2a4c4ff506e77aa6206e96e399288b919"
 dependencies = [
  "rio_api",
  "sophia_api",
@@ -1440,9 +1455,9 @@ dependencies = [
 
 [[package]]
 name = "sophia_turtle"
-version = "0.8.0-alpha.0"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d68296f475580264f440109b438e82f7e0a5aab8c1faeb93fc2bf7aa45ea71c9"
+checksum = "471025355b04a367620a2f89cd19c8934074432e076083437585ccafea2f6c2d"
 dependencies = [
  "lazy_static",
  "oxiri",
@@ -1455,9 +1470,9 @@ dependencies = [
 
 [[package]]
 name = "sophia_xml"
-version = "0.8.0-alpha.0"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f5638d00c4b41c8a07bbf64e5e10111cc54bbc05060bd676918bf319441dde8"
+checksum = "c0010b36e02f5a59a81202ec9eb8346281abddea28f7c016d905f83ef77e4b88"
 dependencies = [
  "oxiri",
  "rio_xml",
@@ -1660,9 +1675,9 @@ checksum = "92888ba5573ff080736b3648696b70cafad7d250551175acbaa4e0385b3e1460"
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.8"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5464a87b239f13a63a501f2701565754bae92d243d4bb7eb12f6d57d2269bf4"
+checksum = "b15811caf2415fb889178633e7724bad2509101cde276048e013b9def5e51fa0"
 
 [[package]]
 name = "unicode-normalization"

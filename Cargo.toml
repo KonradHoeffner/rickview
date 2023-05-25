@@ -11,7 +11,7 @@ readme = "README.md"
 repository = "https://github.com/konradhoeffner/rickview"
 
 [dependencies]
-sophia = "0.8.0-alpha.0"
+sophia = "0.8.0-alpha.1"
 actix-web = "4"
 multimap = "0.9"
 tinytemplate = "1"

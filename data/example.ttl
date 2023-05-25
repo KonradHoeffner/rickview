@@ -1,9 +1,24 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
 @prefix owl: <http://www.w3.org/2002/07/owl#>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
 @prefix : <http://example.com/resource/>.
 
 :ExClass
   a owl:Class;
+  owl:equivalentClass [
+    a owl:Class;
+    owl:intersectionOf (:Age
+      [
+        a owl:Restriction;
+        owl:onProperty :has_value;
+        owl:someValuesFrom [
+          a rdfs:Datatype;
+          owl:onDatatype xsd:decimal;
+          owl:withRestrictions ([ xsd:minInclusive 18 ] [ xsd:maxExclusive 34 ])
+        ]
+      ]
+    )
+  ];
   rdfs:comment "an example class"@en;
   rdfs:label "example class"@en.
 
