@@ -20,7 +20,13 @@
     )
   ];
   rdfs:comment "an example class"@en;
+  :exProperty :Multilingualкласс;
   rdfs:label "example class"@en.
+
+:Multilingualкласс
+  a owl:Class;
+  rdfs:comment "The RickView default font Roboto does not contain Japanese and Chinese characters."@en;
+  rdfs:label "пример класса"@ru, "et eksempel på en klasse"@no, "例題教室"@jp, "一个实例类"@zh.
 
 :ExInstance
   :exProperty 5, ( :a :b :c);
