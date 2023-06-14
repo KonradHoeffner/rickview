@@ -2,12 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>{title}</title>
     <base href="{base}/">
     <link rel="stylesheet" href="rickview.css" type="text/css" />
     <link rel="stylesheet" href="roboto.css" type="text/css" />
     <link rel="shortcut icon" href="favicon.ico" />
+    {{ if css }}<style>{css | unescaped}</style>{{ endif }}
   </head>
   <body>
     <article>
@@ -39,15 +40,12 @@
     </article>
     <footer>
       <div id="footer-left">
-        <p class="uppercase">RickView {cargo_pkg_version}</p>
-        <p><a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">download RickView to publish your data</a></p>
-        <p><a href="about" class="uppercase">about this instance</a></p>
+        <p><a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">RickView {cargo_pkg_version}</a></p>
+        <p><a href="about" class="uppercase">graph stats</a></p>
       </div>
       <div id="footer-right">
         <ul>
-          <li>
-            {{if github}}<a target="_blank" href="{github}">create Ontology issue on GitHub</a>{{ endif }}
-          </li>
+          <li>{{if github}}<a target="_blank" href="{github}">create Ontology issue on GitHub</a>{{ endif }}</li>
         </ul>
       </div>
     </footer>

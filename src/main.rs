@@ -28,6 +28,7 @@ use actix_web::{get, head, web, App, HttpRequest, HttpResponse, HttpServer, Resp
 use const_fnv1a_hash::fnv1a_hash_str_32;
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
+use serde_json::Value;
 use sophia::iri::{Iri, IriRef};
 use std::error::Error;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -125,6 +126,20 @@ struct Params {
     output: Option<String>,
 }
 
+// https://github.com/serde-rs/json/issues/377#issuecomment-341490464
+fn merge(a: &mut Value, b: &Value) {
+    match (a, b) {
+        (&mut Value::Object(ref mut a), Value::Object(b)) => {
+            for (k, v) in b {
+                merge(a.entry(k.clone()).or_insert(Value::Null), v);
+            }
+        }
+        (a, b) => {
+            *a = b.clone();
+        }
+    }
+}
+
 #[get("/{suffix:.*}")]
 async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
     let suffix = if suffix.is_empty() { "/".to_owned().into() } else { suffix };
@@ -193,7 +208,9 @@ fn res_html_sync(r: &HttpRequest, suffix: &str, params: &web::Query<Params>) -> 
                 return res_result(&prefixed, XML, rdf::serialize_rdfxml(iri.as_ref()));
             }
             if accept.contains(HTML) && output != Some(TTL) {
-                return match template().render("resource", &res) {
+                let mut config_json = serde_json::to_value(config()).unwrap();
+                merge(&mut config_json, &serde_json::to_value(res).unwrap());
+                return match template().render("resource", &config_json) {
                     Ok(html) => {
                         debug!("{} HTML {:?}", prefixed, t.elapsed());
                         HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html))
@@ -229,7 +246,9 @@ fn index() -> HttpResponse {
 
 #[get("/about")]
 async fn about_page() -> impl Responder {
-    match template().render("about", &About::new()) {
+    let mut config_json = serde_json::to_value(config()).unwrap();
+    merge(&mut config_json, &serde_json::to_value(About::new()).unwrap());
+    match template().render("about", &config_json) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
         Err(e) => {
             let message = format!("Could not render about page: {e:?}");

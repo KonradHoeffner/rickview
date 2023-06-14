@@ -51,6 +51,12 @@ For example, `namespace = "http://hitontology.eu/ontology/"` in `config.toml` is
 You need to provide a knowledge base in RDF Turtle or HDT format, whose default path is `data/kb.ttl`.
 If you don't, RickView will show a minimal example knowledge base.
 You can add custom HTML to the index page by adding a `data/body.html` file.
+You can add embedded CSS using the `css` environment variable.
+By default, the *Roboto* font is used which RickView hosts locally for robustness, speed and to prevent conflicts with European privacy laws.
+If this is not an issue for you and, for example, you want to display Chinese or Japanese characters, you could import a Google Font:
+
+    css = "@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300&display=swap'); body {font-family: 'Noto Sans SC', sans-serif}"
+
 Compile and run with `cargo run` and then open <http://localhost:8080> in your browser.
 
 ## Supported File Formats

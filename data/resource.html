@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>{title}</title>
     <base href="{base}/">
     <link rel="stylesheet" href="rickview.css" type="text/css" />
     <link rel="stylesheet" href="roboto.css" type="text/css" />
     <link rel="shortcut icon" href="favicon.ico" />
+    {{ if css }}<style>{css | unescaped}</style>{{ endif }}
   </head>
   <body>
     <article>
@@ -72,9 +73,9 @@
     </article>
     <footer>
       <div id="footer-left">
-        <a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">publish Linked Data with RickView</a>
-        <br>
-        {duration}
+        <p><a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">RickView {cargo_pkg_version}</a></p>
+        <p><a href="about" class="uppercase">graph stats</a></p>
+        <p>{duration}</p>
       </div>
       <div id="footer-right">
         <ul>
@@ -86,9 +87,10 @@
           </li>
           {{ if github_issue_url }}
           <li>
-            <a target="_blank" href="{github_issue_url}">create issue on GitHub</a>
+            <a target="_blank" href="{github_issue_url}">create issue about this resource on GitHub</a>
           </li>
           {{ endif }}
+          <li>{{if github}}<a target="_blank" href="{github}">create issue about the knowledge base on GitHub</a>{{ endif }}</li>
         </ul>
       </div>
     </footer>

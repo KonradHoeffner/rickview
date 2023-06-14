@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="rickview.css" type="text/css" />
     <link rel="stylesheet" href="roboto.css" type="text/css" />
     <link rel="shortcut icon" href="favicon.ico" />
+    {{ if css }}<style>{css | unescaped}</style>{{ endif }}
   </head>
   <body>
     <article>
@@ -28,14 +29,10 @@
     </article>
     <footer>
       <div id="footer-left">
-        <p class="uppercase">RickView {cargo_pkg_version}</p>
-        <a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">download RickView to publish your data</a>
+        <p><a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">RickView {cargo_pkg_version}</a></p>
+        <p><a href="about" class="uppercase">graph stats</a></p>
       </div>
       <div id="footer-right">
-        <ul>
-          <li>
-          </li>
-        </ul>
       </div>
     </footer>
   </body>
