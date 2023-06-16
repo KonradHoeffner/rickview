@@ -29,7 +29,7 @@ use const_fnv1a_hash::fnv1a_hash_str_32;
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
 use serde_json::Value;
-use sophia::iri::{Iri, IriRef};
+use sophia::iri::IriRef;
 use std::error::Error;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -146,7 +146,7 @@ async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<
     res_html_sync(&r, &suffix, &params)
 }
 
-#[get("")]
+#[get("/")]
 async fn base(r: HttpRequest, params: web::Query<Params>) -> impl Responder { res_html_sync(&r, "", &params) }
 
 fn res_html_sync(r: &HttpRequest, suffix: &str, params: &web::Query<Params>) -> impl Responder {
@@ -167,11 +167,11 @@ fn res_html_sync(r: &HttpRequest, suffix: &str, params: &web::Query<Params>) -> 
     let output = params.output.as_deref();
     let t = Instant::now();
     let prefixed = config().prefix.to_string() + ":" + suffix;
-    let iri = if suffix.is_empty() {
-        Iri::new_unchecked(config().namespace.as_str().strip_suffix('/').expect("empty namespace").to_owned())
-    } else {
-        config().namespace.resolve(IriRef::new_unchecked(suffix))
-    };
+    /*let iri = if suffix.is_empty() {
+        Iri::new_unchecked(config().namespace.as_str().to_owned())
+    } else {*/
+    let iri = config().namespace.resolve(IriRef::new_unchecked(suffix));
+    //};
     let mut res = rdf::resource(iri.as_ref());
     // no triples found
     if res.directs.is_empty() && res.inverses.is_empty() {
@@ -262,8 +262,8 @@ async fn about_page() -> impl Responder {
 async fn head() -> HttpResponse { HttpResponse::MethodNotAllowed().body("RickView does not support HEAD requests.") }
 
 // redirect /base to correct index page /base/
-//#[get("")]
-//async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append_header(("location", config().base.clone() + "/")).finish() }
+#[get("")]
+async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append_header(("location", config().base.clone() + "/")).finish() }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -280,7 +280,7 @@ async fn main() -> std::io::Result<()> {
             .service(roboto300)
             .service(favicon)
             .service(head)
-            .service(scope(&config().base).service(about_page).service(base).service(res_html))
+            .service(scope(&config().base).service(about_page).service(base).service(res_html).service(redirect))
     })
     .bind(("0.0.0.0", config().port))?
     .run()
