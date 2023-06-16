@@ -414,7 +414,7 @@ pub fn resource(subject: Iri<&str>) -> Resource {
 
     let source = deskolemize(&subject);
     let mut all_directs = properties(&PropertyType::Direct, &source);
-    let descriptions = convert(all_directs.drain_filter(|k, _v| config().description_properties.contains(k)).collect());
+    let descriptions = convert(all_directs.extract_if(|k, _v| config().description_properties.contains(k)).collect());
     let directs = convert(all_directs);
     let title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
     let main_type = types().get(&suffix).map(std::clone::Clone::clone);
