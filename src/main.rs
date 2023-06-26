@@ -21,11 +21,12 @@ mod resource;
 
 use crate::config::config;
 use about::About;
+use actix_web::body::MessageBody;
 use actix_web::http::header::{self, ETag, EntityTag};
 use actix_web::middleware::Compress;
 use actix_web::web::scope;
 use actix_web::{get, head, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
-use const_fnv1a_hash::fnv1a_hash_str_32;
+use const_fnv1a_hash::{fnv1a_hash_32, fnv1a_hash_str_32};
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
 use serde_json::Value;
@@ -39,8 +40,9 @@ extern crate lazy_static;
 
 static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
+// extremely low risk of collision, worst case is out of date favicon or CSS
+static FAVICON_HASH: u32 = fnv1a_hash_32(FAVICON, None);
 static RICKVIEW_CSS: &str = std::include_str!("../data/rickview.css");
-// extremely low risk of collision, worst case is out of date CSS
 static RICKVIEW_CSS_HASH: u32 = fnv1a_hash_str_32(RICKVIEW_CSS);
 static ROBOTO_CSS: &str = std::include_str!("../data/roboto.css");
 static ROBOTO_CSS_HASH: u32 = fnv1a_hash_str_32(ROBOTO_CSS);
@@ -51,6 +53,8 @@ static RUN_ID: AtomicU32 = AtomicU32::new(0);
 
 lazy_static! {
     // 8 chars hexadecimal, not worth it to add base64 dependency to save 2 chars
+    static ref FAVICON_SHASH: String = format!("{FAVICON_HASH:x}");
+    static ref FAVICON_SHASH_QUOTED: String = format!("\"{}\"",*FAVICON_SHASH);
     static ref RICKVIEW_CSS_SHASH: String = format!("{RICKVIEW_CSS_HASH:x}");
     static ref RICKVIEW_CSS_SHASH_QUOTED: String = format!("\"{}\"",*RICKVIEW_CSS_SHASH);
     static ref ROBOTO_CSS_SHASH: String = format!("{ROBOTO_CSS_HASH:x}");
@@ -77,7 +81,8 @@ fn template() -> TinyTemplate<'static> {
     tt
 }
 
-fn hash_etag(r: &HttpRequest, body: &'static str, shash: &str, quoted: &str, ct: &str) -> impl Responder {
+fn hash_etag<T: ?Sized>(r: &HttpRequest, body: &'static T, shash: &str, quoted: &str, ct: &str) -> impl Responder
+where &'static T: MessageBody {
     if let Some(e) = r.headers().get(header::IF_NONE_MATCH) {
         if let Ok(s) = e.to_str() {
             if s == quoted {
@@ -100,7 +105,7 @@ async fn roboto_css(r: HttpRequest) -> impl Responder { hash_etag(&r, ROBOTO_CSS
 async fn roboto300() -> impl Responder { HttpResponse::Ok().content_type("font/woff2").body(ROBOTO300) }
 
 #[get("{_anypath:.*/|}favicon.ico")]
-async fn favicon() -> impl Responder { HttpResponse::Ok().content_type("image/x-icon").body(FAVICON.as_ref()) }
+async fn favicon(r: HttpRequest) -> impl Responder { hash_etag(&r, &FAVICON[..], &FAVICON_SHASH, &FAVICON_SHASH_QUOTED, "image/x-icon") }
 
 fn res_result(resource: &str, content_type: &str, result: Result<String, Box<dyn Error>>) -> HttpResponse {
     match result {
@@ -114,11 +119,9 @@ fn res_result(resource: &str, content_type: &str, result: Result<String, Box<dyn
 }
 
 fn add_hashes(body: &str) -> String {
-    body.replacen("rickview.css", &format!("rickview.css?{}", *RICKVIEW_CSS_SHASH), 1).replacen(
-        "roboto.css",
-        &format!("roboto.css?{}", *ROBOTO_CSS_SHASH),
-        1,
-    )
+    body.replacen("rickview.css", &format!("rickview.css?{}", *RICKVIEW_CSS_SHASH), 1)
+        .replacen("roboto.css", &format!("roboto.css?{}", *ROBOTO_CSS_SHASH), 1)
+        .replacen("favicon.ico", &format!("favicon.ico?{}", *FAVICON_SHASH), 1)
 }
 
 #[derive(Deserialize)]
