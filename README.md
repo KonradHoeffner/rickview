@@ -5,7 +5,8 @@
 
 A quick RDF viewer (browser).
 Layout copied from LodView.
-See also the unpublished [paper draft](https://github.com/KonradHoeffner/rickview/releases/download/0.0.2/paper.pdf).
+See also the unpublished [paper draft](https://github.com/KonradHoeffner/rickview/releases/download/0.0.2/paper.pdf)
+and the [presentation at the 11th Leipzig Semantic Web Day (2023)](https://www.youtube.com/watch?v=n8Kb2P8ilwg&t=8250s).
 
 ## Docker
 
