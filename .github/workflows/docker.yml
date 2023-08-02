@@ -3,18 +3,7 @@ name: Publish Docker image
 on:
   workflow_dispatch:
   push:
-    branches: ['master']
-    tags: '[0-9]+\.[0-9]+\.[0-9]+*'
-    paths-ignore:
-      - '.gitignore'
-      - '.env.dist'
-      - '.github/dependabot.yml'
-      - '.github/workflows/release.yml'
-      - 'LICENSE'
-      - 'README.md'
-  pull_request:
-  pull_request_target:
-    branches: ['master']
+    branches: ['docker-glibc']
     paths-ignore:
       - '.gitignore'
       - '.env.dist'
@@ -45,18 +34,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ghcr.io/konradhoeffner/rickview:glibc
           cache-from: type=registry,ref=ghcr.io/konradhoeffner/rickview:master
           cache-to: type=inline
