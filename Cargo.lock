@@ -1165,7 +1165,7 @@ checksum = "cbc95d56eb1865f69288945759cc0879d60ee68168dce676730275804ad2b276"
 
 [[package]]
 name = "rickview"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "actix-web",
  "bytesize",
@@ -1268,9 +1268,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.21.5"
+version = "0.21.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79ea77c539259495ce8ca47f53e66ae0330a8819f67e23ac96ca02f50e7b7d36"
+checksum = "1d1feddffcfcc0b33f5c6ce9a29e341e4cd59c3f78e7ee45f4a40c038b1d6cbb"
 dependencies = [
  "log",
  "ring",
