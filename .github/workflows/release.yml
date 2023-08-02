@@ -39,7 +39,9 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-musl
+          # - os: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
           # - os: ubuntu-latest
           #   target: i686-unknown-linux-gnu
           # - os: macos-latest
@@ -55,7 +57,14 @@ jobs:
       - name: Install rust
         uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2023-02-15
+          toolchain: nightly-2023-08-01
+          targets: x86_64-unknown-linux-musl
+      - name: Setup rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          target: ${{ matrix.target }}
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -70,11 +79,11 @@ jobs:
       - name: Install linker
         if: matrix.target == 'i686-unknown-linux-gnu'
         run: sudo apt-get install gcc-multilib
+      - name: Install musl
+        if: contains(matrix.target, 'linux-musl')
+        run: sudo apt-get install musl-tools
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --target ${{ matrix.target }} --release
+        run: cargo build --target ${{ matrix.target }} --release
       - name: Set variables
         id: vars
         env:
