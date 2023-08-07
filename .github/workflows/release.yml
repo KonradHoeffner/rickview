@@ -16,9 +16,16 @@ jobs:
     outputs:
       upload_url: ${{ steps.create-release.outputs.upload_url }}
     steps:
+      - name: Build Changelog
+        id: build-changelog
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          commitMode: true
       - name: Create Release
         id: create-release
         uses: softprops/action-gh-release@v1
+        with:
+          body: ${{steps.build-changelog.outputs.changelog}}
   read-version:
     name: Read version
     runs-on: ubuntu-latest
