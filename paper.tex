@@ -1,12 +1,15 @@
 \documentclass[a4paper,10pt]{article}
+\pdfoutput=1
 \usepackage[margin=1in]{geometry}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+\definecolor{myblue}{RGB}{0,0,128}
+\usepackage[colorlinks=true,linkcolor=myblue,urlcolor=myblue,citecolor=myblue]{hyperref}
 \usepackage{microtype}
 \usepackage{csquotes}
 \usepackage{natbib}
-\usepackage[binary-units]{siunitx}
+\usepackage{siunitx}
 \usepackage{times}
 \usepackage{inconsolata}
 \hypersetup{pdfauthor={Konrad Höffner},pdftitle={RickView: Lightweight Standalone Knowledge Graph Browsing Powered by Rust}}
@@ -28,7 +31,7 @@ Similar to web browsers, where users enter the URL of a website and receive a di
 users enter the URL of an RDF resource and receive a human readable representation.
 However in contrast to websites, RDF resources are intended to be processed by machines and do not provide a standardized way of being displayed.
 
-An RDF graph, also called a knowledge graph, property graph or knowledge base, is a set of RDF triples in the form of (subject, predicate, object) and typically describes a common domain under a shared namespace, which can be abbreviated with a prefix, such as \texttt{rdf}.
+An RDF graph, also called a knowledge graph, property graph or knowledge base, is a set of RDF triples in the form of \emph{(subject, predicate, object)} and typically describes a common domain under a shared namespace, which can be abbreviated with a prefix, such as \texttt{rdf}.
 For example, the RDF vocabulary has a \enquote{hash namespace} (ending with a \texttt{\#}) of \texttt{http://www.w3.org/1999/02/22-rdf-syntax-ns\#},
 which signifies that all resources, like \texttt{rdf:type} and \texttt{rdf:property}, of the vocabulary are described in the same document.
 This is suitable for small graphs that are not intended to be viewed by non-expert users.
@@ -71,15 +74,17 @@ The standard back ends for LD projects are \emph{SPARQL endpoints}, which allow 
 For example, the popular Virtuoso Open-Source Edition maps SPARQL to SQL queries on top of a relational database, which is faster than native triplestores like Apache Jena but requires tuning of parameters like memory buffer sizes for optimal resource allocation and the RDF data model can cause large amounts of joins, which negatively impacts query runtime.
 
 RickView instead follows an alternative approach of directly querying an in-memory dataset bypassing SPARQL.
-RickView is an LD browser written in Rust, which enables a high level of performance comparable to C and C++ while being memory-safe and thread-safe by design.
+It is implemented in Rust, which enables a high level of performance comparable to C and C++ while being memory-safe and thread-safe by design.
 In order to keep the focus on performance and to get a baseline of functionality for performance evaluation, the web page layout is in large parts copied
 over from LodView~\citep{lodview,adaptinglodview}.
-
+%
 RickView supports the binary RDF format \emph{Header Dictionary Triples (HDT)}~\citep{hdt2012} which allows querying compressed RDF in memory using the hdt-rs library~\citep{hdtrs}.
 This allows RickView to serve LinkedSpending\footnote{\url{https://linkedspending.aksw.org}}~\citep{linkedspending} v2015, which takes \SI{28}{\giga\byte} as uncompressed N-Triples and \SI{1.4}{\giga\byte} as HDT, using less than \SI{2}{\giga\byte} RAM.
 %
 Additional deployments include HITO\footnote{\url{https://hitontology.eu/ontology}}~\citep{hito}, SNIK\footnote{\url{https://www.snik.eu/ontology}}~\citep{snik},
  and ANNO\footnote{\url{https://annosaxfdm.de/ontology}}.
+
+RickView is published under the MIT License at \url{https://github.com/KonradHoeffner/rickview} and as Docker image at \url{ghcr.io/konradhoeffner/rickview}.
 
 \section{References}\label{references}
 
