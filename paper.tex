@@ -1,20 +1,29 @@
-\documentclass[a4paper]{article}
-\usepackage[margin=3.5cm]{geometry}
+\documentclass[a4paper,10pt]{article}
+\usepackage[margin=1in]{geometry}
 \usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc} % T2A for cyrillics
-\usepackage{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage[hidelinks]{hyperref}
+\usepackage{microtype}
 \usepackage{csquotes}
 \usepackage{natbib}
+\usepackage[binary-units]{siunitx}
+\usepackage{times}
+\usepackage{inconsolata}
+\hypersetup{pdfauthor={Konrad Höffner},pdftitle={RickView: Lightweight Standalone Knowledge Graph Browsing Powered by Rust}}
 
 \begin{document}
-\author{Konrad Höffner}
-\title{RickView: Lightweight Standalone Knowledge Graph Browsing Powered by Rust}
+
+\author{\href{https://orcid.org/0000-0001-7358-3217}{\textbf{Konrad Höffner}} \\ Leipzig University \\ 
+Institute for Medical Informatics, Statistics and Epidemiology (IMISE)\\
+\href{mailto:konrad.hoeffner@uni-leipzig.de}{konrad.hoeffner@uni-leipzig.de}}
+\title{\textbf{RickView: Lightweight Standalone Knowledge Graph Browsing Powered by Rust}}
+\date{}
 
 \maketitle
 
 \section{Summary}\label{summary}
 
-Search, browsing and exploration is a critical area in the linked data (LD) lifecycle.
+Search, browsing and exploration is a critical area in the linked data (LD) life cycle.
 Similar to web browsers, where users enter the URL of a website and receive a display of an HTML document, in RDF browsers,
 users enter the URL of an RDF resource and receive a human readable representation.
 However in contrast to websites, RDF resources are intended to be processed by machines and do not provide a standardized way of being displayed.
@@ -24,9 +33,9 @@ For example, the RDF vocabulary has a \enquote{hash namespace} (ending with a \t
 which signifies that all resources, like \texttt{rdf:type} and \texttt{rdf:property}, of the vocabulary are described in the same document.
 This is suitable for small graphs that are not intended to be viewed by non-expert users.
 
-RDF browsers on the other hand \emph{resolve URIs} (URLs) of knowledge graphs with \enquote{slash namespaces} (ending with a `/' character), so that each resource has it's associated page.
-Ideally, they offer a machine processable RDF serialization as well, based on either content negotation, POST parameters or URL variants such as \texttt{http://mynamespace/myresource.ttl}.
-RDF browsers describe the direct neighbourhood of a resource in an RDF graph, that is they list all triples where the given resource is either the subject (a direct connection) or the object (an inverse connection).
+RDF browsers on the other hand \emph{resolve URIs} (URLs) of knowledge graphs with \enquote{slash namespaces} (ending with a \enquote{/} character), so that each resource has its associated page.
+Ideally, they offer a machine processable RDF serialization as well, based on either content negotiation, POST parameters or URL variants such as \texttt{http://mynamespace/myresource.ttl}.
+RDF browsers describe the direct neighborhood of a resource in an RDF graph, that is they list all triples where the given resource is either the subject (a \emph{direct connection}) or the object (an \emph{inverse connection}).
 
 \paragraph{RickView Design Goals}
 %RickView is an RDF browser with the following design goals:
@@ -36,7 +45,7 @@ RDF browsers describe the direct neighbourhood of a resource in an RDF graph, th
 \item
   robustness: once it compiles, it runs indefinitely
 \item
-  standalone: no dependance on services such as a SPARQL endpoint or a web server
+  standalone: no dependence on services such as a SPARQL endpoint or a web server
 \item
   adaptability to any small to medium sized knowledge graph via sensible defaults that can be changed in a configuration file and overridden with environment variables
 \item
@@ -48,7 +57,7 @@ RDF browsers describe the direct neighbourhood of a resource in an RDF graph, th
 \paragraph{Non goals}
 RickView is a read-only visualization for static data, does not offer other visualization types~\citep{linkeddatavisualization}, such as graph based, and is not a search engine.
 It is not designed for data that does not fit on one machine (\enquote{big data}) or indeed data that does not fit on RAM.
-Large knowledge graphs, such as the complete DBpedia, fit better with the traditional SPARQL endpoint paradigm.
+Extremely large knowledge graphs, such as the complete DBpedia, are better served with the traditional SPARQL endpoint paradigm.
 
 \section{Statement of need}\label{statement-of-need}
 
@@ -58,7 +67,7 @@ While there are are several existing RDF browsers, they are not optimized for pe
 
 \section{Implementation}\label{implementation}
 
-The standard backend for LD projects are \emph{SPARQL endpoints}, which allow expressive SQL-like \emph{SPARQL queries}, however they are overengineered for the simple task of browsing.
+The standard back ends for LD projects are \emph{SPARQL endpoints}, which allow expressive SQL-like \emph{SPARQL queries}, however they are overengineered for the simple task of browsing.
 For example, the popular Virtuoso Open-Source Edition maps SPARQL to SQL queries on top of a relational database, which is faster than native triplestores like Apache Jena but requires tuning of parameters like memory buffer sizes for optimal resource allocation and the RDF data model can cause large amounts of joins, which negatively impacts query runtime.
 
 RickView instead follows an alternative approach of directly querying an in-memory dataset bypassing SPARQL.
@@ -66,8 +75,11 @@ RickView is an LD browser written in Rust, which enables a high level of perform
 In order to keep the focus on performance and to get a baseline of functionality for performance evaluation, the web page layout is in large parts copied
 over from LodView~\citep{lodview,adaptinglodview}.
 
-Current RickView deployments include HITO\footnote{\url{https://hitontology.eu/ontology}}~\citep{hito}, SNIK\footnote{\url{https://www.snik.eu/ontology}}~\citep{snik},
-LinkedSpending\footnote{\url{https://linkedspending.aksw.org}}~\citep{linkedspending} and ANNO\footnote{\url{https://annosaxfdm.de/ontology}}.
+RickView supports the binary RDF format \emph{Header Dictionary Triples (HDT)}~\citep{hdt2012} which allows querying compressed RDF in memory using the hdt-rs library~\citep{hdtrs}.
+This allows RickView to serve LinkedSpending\footnote{\url{https://linkedspending.aksw.org}}~\citep{linkedspending} v2015, which takes \SI{28}{\giga\byte} as uncompressed N-Triples and \SI{1.4}{\giga\byte} as HDT, using less than \SI{2}{\giga\byte} RAM.
+%
+Additional deployments include HITO\footnote{\url{https://hitontology.eu/ontology}}~\citep{hito}, SNIK\footnote{\url{https://www.snik.eu/ontology}}~\citep{snik},
+ and ANNO\footnote{\url{https://annosaxfdm.de/ontology}}.
 
 \section{References}\label{references}
 
