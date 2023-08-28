@@ -1,12 +1,14 @@
 # RickView
 
-![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg "Unsafe forbidden")
+[![Latest Version](https://img.shields.io/crates/v/rickview.svg)](https://crates.io/crates/rickview)
 [![Lint and Build](https://github.com/konradhoeffner/rickview/actions/workflows/lint_and_build.yml/badge.svg)](https://github.com/konradhoeffner/rickview/actions/workflows/lint_and_build.yml)
+![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg "Unsafe forbidden")
+[![RickView @ Leipzig Semantic Web Day 2023 Video](https://img.shields.io/badge/video-8A2BE2)](https://www.youtube.com/watch?v=n8Kb2P8ilwg&t=8250s)
+[![DOI](https://zenodo.org/badge/472769298.svg)](https://zenodo.org/badge/latestdoi/472769298)
 
 A quick RDF viewer (browser).
 Layout copied from LodView.
-See also the unpublished [paper draft](https://github.com/KonradHoeffner/rickview/releases/download/0.0.2/paper.pdf)
-and the [presentation at the 11th Leipzig Semantic Web Day (2023)](https://www.youtube.com/watch?v=n8Kb2P8ilwg&t=8250s).
+See also the unpublished [paper draft](https://github.com/KonradHoeffner/rickview/releases/download/0.0.2/paper.pdf).
 
 ## Docker
 
@@ -83,7 +85,7 @@ Implement a basic RDF browser similar to LodView in Rust with the following goal
 * option to generate static HTML
 
 ## Stats
-All values are rounded and are measured on an Intel i9-12900k (16 cores, 24 threads) with 32 GB of DDR5-5200 RAM and a Samsung SSD 980 Pro 1 TB on Arch Linux, standard kernel 5.18.
+All values are rounded and were measured on an old RickView version on an Intel i9-12900k (16 cores, 24 threads) with 32 GB of DDR5-5200 RAM and a Samsung SSD 980 Pro 1 TB on Arch Linux, standard kernel 5.18.
 The qbench2 test URI is <http://www.linkedspending.aksw.org/instance/618ac3ec98384f44a9ef142356ce476d>.
 Stats for HDT, which uses much less RAM, are not measured yet. 
 
@@ -210,3 +212,38 @@ If you need support for another streaming compressor, please [create an issue](h
 3. I can focus my limited time on programming instead of design decisions. Other designs may follow later.
 4. Users of LodView can switch without training.
 5. Performance comparisons are easier when the interface is very similar. 
+
+## Community Guidelines
+
+### Issues and Support
+If you have a problem with the software, want to report a bug or have a feature request, please use the [issue tracker](https://github.com/KonradHoeffner/rickview/issues).
+If have a different type of request, feel free to send an email to [Konrad](mailto:konrad.hoeffner@uni-leipzig.de).
+
+### Citation
+
+[![DOI](https://zenodo.org/badge/472769298.svg)](https://zenodo.org/badge/latestdoi/472769298)
+
+There is no publication about RickView yet, so please cite our Zenodo archive for now.
+
+#### BibTeX entry
+
+    @software{rickview,
+      author       = {Konrad H{\'o}ffner},
+      title        = {{R}ick{V}iew: {L}ightweight Standalone Knowledge Graph Browsing Powered by {R}ust},
+      year         = 2023,
+      publisher    = {Zenodo},
+      version      = {x.y.z},
+      doi          = {10.5281/zenodo.8290117},
+      url          = {https://doi.org/10.5281/zenodo.8290117}
+    }
+
+#### Citation string
+
+Konrad Höffner (2023). RickView: Lightweight Standalone Knowledge Graph Browsing Powered by Rust. https://doi.org/10.5281/zenodo.8290117}
+
+### Contribute
+We are happy to receive pull requests.
+Please use `cargo fmt` before committing and make sure that that the code compiles on the newest nightly toolchain with the default features.
+Browse the default knowledge base after `cargo run` and verify that nothing is broken.
+`cargo clippy` should not report any warnings.
+You can also contribute by recommending RickView and by [sharing your RickView deployments](https://github.com/KonradHoeffner/hdt/issues/35>).
