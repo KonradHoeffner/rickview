@@ -21,7 +21,7 @@ log = "0.4"
 env_logger = { version = "0.10", default-features = false, features = ["auto-color"], optional = true }
 hdt = { version = "0.1", optional = true }
 deepsize = { version = "0.2", default-features = false, features = ["std"] }
-bytesize = "1.1.0"
+bytesize = "1.3.0"
 zstd = { version = "0.12", features = ["zstdmt"] }
 ureq = "2"
 const-fnv1a-hash = "1"
