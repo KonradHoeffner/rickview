@@ -1,6 +1,26 @@
 name: Lint and Check
 
-on: [push, pull_request]
+on:
+  push:
+    paths-ignore:
+      - '.gitignore'
+      - '.dockerignore'
+      - '.env.dist'
+      - '.github/dependabot.yml'
+      - '.github/workflows/release.yml'
+      - 'Dockerfile'
+      - 'LICENSE'
+      - 'README.md'
+  pull_request:
+    paths-ignore:
+      - '.gitignore'
+      - '.dockerignore'
+      - '.env.dist'
+      - '.github/dependabot.yml'
+      - '.github/workflows/release.yml'
+      - 'Dockerfile'
+      - 'LICENSE'
+      - 'README.md'
 
 jobs:
   check:
