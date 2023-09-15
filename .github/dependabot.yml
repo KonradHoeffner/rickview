@@ -9,6 +9,8 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-    groups:
-      all:
-        patterns: ["*"]
+    allow:
+      - dependency-type: "direct"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
