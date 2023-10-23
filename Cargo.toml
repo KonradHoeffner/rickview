@@ -1,6 +1,6 @@
 [package]
 name = "rickview"
-version = "0.2.8"
+version = "0.2.9"
 edition = "2021"
 license = "MIT"
 keywords = ["rdf", "semantic-web", "linked-data"]
@@ -22,7 +22,7 @@ env_logger = { version = "0.10", default-features = false, features = ["auto-col
 hdt = { version = "0.1", optional = true }
 deepsize = { version = "0.2", default-features = false, features = ["std"] }
 bytesize = "1"
-zstd = { version = "0.12", features = ["zstdmt"] }
+zstd = { version = "0.13", features = ["zstdmt"] }
 ureq = "2"
 const-fnv1a-hash = "1"
 lazy_static = "1"
