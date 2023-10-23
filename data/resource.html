@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>{title}</title>
-    <base href="{base}/">
     <link rel="stylesheet" href="rickview.css" type="text/css" />
     <link rel="stylesheet" href="roboto.css" type="text/css" />
     <link rel="shortcut icon" href="favicon.ico" />
@@ -81,9 +80,9 @@
         <ul>
           <li>
             view as:
-            <a href="{uri | uri_to_suffix}?output=application/rdf%2Bxml">xml, </a>
-            <a href="{uri | uri_to_suffix}?output=application/n-triples">ntriples, </a>
-            <a href="{uri | uri_to_suffix}?output=application/turtle">turtle</a>
+            <a href="?output=application/rdf%2Bxml">xml, </a>
+            <a href="?output=application/n-triples">ntriples, </a>
+            <a href="?output=application/turtle">turtle</a>
           </li>
           {{ if github_issue_url }}
           <li>

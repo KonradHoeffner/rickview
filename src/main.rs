@@ -67,15 +67,12 @@ fn template() -> TinyTemplate<'static> {
     tt.add_template("index", INDEX).expect("Could not parse index page template");
     tt.add_template("about", ABOUT).expect("Could not parse about page template");
     tt.add_formatter("uri_to_suffix", |json, output| {
-        let o = || -> String {
-            let s = json.as_str().unwrap_or_else(|| panic!("JSON value is not a string: {json}"));
-            let mut s = s.rsplit_once('/').unwrap_or_else(|| panic!("no '/' in URI '{s}'")).1;
-            if s.contains('#') {
-                s = s.rsplit_once('#').unwrap().1;
-            }
-            s.to_owned()
-        };
-        output.push_str(&o());
+        let s = json.as_str().unwrap_or_else(|| panic!("JSON value is not a string: {json}"));
+        let mut s = s.rsplit_once('/').unwrap_or_else(|| panic!("no '/' in URI '{s}'")).1;
+        if s.contains('#') {
+            s = s.rsplit_once('#').unwrap().1;
+        }
+        output.push_str(s);
         Ok(())
     });
     tt
