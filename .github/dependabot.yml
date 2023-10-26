@@ -3,10 +3,12 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/.github/workflows"
+    assignees: ["KonradHoeffner"]
     schedule:
       interval: "daily"
   - package-ecosystem: "cargo"
     directory: "/"
+    assignees: ["KonradHoeffner"]
     schedule:
       interval: "daily"
     allow:
