@@ -239,7 +239,7 @@ There is no publication about RickView yet, so please cite our Zenodo archive fo
 
 #### Citation string
 
-Konrad Höffner (2023). RickView: Lightweight Standalone Knowledge Graph Browsing Powered by Rust. https://doi.org/10.5281/zenodo.8290117}
+Konrad Höffner (2023). RickView: Lightweight Standalone Knowledge Graph Browsing Powered by Rust. https://doi.org/10.5281/zenodo.8290117
 
 ### Contribute
 We are happy to receive pull requests.
