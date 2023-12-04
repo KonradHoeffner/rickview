@@ -1,29 +1,28 @@
-\documentclass[runningheads]{llncs}
-%\usepackage[utf8]{inputenc}
+\documentclass[a4paper,10pt]{article}
+\pdfoutput=1
+\usepackage[margin=1in]{geometry}
+\usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{graphicx}
+\usepackage{xcolor}
+\definecolor{myblue}{RGB}{0,0,128}
+\usepackage{microtype}
 \usepackage{csquotes}
+\usepackage{natbib}
 \usepackage{siunitx}
-\usepackage{hyperref}
-\renewcommand\UrlFont{\color{blue}\rmfamily}
-\newcommand\citep[1]{\cite{#1}}
-\urlstyle{rm}
+\usepackage{times}
+\usepackage{inconsolata}
+\usepackage[colorlinks=true,linkcolor=myblue,urlcolor=myblue,citecolor=myblue]{hyperref}
 \hypersetup{pdfauthor={Konrad Höffner},pdftitle={RickView: Lightweight Standalone Knowledge Graph Browsing Powered by Rust}}
 
 \begin{document}
-\title{RickView: Lightweight Standalone Knowledge Graph Browsing Powered by Rust}
-%\titlerunning{Abbreviated paper title}
-\author{Konrad Höffner\inst{1}\orcidID{0000-0001-7358-3217}}
-\authorrunning{K. Höffner}
-\institute{Institute for Medical Informatics, Statistics and Epidemiology (IMISE), Leipzig University, Leipzig, Germany
-\email{konrad.hoeffner@uni-leipzig.de}}
-%
-\maketitle              % typeset the header of the contribution
-%
-\begin{abstract}
-\keywords{Linked Data browser \and RDF visualization.}
-\end{abstract}
-Leipzig University \\ 
+
+\author{\href{https://orcid.org/0000-0001-7358-3217}{\textbf{Konrad Höffner}} \\ Leipzig University \\ 
+Institute for Medical Informatics, Statistics and Epidemiology (IMISE)\\
+\href{mailto:konrad.hoeffner@uni-leipzig.de}{konrad.hoeffner@uni-leipzig.de}}
+\title{\textbf{RickView: Lightweight Standalone Knowledge Graph Browsing Powered by Rust}}
+\date{}
+
+\maketitle
 
 \section{Summary}\label{summary}
 
@@ -87,15 +86,9 @@ Additional deployments include HITO\footnote{\url{https://hitontology.eu/ontolog
 
 RickView is published under the MIT License at \url{https://github.com/KonradHoeffner/rickview} and as Docker image at \url{ghcr.io/konradhoeffner/rickview}.
 
-\begin{credits}
-\subsubsection{\ackname}
-Thanks to Simon Bin.
+\section{References}\label{references}
 
-\subsubsection{\discintname}
-The author has no competing interests to declare that are relevant to the content of this article.
-\end{credits}
-%
-\bibliographystyle{splncs04}
+\bibliographystyle{plainnat}
 \bibliography{paper}
 
 \end{document}

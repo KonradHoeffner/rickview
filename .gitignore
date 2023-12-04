@@ -10,3 +10,7 @@ Cargo.lock
 *.log
 *.out
 *.pdf
+# use download script for llncs
+llncs.cls
+splncs04.bst
+samplepaper.*

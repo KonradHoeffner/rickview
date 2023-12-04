@@ -1,0 +1,3 @@
+# should be 2023/11/02 v2.23
+wget -nc http://mirrors.ctan.org/macros/latex/contrib/llncs/llncs.cls
+wget -nc http://mirrors.ctan.org/macros/latex/contrib/llncs/splncs04.bst
