@@ -317,11 +317,39 @@ fn blank_html(props: BTreeMap<String, Property>) -> String {
 
 /// For a given resource r, get either all direct properties (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
 fn properties(conn_type: &PropertyType, source: &SimpleTerm<'_>) -> BTreeMap<String, Property> {
+use hdt::hdt_graph::*;
+use sophia::api::term::{matcher::TermMatcher, BnodeId, IriRef, LanguageTag, Term};
     let g = graph();
+    //let hobby_label = &SimpleTerm::from(crate::rdf::SimpleTerm::LiteralLanguage("ХОББИ".into(),sophia::api::term::LanguageTag::new_unchecked("ru".into())));
+    //println!("{:?}", g.triples_matching(Any, Any, Some(hobby_label)).map(Result::unwrap).collect::<Vec<_>>());
     let triples = match conn_type {
         PropertyType::Direct => g.triples_matching(Some(source), Any, Any),
         PropertyType::Inverse => g.triples_matching(Any, Any, Some(source)),
     };
+
+        let s = HdtTerm::Iri(IriRef::new_unchecked("http://lod.ruthes.org/resource/entry/хобби-N-0".into()));
+        //let s = HdtTerm::Iri(IriRef::new_unchecked("http://lod.ruthes.org/resource/entry/aud-N-0".into()));
+        //let s = HdtTerm::Iri(IriRef::new_unchecked("http://www.snik.eu/ontology/meta/хобби-N-0".into()));
+        let label = HdtTerm::Iri(IriRef::new_unchecked("http://www.w3.org/2000/01/rdf-schema#label".into()));
+        let o = HdtTerm::LiteralLanguage("ХОББИ".into(), LanguageTag::new_unchecked("ru".into()));
+        let tvec = vec![[s.clone(), label.clone(), o.clone()]];
+        if let GraphEnum::HdtGraph(graph) = g {
+        println!("HDT*****************");
+        /*assert_eq!(
+            tvec,             
+            graph
+                .triples_matching([s.borrow_term()], [label.borrow_term()], Any)
+                .map(Result::unwrap)
+                .collect::<Vec<_>>()
+        );
+        }*/
+
+            println!("labels: {:?}",graph.triples_matching(Any, [label.borrow_term()], [o.borrow_term()])
+            //println!("labels: {:?}",graph.triples_matching([s.borrow_term()], [label.borrow_term()], Any)
+            //println!("labels: {:?}",graph.triples_matching(Any, [label.borrow_term()], Any)
+                .map(Result::unwrap)
+                .collect::<Vec<_>>());
+            }
     let mut map: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for res in triples {
         let triple = res.expect("error with connection triple");
@@ -407,6 +435,7 @@ fn depiction_iri(iri: Iri<&str>) -> Option<String> {
 
 /// Returns the resource with the given IRI from the configured namespace.
 pub fn resource(subject: Iri<&str>) -> Resource {
+    println!("{:?}",subject);
     let start = Instant::now();
     let piri = Piri::new(subject.as_ref());
     let suffix = piri.suffix();
