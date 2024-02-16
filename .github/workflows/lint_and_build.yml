@@ -35,9 +35,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@master
         with:
           components: rustfmt,clippy
+          toolchain: nightly-2024-01-31
       - name: fmt
         run: cargo fmt --check
       - name: clippy
