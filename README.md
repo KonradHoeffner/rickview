@@ -47,6 +47,10 @@ This requires you to install [Rust including Cargo](https://www.rust-lang.org/to
 I recommend installing Rust via `rustup`, especially on Ubuntu, because `apt install cargo` may install an old version and not work correctly with RickView.
 On Arch Linux however, both `pacman -S rustup` and `pacman -S rust` worked in my testing as the Rust package was much more current and does not require a separate step of choosing between stable and unstable rust.
 
+### Toolchain
+The "hdt" feature, which is enabled by default, requires the nightly toolchain.
+Due to an [issue with a dependency of that feature](https://github.com/rust-lang/packed_simd/issues/359), nightly rust 1.77.0 (2023-01-31) is currently highest supported version.
+
 ## Configure
 Default configuration is stored in `data/default.toml`, which you can override with a custom `data/config.toml` or environment variables.
 Configuration keys are in lower\_snake\_case, while environment variables are prefixed with RICKVIEW\_ and are in SCREAMING\_SNAKE\_CASE.
