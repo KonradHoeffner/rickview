@@ -16,7 +16,7 @@ actix-web = "4"
 multimap = "0.10"
 tinytemplate = "1"
 serde = { version = "1", features = ["derive"] }
-config = { version = "0.13", default-features = false, features = ["toml"] }
+config = { version = "0.14", default-features = false, features = ["toml"] }
 log = "0.4"
 env_logger = { version = "0.11", default-features = false, features = ["auto-color"], optional = true }
 hdt = { version = "0.1", optional = true }
