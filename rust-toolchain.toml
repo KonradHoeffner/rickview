@@ -1,6 +1,0 @@
-[toolchain]
-# channel = "nightly"
-# nightly 1.78 currently not supported by packed_simd dependency due to the removal of the stdsimd feature
-# see https://github.com/rust-lang/packed_simd/issues/359
-# this is only necessary for the default hdt feature, which you can disable using --no-default-features
-channel = "nightly-2024-01-31"

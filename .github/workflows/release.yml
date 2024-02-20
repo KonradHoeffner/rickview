@@ -66,16 +66,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install rust
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2024-01-31
-          targets: x86_64-unknown-linux-musl
-      - name: Setup rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-          target: ${{ matrix.target }}
+          toolchain: nightly-2024-02-17
+          targets: ${{ matrix.target }}
       - name: Set up cargo cache
         uses: actions/cache@v4
         continue-on-error: false

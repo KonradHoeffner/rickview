@@ -49,7 +49,6 @@ On Arch Linux however, both `pacman -S rustup` and `pacman -S rust` worked in my
 
 ### Toolchain
 The "hdt" feature, which is enabled by default, requires the nightly toolchain.
-Due to an [issue with a dependency of that feature](https://github.com/rust-lang/packed_simd/issues/359), nightly rust 1.77.0 (2023-01-31) is currently highest supported version.
 
 ## Configure
 Default configuration is stored in `data/default.toml`, which you can override with a custom `data/config.toml` or environment variables.
