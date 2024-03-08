@@ -29,8 +29,9 @@ lazy_static = "1"
 serde_json = "1"
 
 [features]
-default = ["rdfxml", "log", "hdt"]
+default = ["rdfxml", "jsonld", "log", "hdt"]
 rdfxml = ["sophia/xml"]
+jsonld = ["sophia/jsonld"]
 log = ["env_logger"]
 hdt = ["dep:hdt"]
 
