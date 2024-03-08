@@ -154,6 +154,8 @@ fn res_html_sync(r: &HttpRequest, suffix: &str, params: &web::Query<Params>) -> 
     const TTL: &str = "application/turtle";
     #[cfg(feature = "rdfxml")]
     const XML: &str = "application/rdf+xml";
+    #[cfg(feature = "jsonld")]
+    const JSONLD: &str = "application/ld+json";
     const HTML: &str = "text/html";
     let id = RUN_ID.load(Ordering::Relaxed).to_string();
     let quoted = format!("\"{id}\"");
@@ -207,6 +209,11 @@ fn res_html_sync(r: &HttpRequest, suffix: &str, params: &web::Query<Params>) -> 
             if accept.contains(XML) || output == Some(XML) {
                 debug!("{} RDF/XML {:?}", prefixed, t.elapsed());
                 return res_result(&prefixed, XML, rdf::serialize_rdfxml(iri.as_ref()));
+            }
+            #[cfg(feature = "jsonld")]
+            if accept.contains(JSONLD) || output == Some(JSONLD) {
+                debug!("{} JSON-LD {:?}", prefixed, t.elapsed());
+                return res_result(&prefixed, JSONLD, rdf::serialize_jsonld(iri.as_ref()));
             }
             if accept.contains(HTML) && output != Some(TTL) {
                 let mut config_json = serde_json::to_value(config()).unwrap();

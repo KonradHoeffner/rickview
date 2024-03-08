@@ -29,8 +29,9 @@ lazy_static = "1"
 serde_json = "1"
 
 [features]
-default = ["rdfxml", "hdt"]
+default = ["rdfxml", "jsonld", "hdt"]
 rdfxml = ["sophia/xml"]
+jsonld = ["sophia/jsonld"]
 hdt = ["dep:hdt"]
 
 [profile.release]

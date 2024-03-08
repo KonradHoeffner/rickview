@@ -20,6 +20,8 @@ use sophia::turtle::serializer::nt::NtSerializer;
 use sophia::turtle::serializer::turtle::{TurtleConfig, TurtleSerializer};
 #[cfg(feature = "rdfxml")]
 use sophia::xml::{self, serializer::RdfXmlSerializer};
+#[cfg(feature = "jsonld")]
+use sophia::{api::prelude::QuadSerializer, jsonld::serializer::JsonLdStringifier};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::convert::Infallible;
 use std::error::Error;
@@ -392,6 +394,12 @@ pub fn serialize_turtle(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
 /// Export all triples (s,p,o) for a given subject s as N-Triples.
 pub fn serialize_nt(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
     Ok(NtSerializer::new_stringifier().serialize_triples(graph().triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
+}
+
+#[cfg(feature = "jsonld")]
+/// Export all triples (s,p,o) for a given subject s as JSON-LD.
+pub fn serialize_jsonld(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
+    Ok(JsonLdStringifier::new_stringifier().serialize_quads(graph().triples_matching(Some(deskolemize(&iri)), Any, Any).to_quads())?.to_string())
 }
 
 fn depiction_iri(iri: Iri<&str>) -> Option<String> {
