@@ -152,6 +152,7 @@ async fn base(r: HttpRequest, params: web::Query<Params>) -> impl Responder { re
 fn res_html_sync(r: &HttpRequest, suffix: &str, params: &web::Query<Params>) -> impl Responder {
     const NT: &str = "application/n-triples";
     const TTL: &str = "application/turtle";
+    #[cfg(feature = "rdfxml")]
     const XML: &str = "application/rdf+xml";
     const HTML: &str = "text/html";
     let id = RUN_ID.load(Ordering::Relaxed).to_string();
