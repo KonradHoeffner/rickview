@@ -44,11 +44,6 @@ If you need binaries for a different platform than Linux amd64, [let me know](ht
 Alternatively, you can compile it for your own platform with `cargo install rickview`.
 Or you can clone [the repository](https://github.com/konradhoeffner/rickview) and then `cargo build`.
 This requires you to install [Rust including Cargo](https://www.rust-lang.org/tools/install).
-I recommend installing Rust via `rustup`, especially on Ubuntu, because `apt install cargo` may install an old version and not work correctly with RickView.
-On Arch Linux however, both `pacman -S rustup` and `pacman -S rust` worked in my testing as the Rust package was much more current and does not require a separate step of choosing between stable and unstable rust.
-
-### Toolchain
-The "hdt" feature, which is enabled by default, requires the nightly toolchain.
 
 ## Configure
 Default configuration is stored in `data/default.toml`, which you can override with a custom `data/config.toml` or environment variables.
@@ -80,7 +75,7 @@ Existing RDF browsers like [LodView](https://github.com/LodLive/LodView/) look g
 This leads to long wait times and out of memory errors on typical small scale research VMs with dozens of docker containers for longtime archival of finished research projects, whose results should still be available to enable reproducible science.
 
 ## Goals
-Implement a basic RDF browser similar to LodView in Rust with the following goals:
+Implement a basic RDF browser similar to LodView in Rust with the following properties: 
 
 * speed
 * low resource utilization
@@ -146,7 +141,7 @@ For comparison, here are the stats for the LodView RDF browser, written in Java 
 * RAM consumption (docker stats, HITO knowledge base 1.1 MB, idle, including Virtuoso): 655 MB (65x)
 
 ### Throughput Single Resource
-As data is loaded after page load via JavaScript, real world performance may worse.
+As data is loaded after page load via JavaScript, real world performance may be worse.
 
     $ wrk -t 24 -c 24 -d 30 http://localhost:8104/ontology/SoftwareProduct
     Running 30s test @ http://localhost:8104/ontology/SoftwareProduct
@@ -249,4 +244,4 @@ We are happy to receive pull requests.
 Please use `cargo fmt` before committing and make sure that that the code compiles on the newest nightly toolchain with the default features.
 Browse the default knowledge base after `cargo run` and verify that nothing is broken.
 `cargo clippy` should not report any warnings.
-You can also contribute by recommending RickView and by [sharing your RickView deployments](https://github.com/KonradHoeffner/hdt/issues/35>).
+You can also contribute by recommending RickView and by [sharing your RickView deployments](https://github.com/KonradHoeffner/hdt/issues/35).
