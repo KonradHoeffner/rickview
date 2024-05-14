@@ -241,7 +241,7 @@ Konrad Höffner (2023). RickView: Lightweight Standalone Knowledge Graph Browsin
 
 ### Contribute
 We are happy to receive pull requests.
-Please use `cargo fmt` before committing and make sure that that the code compiles on the newest nightly toolchain with the default features.
+Please use `cargo +nightly fmt` before committing and make sure that that the code compiles on the newest stable and nightly toolchain with the default features.
 Browse the default knowledge base after `cargo run` and verify that nothing is broken.
 `cargo clippy` should not report any warnings.
 You can also contribute by recommending RickView and by [sharing your RickView deployments](https://github.com/KonradHoeffner/hdt/issues/35).

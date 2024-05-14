@@ -7,7 +7,6 @@
 #![deny(rust_2018_idioms)]
 // don't use let chains until supported by rustfmt
 //#![feature(let_chains)]
-#![feature(btree_extract_if)]
 //! Lightweight and performant RDF browser.
 //! An RDF browser is a web application that *resolves* RDF resources: given the HTTP(s) URL identifying a resource it returns an HTML summary.
 //! Besides HTML, the RDF serialization formats RDF/XML, Turtle and N-Triples are also available using content negotiation.

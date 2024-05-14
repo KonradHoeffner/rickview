@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
+      - name: Install nightly Rust
         uses: dtolnay/rust-toolchain@master
         with:
           components: rustfmt,clippy
@@ -45,4 +45,8 @@ jobs:
       - name: clippy
         run: cargo clippy --no-deps --all-features
       - name: check
+        run: cargo check
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: check on stable Rust
         run: cargo check

@@ -66,9 +66,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2024-02-17
           targets: ${{ matrix.target }}
       - name: Set up cargo cache
         uses: actions/cache@v4
