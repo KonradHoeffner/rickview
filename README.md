@@ -6,9 +6,18 @@
 [![RickView @ Leipzig Semantic Web Day 2023 Video](https://img.shields.io/badge/video-8A2BE2)](https://www.youtube.com/watch?v=n8Kb2P8ilwg&t=8250s)
 [![DOI](https://zenodo.org/badge/472769298.svg)](https://zenodo.org/badge/latestdoi/472769298)
 
-A quick RDF viewer (browser).
-Layout copied from LodView.
+Easy to deploy low-resource stand-alone RDF knowledge graph browser written in Rust.
+No SPARQL endpoint needed!
 See also the unpublished [paper draft](https://github.com/KonradHoeffner/rickview/releases/download/0.0.2/paper.pdf).
+Layout copied from [LodView](https://github.com/LodLive/LodView).
+
+## Current deployments
+Feel free to browse around!
+
+* [SNIK &mdash; Semantic Network of Hospital Information Management](https://www.snik.eu/ontology/bb)
+* [HITO &mdash; Health IT Ontology](https://hitontology.eu/ontology/)
+* [ANNO &mdash; Anthropological Notation Ontology](https://annosaxfdm.de/ontology/)
+* [LinkedSpending](https://linkedspending.aksw.org/)
 
 ## Docker
 
