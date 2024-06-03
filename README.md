@@ -23,7 +23,7 @@ Feel free to browse around!
 
 Try it out with the example knowledge base:
 
-    docker run -p 8080:8080 ghcr.io/konradhoeffner/rickview
+    docker run --rm -p 8080:8080 ghcr.io/konradhoeffner/rickview
 
 ### Docker Compose Example
 
