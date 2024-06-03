@@ -11,7 +11,11 @@ readme = "README.md"
 repository = "https://github.com/konradhoeffner/rickview"
 
 [dependencies]
-sophia = "0.8.0"
+sophia_api = "0.8.0"
+sophia_turtle = "0.8.0"
+sophia_inmem = "0.8.0"
+sophia_iri = "0.8.0"
+sophia_xml = { version = "0.8.0", optional = true }
 actix-web = "4"
 multimap = "0.10"
 tinytemplate = "1"
@@ -30,7 +34,7 @@ serde_json = "1"
 
 [features]
 default = ["rdfxml", "hdt"]
-rdfxml = ["sophia/xml"]
+rdfxml = ["sophia_xml"]
 hdt = ["dep:hdt"]
 
 [profile.release]

@@ -1302,7 +1302,11 @@ dependencies = [
  "multimap",
  "serde",
  "serde_json",
- "sophia",
+ "sophia_api",
+ "sophia_inmem",
+ "sophia_iri",
+ "sophia_turtle",
+ "sophia_xml",
  "tinytemplate",
  "ureq",
  "zstd",
@@ -1539,7 +1543,6 @@ dependencies = [
  "sophia_rio",
  "sophia_term",
  "sophia_turtle",
- "sophia_xml",
 ]
 
 [[package]]
@@ -1611,7 +1614,6 @@ dependencies = [
  "sophia_api",
  "sophia_iri",
  "sophia_turtle",
- "sophia_xml",
  "thiserror",
 ]
 

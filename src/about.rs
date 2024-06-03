@@ -1,7 +1,7 @@
 use crate::rdf::{graph, titles, types, GraphEnum};
 use bytesize::ByteSize;
 use deepsize::DeepSizeOf;
-use sophia::api::graph::Graph;
+use sophia_api::graph::Graph;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 use serde::Serialize;

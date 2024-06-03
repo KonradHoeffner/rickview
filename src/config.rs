@@ -1,7 +1,7 @@
 use config::{ConfigError, Environment, File, FileFormat};
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
-use sophia::iri::Iri;
+use sophia_iri::Iri;
 use std::collections::{HashMap, HashSet};
 use std::io::{BufReader, Read};
 use std::sync::OnceLock;
@@ -41,7 +41,7 @@ pub struct Config {
 
 mod iri_serde {
     use serde::{Deserialize, Deserializer, Serializer};
-    use sophia::iri::Iri;
+    use sophia_iri::Iri;
     pub fn serialize<S>(namespace: &Iri<Box<str>>, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
         serializer.serialize_str(namespace.as_str())

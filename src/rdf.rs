@@ -6,20 +6,20 @@ use crate::resource::Resource;
 use hdt::HdtGraph;
 use log::*;
 use multimap::MultiMap;
-use sophia::api::graph::Graph;
-use sophia::api::prefix::{Prefix, PrefixMap};
-use sophia::api::prelude::{Triple, TripleSource};
-use sophia::api::serializer::{Stringifier, TripleSerializer};
-use sophia::api::term::bnode_id::BnodeId;
-use sophia::api::term::matcher::{Any, TermMatcher};
-use sophia::api::term::{FromTerm, SimpleTerm, Term};
-use sophia::inmem::graph::FastGraph;
-use sophia::iri::{Iri, IriRef};
-use sophia::turtle::parser::{nt, turtle};
-use sophia::turtle::serializer::nt::NtSerializer;
-use sophia::turtle::serializer::turtle::{TurtleConfig, TurtleSerializer};
+use sophia_api::graph::Graph;
+use sophia_api::prefix::{Prefix, PrefixMap};
+use sophia_api::prelude::{Triple, TripleSource};
+use sophia_api::serializer::{Stringifier, TripleSerializer};
+use sophia_api::term::bnode_id::BnodeId;
+use sophia_api::term::matcher::{Any, TermMatcher};
+use sophia_api::term::{FromTerm, SimpleTerm, Term};
+use sophia_inmem::graph::FastGraph;
+use sophia_iri::{Iri, IriRef};
+use sophia_turtle::parser::{nt, turtle};
+use sophia_turtle::serializer::nt::NtSerializer;
+use sophia_turtle::serializer::turtle::{TurtleConfig, TurtleSerializer};
 #[cfg(feature = "rdfxml")]
-use sophia::xml::{self, serializer::RdfXmlSerializer};
+use sophia_xml::{self, serializer::RdfXmlSerializer};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::convert::Infallible;
 use std::error::Error;
@@ -128,7 +128,7 @@ pub fn graph() -> &'static GraphEnum {
                         Some("nt") => nt::parse_bufread(br).collect_triples(),
                         // error types not compatible
                         #[cfg(feature = "rdfxml")]
-                        Some("rdf" | "owl") => Ok(xml::parser::parse_bufread(br).collect_triples().expect("Error parsing {filename} as RDF/XML.")),
+                        Some("rdf" | "owl") => Ok(sophia_xml::parser::parse_bufread(br).collect_triples().expect("Error parsing {filename} as RDF/XML.")),
                         #[cfg(feature = "hdt")]
                         Some("zst") if filename.ends_with("hdt.zst") => {
                             let decoder = Decoder::with_buffer(br).expect("Error creating zstd decoder.");
