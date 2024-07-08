@@ -147,8 +147,8 @@ pub fn graph() -> &'static GraphEnum {
                             std::process::exit(1);
                         }
                         None => {
-                            error!("No extension in parse knowledge base file {filename}. Aborting.");
-                            std::process::exit(1);
+                            warn!("{filename} has no extension: assuming RDF/XML.");
+                            Ok(xml::parser::parse_bufread(br).collect_triples().expect("Error parsing {filename} as RDF/XML."))
                         }
                     };
                     triples
