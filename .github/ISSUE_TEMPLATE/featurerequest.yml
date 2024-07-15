@@ -1,0 +1,12 @@
+name: Feature Request
+description: Suggest a new feature.
+labels: ["feature"]
+assignees:
+  - KonradHoeffner
+body:
+  - type: textarea
+    id: new-feature
+    attributes:
+      label: What new feature do you want?
+    validations:
+      required: true
