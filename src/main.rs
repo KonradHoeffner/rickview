@@ -32,10 +32,9 @@ use serde_json::Value;
 use sophia::iri::IriRef;
 use std::error::Error;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::LazyLock;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tinytemplate::TinyTemplate;
-#[macro_use]
-extern crate lazy_static;
 
 static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
@@ -50,15 +49,13 @@ static INDEX: &str = std::include_str!("../data/index.html");
 static ABOUT: &str = std::include_str!("../data/about.html");
 static RUN_ID: AtomicU32 = AtomicU32::new(0);
 
-lazy_static! {
-    // 8 chars hexadecimal, not worth it to add base64 dependency to save 2 chars
-    static ref FAVICON_SHASH: String = format!("{FAVICON_HASH:x}");
-    static ref FAVICON_SHASH_QUOTED: String = format!("\"{}\"",*FAVICON_SHASH);
-    static ref RICKVIEW_CSS_SHASH: String = format!("{RICKVIEW_CSS_HASH:x}");
-    static ref RICKVIEW_CSS_SHASH_QUOTED: String = format!("\"{}\"",*RICKVIEW_CSS_SHASH);
-    static ref ROBOTO_CSS_SHASH: String = format!("{ROBOTO_CSS_HASH:x}");
-    static ref ROBOTO_CSS_SHASH_QUOTED: String = format!("\"{}\"",*ROBOTO_CSS_SHASH);
-}
+// 8 chars hexadecimal, not worth it to add base64 dependency to save 2 chars
+static FAVICON_SHASH: LazyLock<String> = LazyLock::new(|| format!("{FAVICON_HASH:x}"));
+static FAVICON_SHASH_QUOTED: LazyLock<String> = LazyLock::new(|| format!("\"{}\"", *FAVICON_SHASH));
+static RICKVIEW_CSS_SHASH: LazyLock<String> = LazyLock::new(|| format!("{RICKVIEW_CSS_HASH:x}"));
+static RICKVIEW_CSS_SHASH_QUOTED: LazyLock<String> = LazyLock::new(|| format!("\"{}\"", *RICKVIEW_CSS_SHASH));
+static ROBOTO_CSS_SHASH: LazyLock<String> = LazyLock::new(|| format!("{ROBOTO_CSS_HASH:x}"));
+static ROBOTO_CSS_SHASH_QUOTED: LazyLock<String> = LazyLock::new(|| format!("\"{}\"", *ROBOTO_CSS_SHASH));
 
 fn template() -> TinyTemplate<'static> {
     let mut tt = TinyTemplate::new();
