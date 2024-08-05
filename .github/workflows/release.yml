@@ -20,10 +20,11 @@ jobs:
         id: build-changelog
         uses: mikepenz/release-changelog-builder-action@v5
         with:
-          commitMode: true
+          mode: "COMMIT"
           configurationJson: |
             {
-              "pr_template": "- #{{TITLE}}"
+              "pr_template": "- #{{TITLE}}",
+              "template": "#{{UNCATEGORIZED}}"
             }
       - name: Create Release
         id: create-release
