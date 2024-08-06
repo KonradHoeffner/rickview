@@ -3,11 +3,17 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/.github/workflows"
+    commit-message:
+      prefix: 'ci'
+      include: 'scope'
     assignees: ["KonradHoeffner"]
     schedule:
       interval: "daily"
   - package-ecosystem: "cargo"
     directory: "/"
+    commit-message:
+      prefix: 'chore'
+      include: 'scope'
     assignees: ["KonradHoeffner"]
     schedule:
       interval: "daily"
