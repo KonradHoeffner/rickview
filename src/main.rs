@@ -112,6 +112,7 @@ fn res_result(resource: &str, content_type: &str, result: Result<String, Box<dyn
     }
 }
 
+// Pseudo GET parameters with empty value so that asset responders still match and caching works.
 fn add_hashes(body: &str) -> String {
     body.replacen("rickview.css", &format!("rickview.css?{}", *RICKVIEW_CSS_SHASH), 1)
         .replacen("roboto.css", &format!("roboto.css?{}", *ROBOTO_CSS_SHASH), 1)
@@ -138,20 +139,14 @@ fn merge(a: &mut Value, b: &Value) {
 }
 
 #[get("/{suffix:.*}")]
-async fn res_html(r: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
-    let suffix = if suffix.is_empty() { "/".to_owned().into() } else { suffix };
-    res_html_sync(&r, &suffix, &params)
-}
-
-#[get("/")]
-async fn base(r: HttpRequest, params: web::Query<Params>) -> impl Responder { res_html_sync(&r, "", &params) }
-
-fn res_html_sync(r: &HttpRequest, suffix: &str, params: &web::Query<Params>) -> impl Responder {
+/// Serve an RDF resource either as HTML or one of various serializations depending on the accept header.
+async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
     const NT: &str = "application/n-triples";
     const TTL: &str = "application/turtle";
     #[cfg(feature = "rdfxml")]
     const XML: &str = "application/rdf+xml";
     const HTML: &str = "text/html";
+    let suffix: &str = &suffix;
     let id = RUN_ID.load(Ordering::Relaxed).to_string();
     let quoted = format!("\"{id}\"");
     if let Some(e) = r.headers().get(header::IF_NONE_MATCH) {
@@ -165,16 +160,13 @@ fn res_html_sync(r: &HttpRequest, suffix: &str, params: &web::Query<Params>) -> 
     let output = params.output.as_deref();
     let t = Instant::now();
     let prefixed = config().prefix.to_string() + ":" + suffix;
-    /*let iri = if suffix.is_empty() {
-        Iri::new_unchecked(config().namespace.as_str().to_owned())
-    } else {*/
+
     let iri = config().namespace.resolve(IriRef::new_unchecked(suffix));
-    //};
     let mut res = rdf::resource(iri.as_ref());
     // no triples found
     if res.directs.is_empty() && res.inverses.is_empty() {
-        // resource URI equal to namespace with or without trailing slash takes precedence
-        if suffix.is_empty() || suffix == "/" {
+        // resource URI equal to namespace takes precedence
+        if suffix.is_empty() {
             return index();
         }
         let warning = format!("No triples found for {suffix}. Did you configure the namespace correctly?");
@@ -231,7 +223,7 @@ fn res_html_sync(r: &HttpRequest, suffix: &str, params: &web::Query<Params>) -> 
     res_result(&prefixed, TTL, rdf::serialize_turtle(iri.as_ref()))
 }
 
-// does not get shown when there is a resource whose URI equals the namespace, with or without slash
+/// does not get shown when there is a resource whose URI equals the namespace, with or without slash
 fn index() -> HttpResponse {
     match template().render("index", config()) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
@@ -260,8 +252,9 @@ async fn about_page() -> impl Responder {
 #[head("{_anypath:.*}")]
 async fn head() -> HttpResponse { HttpResponse::MethodNotAllowed().body("RickView does not support HEAD requests.") }
 
-// redirect /base to correct index page /base/
 #[get("")]
+/// redirect /base to correct index page /base/
+/// For example, a user may erroneously open http://mydomain.org/ontology but mean http://mydomain.org/ontology/, which should be the base resource if it exists as the latter is inside the namespace.
 async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append_header(("location", config().base.clone() + "/")).finish() }
 
 #[actix_web::main]
@@ -279,7 +272,7 @@ async fn main() -> std::io::Result<()> {
             .service(roboto300)
             .service(favicon)
             .service(head)
-            .service(scope(&config().base).service(about_page).service(base).service(res_html).service(redirect))
+            .service(scope(&config().base).service(about_page).service(rdf_resource).service(redirect))
     })
     .bind(("0.0.0.0", config().port))?
     .run()
