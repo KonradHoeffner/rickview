@@ -87,6 +87,7 @@ where &'static T: MessageBody {
     HttpResponse::Ok().content_type(ct).append_header((header::CACHE_CONTROL, "public, max-age=31536000, immutable")).append_header(tag).body(body)
 }
 
+// For maximum robustness, serve CSS, font and icon from any path. Collision with RDF resource URIs unlikely.
 #[get("{_anypath:.*/|}rickview.css")]
 async fn rickview_css(r: HttpRequest) -> impl Responder { hash_etag(&r, RICKVIEW_CSS, &RICKVIEW_CSS_SHASH, &RICKVIEW_CSS_SHASH_QUOTED, "text/css") }
 
@@ -230,6 +231,7 @@ fn res_html_sync(r: &HttpRequest, suffix: &str, params: &web::Query<Params>) -> 
     res_result(&prefixed, TTL, rdf::serialize_turtle(iri.as_ref()))
 }
 
+// does not get shown when there is a resource whose URI equals the namespace, with or without slash
 fn index() -> HttpResponse {
     match template().render("index", config()) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),

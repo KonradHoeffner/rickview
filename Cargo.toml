@@ -9,7 +9,7 @@ description = "A fast RDF viewer (Linked Data browser)"
 authors = ["Konrad Höffner"]
 readme = "README.md"
 repository = "https://github.com/konradhoeffner/rickview"
-rust = "1.80"
+rust-version = "1.80"
 
 [dependencies]
 sophia = "0.8.0"
