@@ -81,6 +81,8 @@ impl From<IriRef<&str>> for Piri {
 // There may be a more elegant way in future Rust and Sophia versions.
 #[allow(clippy::large_enum_variant)]
 pub enum GraphEnum {
+    // Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
+    // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
     FastGraph(FastGraph),
     #[cfg(feature = "hdt")]
     HdtGraph(HdtGraph),
@@ -185,45 +187,48 @@ fn prefixes() -> &'static Vec<PrefixItem> {
 
 /// Maps RDF resource URIs to at most one title each, for example `http://example.com/resource/ExampleResource` -> "example resource".
 /// Prioritizes `title_properties` earlier in the list.
+/// This is only run once to minimize the number of queries and generates the title for every resource in the graph.
+/// For very large graph this can take too much time or memory and can be disabled with setting the "large" config option to true.
 pub fn titles() -> &'static HashMap<String, String> {
     TITLES.get_or_init(|| {
+        let mut titles = HashMap::<String, String>::new();
+        if config().large {
+            return titles;
+        }
         let g = graph();
         // tag, uri, title
         let mut tagged = MultiMap::<String, (String, String)>::new();
-        let mut titles = HashMap::<String, String>::new();
-        if !config().large {
-            for prop in config().title_properties.iter().rev() {
-                match IriRef::new(prop.clone().into()) {
-                    Err(_) => {
-                        error!("Skipping invalid title property {prop}");
-                    }
-                    Ok(iref) => {
-                        let term = SimpleTerm::Iri(iref);
-                        for tt in g.triples_matching(Any, Some(term), Any) {
-                            let t = tt.expect("error fetching title triple");
-                            // ignore blank node labels as title because they usually don't have any
-                            if t.s().is_blank_node() {
-                                continue;
-                            }
-                            let uri = t.s().as_simple().iri().expect("invalid title subject IRI").as_str().to_owned();
-                            match t.o() {
-                                SimpleTerm::LiteralLanguage(lit, tag) => tagged.insert(tag.as_str().to_owned(), (uri, lit.to_string())),
-                                SimpleTerm::LiteralDatatype(lit, _) => tagged.insert(String::new(), (uri, lit.to_string())),
-                                _ => warn!("Invalid title value {:?}, skipping", t.o().as_simple()),
-                            };
+        for prop in config().title_properties.iter().rev() {
+            match IriRef::new(prop.clone().into()) {
+                Err(_) => {
+                    error!("Skipping invalid title property {prop}");
+                }
+                Ok(iref) => {
+                    let term = SimpleTerm::Iri(iref);
+                    for tt in g.triples_matching(Any, Some(term), Any) {
+                        let t = tt.expect("error fetching title triple");
+                        // ignore blank node labels as title because they usually don't have any
+                        if t.s().is_blank_node() {
+                            continue;
                         }
+                        let uri = t.s().as_simple().iri().expect("invalid title subject IRI").as_str().to_owned();
+                        match t.o() {
+                            SimpleTerm::LiteralLanguage(lit, tag) => tagged.insert(tag.as_str().to_owned(), (uri, lit.to_string())),
+                            SimpleTerm::LiteralDatatype(lit, _) => tagged.insert(String::new(), (uri, lit.to_string())),
+                            _ => warn!("Invalid title value {:?}, skipping", t.o().as_simple()),
+                        };
                     }
                 }
             }
-            // prioritize language tags listed earlier in config().langs
-            let mut tags: Vec<&String> = tagged.keys().collect();
-            tags.sort_by_cached_key(|tag| config().langs.iter().position(|x| &x == tag).unwrap_or(1000));
-            tags.reverse();
-            for tag in tags {
-                if let Some(v) = tagged.get_vec(tag) {
-                    for (uri, title) in v {
-                        titles.insert(uri.clone(), title.clone());
-                    }
+        }
+        // prioritize language tags listed earlier in config().langs
+        let mut tags: Vec<&String> = tagged.keys().collect();
+        tags.sort_by_cached_key(|tag| config().langs.iter().position(|x| &x == tag).unwrap_or(1000));
+        tags.reverse();
+        for tag in tags {
+            if let Some(v) = tagged.get_vec(tag) {
+                for (uri, title) in v {
+                    titles.insert(uri.clone(), title.clone());
                 }
             }
         }
@@ -236,37 +241,36 @@ pub fn titles() -> &'static HashMap<String, String> {
 pub fn types() -> &'static HashMap<String, String> {
     TYPES.get_or_init(|| {
         let mut types = HashMap::<String, String>::new();
-        if !config().large {
-            for prop in config().type_properties.iter().rev() {
-                let iref = IriRef::new(prop.clone().into());
-                if iref.is_err() {
-                    error!("invalid type property {prop}");
+        if config().large {
+            return types;
+        }
+        for prop in config().type_properties.iter().rev() {
+            let iref = IriRef::new(prop.clone().into());
+            if iref.is_err() {
+                error!("invalid type property {prop}");
+                continue;
+            }
+            let term = SimpleTerm::Iri(iref.unwrap());
+            for tt in graph().triples_matching(Any, Some(term), Any) {
+                let t = tt.expect("error fetching type triple");
+                if !t.s().is_iri() {
                     continue;
                 }
-                let term = SimpleTerm::Iri(iref.unwrap());
-                for tt in graph().triples_matching(Any, Some(term), Any) {
-                    let t = tt.expect("error fetching type triple");
-                    if !t.s().is_iri() {
-                        continue;
+                let suffix = t.s().as_simple().iri().expect("invalid type subject IRI").to_string().replace(config().namespace.as_str(), "");
+                match t.o().as_simple() {
+                    SimpleTerm::Iri(iri) => {
+                        types.insert(suffix, iri.to_string());
                     }
-                    let suffix = t.s().as_simple().iri().expect("invalid type subject IRI").to_string().replace(config().namespace.as_str(), "");
-                    match t.o().as_simple() {
-                        SimpleTerm::Iri(iri) => {
-                            types.insert(suffix, iri.to_string());
-                        }
-                        _ => {
-                            warn!("Skipping invalid type {:?} for suffix {suffix} with property <{prop}>.", t.o().as_simple());
-                        }
-                    };
-                }
+                    _ => {
+                        warn!("Skipping invalid type {:?} for suffix {suffix} with property <{prop}>.", t.o().as_simple());
+                    }
+                };
             }
         }
         types
     })
 }
 
-// Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
-// Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
 /// Contains the knowledge base.
 static GRAPH: OnceLock<GraphEnum> = OnceLock::new();
 static PREFIXES: OnceLock<Vec<PrefixItem>> = OnceLock::new();
