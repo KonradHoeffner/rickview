@@ -1,6 +1,8 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
 @prefix owl: <http://www.w3.org/2002/07/owl#>.
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+@prefix schema: <http://schema.org/>.
+@prefix doap: <http://usefulinc.com/ns/doap#>.
 @prefix : <http://example.com/resource/>.
 
 :ExClass
@@ -21,6 +23,7 @@
   ];
   rdfs:comment "an example class"@en;
   :exProperty :Multilingualкласс;
+  :exProperty 5, ( :a :b :c);
   rdfs:label "example class"@en.
 
 :Multilingualкласс
@@ -28,14 +31,24 @@
   rdfs:comment "The RickView default font Roboto does not contain Japanese and Chinese characters."@en;
   rdfs:label "пример класса"@ru, "et eksempel på en klasse"@no, "例題教室"@jp, "一个实例类"@zh.
 
-:ExInstance
-  :exProperty 5, ( :a :b :c);
-  :blankTest [ :exProperty :o11, :o12; :p2 :o21, :o22, :o23; :p3 [:nested :o11, :o12]];
-  a :ExClass;
-  rdfs:comment "an example instance."@en;
-  rdfs:label "example instance"@en.
-
-:o11 rdfs:label "object 11"@en.
+:RickView
+  rdfs:label "RickView";
+  rdfs:comment  "Lightweight Standalone Knowledge Graph Browsing Powered by Rust"@en,
+                "Robuster, leichtgewichtiger, unabhängiger und performanter Wissensgraphen-Browser"@de,
+                "Высокопроизводительный автономный браузер графов знаний на Rust"@ru;
+  a schema:WebApplication, :KnowledgeGraphBrowser;
+  doap:programming-language "Rust";
+  doap:repository <https://github.com/konradhoeffner/rickview>;
+  doap:license <http://www.ebi.ac.uk/swo/license/SWO_9000074>;
+  schema:author
+    [ a schema:Person;
+      schema:givenName "Konrad";
+      schema:familyName "Höffner";
+      schema:affiliation [a schema:Organization; schema:name "Institut für Medizinische Informatik, Statistik und Epidemiologie"@de]
+    ];
+  schema:browserRequirements "Should work on all browsers, no JavaScript required. Please create an issue if you encounter any problem."@en;
+  schema:releaseNotes <https://github.com/KonradHoeffner/rickview/releases/latest>;
+  schema:archivedAt <https://zenodo.org/doi/10.5281/zenodo.8290117>.
 
 :exProperty
   a owl:DatatypeProperty;
