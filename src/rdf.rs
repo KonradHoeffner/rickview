@@ -304,9 +304,11 @@ fn deskolemize<'a>(iri: &'a Iri<&str>) -> SimpleTerm<'a> {
     }
 }
 
-fn blank_html(props: BTreeMap<String, Property>) -> String {
+fn blank_html(props: BTreeMap<String, Property>, depth: usize) -> String {
+    if depth > 9 {
+        return "...".to_owned();
+    }
     // temporary manchester syntax emulation
-
     if let Some(on_property) = props.get("http://www.w3.org/2002/07/owl#onProperty") {
         if let Some(some) = props.get("http://www.w3.org/2002/07/owl#someValuesFrom") {
             return format!("{} <b>some</b> {}", on_property.target_htmls.join(", "), some.target_htmls.join(", "));
@@ -314,13 +316,14 @@ fn blank_html(props: BTreeMap<String, Property>) -> String {
     }
     props
         .into_values()
-        .map(|p| p.target_htmls.iter().map(|html| p.prop_html.clone() + " " + html + "").collect::<Vec<_>>().join("<br>"))
-        .collect::<Vec<_>>()
-        .join("<br>")
+        .map(|p| {
+            p.target_htmls.iter().map(|html| "\n".to_owned() + &"\t".repeat(9 + depth) + "<p>" + &p.prop_html + " " + html + "</p>").collect::<String>()
+        })
+        .collect::<String>()
 }
 
 /// For a given resource r, get either all direct properties (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
-fn properties(conn_type: &PropertyType, source: &SimpleTerm<'_>) -> BTreeMap<String, Property> {
+fn properties(conn_type: &PropertyType, source: &SimpleTerm<'_>, depth: usize) -> BTreeMap<String, Property> {
     let g = graph();
     let triples = match conn_type {
         PropertyType::Direct => g.triples_matching(Some(source), Any, Any),
@@ -340,22 +343,21 @@ fn properties(conn_type: &PropertyType, source: &SimpleTerm<'_>) -> BTreeMap<Str
 
             SimpleTerm::Iri(iri) => {
                 let piri = Piri::from(iri.as_ref());
-                let title = if let Some(title) = titles().get(&piri.to_string()) { format!("<br><span>&#8618; {title}</span>") } else { String::new() };
+                let title = if let Some(title) = titles().get(&piri.to_string()) { format!("<span>&#8618; {title}</span>") } else { String::new() };
                 let target = if piri.to_string().starts_with(config().namespace.as_str()) { "" } else { " target='_blank' " };
                 format!("<a href='{}'{target}>{}{title}</a>", piri.root_relative(), piri.prefixed_string(false, true))
             }
             // https://www.w3.org/TR/rdf11-concepts/ Section 3.5 Replacing Blank Nodes with IRIs
             SimpleTerm::BlankNode(blank) => {
                 let id = blank.as_str();
-                // prevent infinite loop
-                let sub_html = if matches!(conn_type, PropertyType::Direct) && !source.is_blank_node() {
-                    blank_html(properties(&PropertyType::Direct, target_term))
+                let sub_html = if matches!(conn_type, PropertyType::Direct) {
+                    blank_html(properties(&PropertyType::Direct, target_term, depth + 1), depth)
                 } else {
                     String::new()
                 };
                 let r = IriRef::new_unchecked(SKOLEM_START.to_owned() + id);
                 let iri = config().namespace.resolve(r);
-                format!("<a href='{}'>_:{id}</a><br>{sub_html}", Piri::new(iri.as_ref()).root_relative())
+                format!("<a href='{}'>_:{id}</a><br>&#8618;<br>{sub_html}", Piri::new(iri.as_ref()).root_relative())
             }
             _ => format!("{target_term:?}"),
         };
@@ -417,12 +419,12 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     let convert = |m: BTreeMap<String, Property>| -> Vec<_> { m.into_values().map(Property::into).collect() };
 
     let source = deskolemize(&subject);
-    let mut all_directs = properties(&PropertyType::Direct, &source);
+    let mut all_directs = properties(&PropertyType::Direct, &source, 0);
     let descriptions = convert(config().description_properties.iter().filter_map(|p| all_directs.remove_entry(p)).collect());
     let directs = convert(all_directs);
     let title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
     let main_type = types().get(&suffix).cloned();
-    let inverses = if config().show_inverse { convert(properties(&PropertyType::Inverse, &source)) } else { Vec::new() };
+    let inverses = if config().show_inverse { convert(properties(&PropertyType::Inverse, &source, 0)) } else { Vec::new() };
     Resource {
         uri: piri.full,
         base: config().base.clone(),
