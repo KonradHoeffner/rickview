@@ -89,7 +89,7 @@ pub enum GraphEnum {
 }
 
 impl GraphEnum {
-    fn triples_matching<'s, S, P, O>(&'s self, sm: S, pm: P, om: O) -> Box<dyn Iterator<Item = Result<[SimpleTerm<'static>; 3], Infallible>> + '_>
+    fn triples_matching<'s, S, P, O>(&'s self, sm: S, pm: P, om: O) -> Box<dyn Iterator<Item = Result<[SimpleTerm<'static>; 3], Infallible>> + 's>
     where
         S: TermMatcher + 's,
         P: TermMatcher + 's,
