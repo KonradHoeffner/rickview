@@ -314,12 +314,20 @@ fn blank_html(props: BTreeMap<String, Property>, depth: usize) -> String {
             return format!("{} <b>some</b> {}", on_property.target_htmls.join(", "), some.target_htmls.join(", "));
         }
     }
-    props
+    let indent = "\n".to_owned() + &"\t".repeat(9 + depth);
+    let indent2 = indent.clone() + "\t";
+    #[allow(clippy::format_collect)]
+    let rows = props
         .into_values()
         .map(|p| {
-            p.target_htmls.iter().map(|html| "\n".to_owned() + &"\t".repeat(9 + depth) + "<p>" + &p.prop_html + " " + html + "</p>").collect::<String>()
+            format!(
+                "{indent2}<tr><td class='td1'>{}</td><td class='td2'>{}</td></tr>",
+                p.prop_html,
+                p.target_htmls.into_iter().map(|h| format!("<span class='c2'>{h}</span>")).collect::<String>()
+            )
         })
-        .collect::<String>()
+        .collect::<String>();
+    format!("{indent}<table>{rows}{indent}</table>")
 }
 
 /// For a given resource r, get either all direct properties (p,o) where (r,p,o) is in the graph or indirect ones (s,p) where (s,p,r) is in the graph.
@@ -343,7 +351,7 @@ fn properties(conn_type: &PropertyType, source: &SimpleTerm<'_>, depth: usize) -
 
             SimpleTerm::Iri(iri) => {
                 let piri = Piri::from(iri.as_ref());
-                let title = if let Some(title) = titles().get(&piri.to_string()) { format!("<span>&#8618; {title}</span>") } else { String::new() };
+                let title = if let Some(title) = titles().get(&piri.to_string()) { format!("<br><span>&#8618; {title}</span>") } else { String::new() };
                 let target = if piri.to_string().starts_with(config().namespace.as_str()) { "" } else { " target='_blank' " };
                 format!("<a href='{}'{target}>{}{title}</a>", piri.root_relative(), piri.prefixed_string(false, true))
             }
@@ -357,7 +365,8 @@ fn properties(conn_type: &PropertyType, source: &SimpleTerm<'_>, depth: usize) -
                 };
                 let r = IriRef::new_unchecked(SKOLEM_START.to_owned() + id);
                 let iri = config().namespace.resolve(r);
-                format!("<a href='{}'>_:{id}</a><br>&#8618;<br>{sub_html}", Piri::new(iri.as_ref()).root_relative())
+                //format!("<a href='{}'>_:{id}</a><br>&#8618;<p>{sub_html}</p>", Piri::new(iri.as_ref()).root_relative())
+                format!("&#8618;<a href='{}'> Blank Node {id}</a>{sub_html}", Piri::new(iri.as_ref()).root_relative())
             }
             _ => format!("{target_term:?}"),
         };
