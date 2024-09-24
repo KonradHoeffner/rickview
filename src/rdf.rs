@@ -311,7 +311,21 @@ fn blank_html(props: BTreeMap<String, Property>, depth: usize) -> String {
     // temporary manchester syntax emulation
     if let Some(on_property) = props.get("http://www.w3.org/2002/07/owl#onProperty") {
         if let Some(some) = props.get("http://www.w3.org/2002/07/owl#someValuesFrom") {
-            return format!("{} <b>some</b> {}", on_property.target_htmls.join(", "), some.target_htmls.join(", "));
+            return format!(" {} <b>some</b> {}", on_property.target_htmls.join(", "), some.target_htmls.join(", "));
+        }
+    }
+    // temporary datatype restriction view, implement more elegantly later
+    if let Some(min) = props.get("http://www.w3.org/2001/XMLSchema#minInclusive") {
+        return format!("[{}", min.target_htmls.join(", "));
+    }
+    if let Some(max) = props.get("http://www.w3.org/2001/XMLSchema#maxExclusive") {
+        return format!("{})", max.target_htmls.join(", "));
+    }
+    if let Some(first) = props.get("http://www.w3.org/1999/02/22-rdf-syntax-ns#first") {
+        if let Some(rest) = props.get("http://www.w3.org/1999/02/22-rdf-syntax-ns#rest") {
+            let rest_str = rest.target_htmls.join(", ").replace("rdf:nil", "");
+            return format!("{}, {}", first.target_htmls.join(", "), rest_str);
+            //println!("{}, {}", first.target_htmls.join(", "), rest.target_htmls.join(", "));
         }
     }
     let indent = "\n".to_owned() + &"\t".repeat(9 + depth);
@@ -358,15 +372,15 @@ fn properties(conn_type: &PropertyType, source: &SimpleTerm<'_>, depth: usize) -
             // https://www.w3.org/TR/rdf11-concepts/ Section 3.5 Replacing Blank Nodes with IRIs
             SimpleTerm::BlankNode(blank) => {
                 let id = blank.as_str();
-                let sub_html = if matches!(conn_type, PropertyType::Direct) {
-                    blank_html(properties(&PropertyType::Direct, target_term, depth + 1), depth)
+                if matches!(conn_type, PropertyType::Direct) {
+                    let sub_html = blank_html(properties(&PropertyType::Direct, target_term, depth + 1), depth);
+                    let r = IriRef::new_unchecked(SKOLEM_START.to_owned() + id);
+                    let iri = config().namespace.resolve(r);
+                    //format!("<a href='{}'>_:{id}</a><br>&#8618;<p>{sub_html}</p>", Piri::new(iri.as_ref()).root_relative())
+                    format!("<a href='{}'>&#8618;</a>{sub_html}", Piri::new(iri.as_ref()).root_relative())
                 } else {
                     String::new()
-                };
-                let r = IriRef::new_unchecked(SKOLEM_START.to_owned() + id);
-                let iri = config().namespace.resolve(r);
-                //format!("<a href='{}'>_:{id}</a><br>&#8618;<p>{sub_html}</p>", Piri::new(iri.as_ref()).root_relative())
-                format!("&#8618;<a href='{}'> Blank Node {id}</a>{sub_html}", Piri::new(iri.as_ref()).root_relative())
+                }
             }
             _ => format!("{target_term:?}"),
         };
