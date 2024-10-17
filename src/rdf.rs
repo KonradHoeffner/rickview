@@ -447,3 +447,20 @@ pub fn resource(subject: Iri<&str>) -> Resource {
         depiction: depiction_iri(subject),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::config::config;
+    use crate::rdf;
+    use sophia::iri::IriRef;
+    const SUFFIX: &str = "ExInstance";
+
+    #[test]
+    pub fn test_serialize_nt() {
+        let iri = config().namespace.resolve(IriRef::new_unchecked(SUFFIX));
+        let iri_ref = iri.as_ref();
+        let nt = rdf::serialize_nt(iri_ref).unwrap();
+        println!("{:?}", nt);
+        assert!(nt == "", "not as expected {:?}", &nt);
+    }
+}

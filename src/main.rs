@@ -34,6 +34,11 @@ use std::sync::LazyLock;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tinytemplate::TinyTemplate;
 
+const NT: &str = "application/n-triples";
+const TTL: &str = "application/turtle";
+#[cfg(feature = "rdfxml")]
+const XML: &str = "application/rdf+xml";
+const HTML: &str = "text/html";
 static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
 // extremely low risk of collision, worst case is out of date favicon or CSS
@@ -99,6 +104,9 @@ async fn roboto300() -> impl Responder { HttpResponse::Ok().content_type("font/w
 #[get("{_anypath:.*/|}favicon.ico")]
 async fn favicon(r: HttpRequest) -> impl Responder { hash_etag(&r, &FAVICON[..], &FAVICON_SHASH, &FAVICON_SHASH_QUOTED, "image/x-icon") }
 
+/// Creates an HTTP response for the given resource representation.
+/// An OK result is transformed into an OK HTTP response, while any error is mapped to an internal server error.
+/// The given resource name is only used for the error response.
 fn res_result(resource: &str, content_type: &str, result: Result<String, Box<dyn Error>>) -> HttpResponse {
     match result {
         Ok(s) => HttpResponse::Ok().content_type(content_type).body(s),
@@ -139,11 +147,6 @@ fn merge(a: &mut Value, b: &Value) {
 #[get("/{suffix:.*}")]
 /// Serve an RDF resource either as HTML or one of various serializations depending on the accept header.
 async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
-    const NT: &str = "application/n-triples";
-    const TTL: &str = "application/turtle";
-    #[cfg(feature = "rdfxml")]
-    const XML: &str = "application/rdf+xml";
-    const HTML: &str = "text/html";
     let suffix: &str = &suffix;
     let id = RUN_ID.load(Ordering::Relaxed).to_string();
     let quoted = format!("\"{id}\"");
