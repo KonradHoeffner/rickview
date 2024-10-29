@@ -25,6 +25,8 @@ Try it out with the example knowledge base:
 
     docker run --rm -p 8080:8080 ghcr.io/konradhoeffner/rickview
 
+Rootless Docker may have DNS issues when loading an ontology e.g. from GitHub, in those rare cases you can use the larger ghcr.io/konradhoeffner/rickview:glibc image.
+
 ### Docker Compose Example
 
     services:
