@@ -1,6 +1,6 @@
 [package]
 name = "rickview"
-version = "0.3.6"
+version = "0.3.7"
 edition = "2021"
 license = "MIT"
 keywords = ["rdf", "semantic-web", "linked-data"]
@@ -12,7 +12,7 @@ repository = "https://github.com/konradhoeffner/rickview"
 rust-version = "1.80"
 
 [dependencies]
-sophia = "0.8.0"
+sophia = "0.9"
 actix-web = "4"
 multimap = "0.10"
 tinytemplate = "1"
