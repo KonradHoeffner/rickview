@@ -4,6 +4,7 @@
 [![Lint and Build](https://github.com/konradhoeffner/rickview/actions/workflows/lint_and_build.yml/badge.svg)](https://github.com/konradhoeffner/rickview/actions/workflows/lint_and_build.yml)
 ![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg "Unsafe forbidden")
 [![RickView @ Leipzig Semantic Web Day 2023 Video](https://img.shields.io/badge/video-8A2BE2)](https://www.youtube.com/watch?v=n8Kb2P8ilwg&t=8250s)
+[![SaxFDM Open Data Award 2024](https://img.shields.io/badge/Open_Data_Award-118811)](https://saxfdm.de/wrapup/)
 [![DOI](https://zenodo.org/badge/472769298.svg)](https://zenodo.org/badge/latestdoi/472769298)
 
 Easy to deploy low-resource stand-alone RDF knowledge graph browser written in Rust.
@@ -182,6 +183,10 @@ LodView was not able to serve 24 threads and 24 connections, so try it with only
 Even a single thread and a single connection cause the container to report errors, this will be investigated in the future.
 
 ## FAQ
+
+### Why can't I use RickView with a Hash Namespace like http://example.com\#MyResource
+This is technically impossible for a server-side application by [the definition of a URI](https://datatracker.ietf.org/doc/html/rfc3986#section-3.5) because the fragment (the part after the hash) is client-only and never sent to the server.
+If you have an existing knowledge graph with a hash namespace, I recommend replacing the hash '`#`' with a forward slash '`/`'.
 
 ### Why is RickView necessary? Performance doesn't matter and RAM costs almost nothing!
 According to [Hitzler 2021](https://cacm.acm.org/magazines/2021/2/250085-a-review-of-the-semantic-web-field/fulltext?mobile=false), mainstream adoption of the Semantic Web field has stagnated due to a lack of freely available performant, accessible, robust and adaptable tools.
