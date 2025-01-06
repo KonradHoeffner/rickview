@@ -20,6 +20,18 @@ Feel free to browse around!
 * [ANNO &mdash; Anthropological Notation Ontology](https://annosaxfdm.de/ontology/)
 * [LinkedSpending](https://linkedspending.aksw.org/)
 
+
+## Requirements
+
+|CPU Architecture    |OS           |Compiles|Release|Docker                   |
+|--------------------|-------------|--------|-------|-------------------------|
+|AMD64 (x86-64)      |Linux GNU    |yes     |yes    |yes (docker-glibc branch)|
+|AMD64 (x86-64)      |Linux MUSL   |yes     |yes    |yes                      |
+|AMD64 (x86-64)      |Apple Darwin |yes     |yes    |use a Linux image        |
+|AMD64 (x86-64)      |Windows      |yes     |yes    |use a Linux image        |
+|ARM64 (AArch64)     |Linux        |yes     |yes    |build yourself           |
+|IA-32 (i386, 32 Bit)|             |no|||
+
 ## Docker
 
 Try it out with the example knowledge base:
@@ -49,8 +61,9 @@ Rootless Docker may have DNS issues when loading an ontology e.g. from GitHub, i
         restart: unless-stopped
 
 ## Precompiled Binaries
+
 Download the binary from the [latest release](https://github.com/konradhoeffner/rickview/releases/latest) and run `rickview`.
-If you need binaries for a different platform than Linux amd64, [let me know](https://github.com/konradhoeffner/rickview/issues/new).
+If you need binaries for a different operating system and CPU architecture combination, [let me know](https://github.com/konradhoeffner/rickview/issues/new).
 
 ## Compile it yourself
 Alternatively, you can compile it for your own platform with `cargo install rickview`.

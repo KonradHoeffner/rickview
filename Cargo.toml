@@ -1,6 +1,6 @@
 [package]
 name = "rickview"
-version = "0.3.7"
+version = "0.3.8"
 edition = "2021"
 license = "MIT"
 keywords = ["rdf", "semantic-web", "linked-data"]
@@ -17,7 +17,7 @@ actix-web = "4"
 multimap = "0.10"
 tinytemplate = "1"
 serde = { version = "1", features = ["derive"] }
-config = { version = "0.14", default-features = false, features = ["toml"] }
+config = { version = "0.15", default-features = false, features = ["toml"] }
 log = "0.4"
 env_logger = { version = "0.11", default-features = false, features = ["auto-color"] }
 hdt = { version = "0.2", optional = true }
