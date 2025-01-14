@@ -130,7 +130,9 @@ pub fn graph() -> &'static GraphEnum {
                         Some("nt") => nt::parse_bufread(br).collect_triples(),
                         // error types not compatible
                         #[cfg(feature = "rdfxml")]
-                        Some("rdf" | "owl") => Ok(xml::parser::parse_bufread(br).collect_triples().expect("Error parsing {filename} as RDF/XML.")),
+                        Some("rdf" | "owl") => {
+                            Ok(xml::parser::parse_bufread(br).collect_triples().unwrap_or_else(|e| panic!("Error parsing {filename} as RDF/XML: {e}")))
+                        }
                         #[cfg(feature = "hdt")]
                         Some("zst") if filename.ends_with("hdt.zst") => {
                             let decoder = Decoder::with_buffer(br).expect("Error creating zstd decoder.");
@@ -150,7 +152,7 @@ pub fn graph() -> &'static GraphEnum {
                         }
                         None => {
                             warn!("{filename} has no extension: assuming RDF/XML.");
-                            Ok(xml::parser::parse_bufread(br).collect_triples().expect("Error parsing {filename} as RDF/XML."))
+                            Ok(xml::parser::parse_bufread(br).collect_triples().unwrap_or_else(|e| panic!("Error parsing {filename} as RDF/XML: {e}")))
                         }
                     };
                     triples
