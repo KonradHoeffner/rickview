@@ -105,8 +105,11 @@ impl GraphEnum {
 }
 
 pub fn kb_reader(filename: &str) -> Result<BufReader<impl std::io::Read>, Box<dyn std::error::Error>> {
-    let reader = if filename.starts_with("http") { ureq::get(filename).call()?.into_reader() } else { Box::new(File::open(filename)?) };
-    Ok(BufReader::new(reader))
+    Ok(BufReader::new(if filename.starts_with("http") {
+        Box::new(ureq::get(filename).call()?.into_body().into_reader()) as Box<dyn std::io::Read>
+    } else {
+        Box::new(File::open(filename)?)
+    }))
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
