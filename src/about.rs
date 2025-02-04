@@ -1,5 +1,5 @@
 //! About page with stats about the package version and the loaded graph.
-use crate::rdf::{graph, titles, types, GraphEnum};
+use crate::rdf::{GraphEnum, graph, titles, types};
 use bytesize::ByteSize;
 use deepsize::DeepSizeOf;
 use sophia::api::graph::Graph;

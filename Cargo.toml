@@ -1,7 +1,7 @@
 [package]
 name = "rickview"
-version = "0.3.9"
-edition = "2021"
+version = "0.4.0"
+edition = "2024"
 license = "MIT"
 keywords = ["rdf", "semantic-web", "linked-data"]
 categories = ["web-programming::http-server"]
@@ -9,7 +9,7 @@ description = "A fast RDF viewer (Linked Data browser)"
 authors = ["Konrad Höffner"]
 readme = "README.md"
 repository = "https://github.com/konradhoeffner/rickview"
-rust-version = "1.80"
+rust-version = "1.85"
 
 [dependencies]
 sophia = "0.9"
@@ -20,7 +20,7 @@ serde = { version = "1", features = ["derive"] }
 config = { version = "0.15", default-features = false, features = ["toml"] }
 log = "0.4"
 env_logger = { version = "0.11", default-features = false, features = ["auto-color"] }
-hdt = { version = "0.2", optional = true }
+hdt = { version = "0.3", optional = true }
 deepsize = { version = "0.2", default-features = false, features = ["std"] }
 bytesize = "2"
 zstd = { version = "0.13", features = ["zstdmt"] }

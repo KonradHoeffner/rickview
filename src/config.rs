@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use sophia::iri::Iri;
 use std::collections::{HashMap, HashSet};
 use std::io::{BufReader, Read};
+use std::str::FromStr;
 use std::sync::OnceLock;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -85,10 +86,17 @@ impl Config {
         if config.base.ends_with('/') {
             config.base.pop();
         }
-        if std::env::var("RUST_LOG").is_err() {
-            std::env::set_var("RUST_LOG", format!("rickview={}", config.log_level.as_ref().unwrap_or(&"info".to_owned())));
-        }
-        env_logger::builder().format_timestamp(None).format_target(false).init();
+        // log level precedence: env var > config key > default value
+        let mut binding = env_logger::Builder::new();
+        let builder = match std::env::var("RUST_LOG") {
+            Err(_) => binding.filter(
+                Some("rickview"),
+                log::LevelFilter::from_str(config.log_level.as_ref().unwrap_or(&"info".to_owned())).unwrap_or(log::LevelFilter::Info),
+            ),
+            _ => &mut env_logger::Builder::from_default_env(),
+        };
+
+        let _ = builder.format_timestamp(None).format_target(false).try_init();
 
         // path relative to executable
         match std::fs::File::open("data/body.html") {

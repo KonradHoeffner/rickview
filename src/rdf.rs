@@ -55,11 +55,7 @@ impl Piri {
     fn embrace(&self) -> String { format!("&lt;{self}&gt;") }
     fn prefixed_string(&self, bold: bool, embrace: bool) -> String {
         if let Some((p, s)) = &self.prefixed {
-            if bold {
-                format!("{p}:<b>{s}</b>")
-            } else {
-                format!("{p}:{s}")
-            }
+            if bold { format!("{p}:<b>{s}</b>") } else { format!("{p}:{s}") }
         } else if embrace {
             self.embrace()
         } else {
@@ -128,7 +124,7 @@ pub fn graph() -> &'static GraphEnum {
                 }
                 Ok(br) => {
                     let br = BufReader::new(br);
-                    let triples = match Path::new(&filename).extension().and_then(std::ffi::OsStr::to_str) {
+                    match Path::new(&filename).extension().and_then(std::ffi::OsStr::to_str) {
                         Some("ttl") => turtle::parse_bufread(br).collect_triples(),
                         Some("nt") => nt::parse_bufread(br).collect_triples(),
                         // error types not compatible
@@ -157,8 +153,7 @@ pub fn graph() -> &'static GraphEnum {
                             warn!("{filename} has no extension: assuming RDF/XML.");
                             Ok(xml::parser::parse_bufread(br).collect_triples().unwrap_or_else(|e| panic!("Error parsing {filename} as RDF/XML: {e}")))
                         }
-                    };
-                    triples
+                    }
                 }
             },
         };
@@ -269,7 +264,7 @@ pub fn types() -> &'static HashMap<String, String> {
                     _ => {
                         warn!("Skipping invalid type {:?} for suffix {suffix} with property <{prop}>.", t.o().as_simple());
                     }
-                };
+                }
             }
         }
         types
@@ -302,11 +297,7 @@ impl From<Property> for (String, Vec<String>) {
 
 /// Map skolemized IRIs back to blank nodes. Keep deskolemized IRIs as they are.
 fn deskolemize<'a>(iri: &'a Iri<&str>) -> SimpleTerm<'a> {
-    if let Some(id) = iri.as_str().split(SKOLEM_START).nth(1) {
-        SimpleTerm::from_term(BnodeId::new_unchecked(id.to_owned()))
-    } else {
-        iri.as_simple()
-    }
+    if let Some(id) = iri.as_str().split(SKOLEM_START).nth(1) { SimpleTerm::from_term(BnodeId::new_unchecked(id.to_owned())) } else { iri.as_simple() }
 }
 
 fn blank_html(props: BTreeMap<String, Property>, depth: usize) -> String {
@@ -383,7 +374,7 @@ fn properties(conn_type: &PropertyType, source: &SimpleTerm<'_>, depth: usize) -
                 values.insert(target_html);
                 map.insert(iri.as_str().to_owned(), values);
             }
-        };
+        }
     }
     map.into_iter()
         .map(|(prop, values)| {
