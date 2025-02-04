@@ -86,7 +86,9 @@ impl Config {
             config.base.pop();
         }
         if std::env::var("RUST_LOG").is_err() {
-            std::env::set_var("RUST_LOG", format!("rickview={}", config.log_level.as_ref().unwrap_or(&"info".to_owned())));
+            unsafe {
+                std::env::set_var("RUST_LOG", format!("rickview={}", config.log_level.as_ref().unwrap_or(&"info".to_owned())));
+            }
         }
         env_logger::builder().format_timestamp(None).format_target(false).init();
 

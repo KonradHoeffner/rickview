@@ -22,15 +22,15 @@ use actix_web::body::MessageBody;
 use actix_web::http::header::{self, ETag, EntityTag};
 use actix_web::middleware::Compress;
 use actix_web::web::scope;
-use actix_web::{get, head, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, get, head, web};
 use const_fnv1a_hash::{fnv1a_hash_32, fnv1a_hash_str_32};
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
 use serde_json::Value;
 use sophia::iri::IriRef;
 use std::error::Error;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::LazyLock;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tinytemplate::TinyTemplate;
 
@@ -72,7 +72,7 @@ fn template() -> TinyTemplate<'static> {
     tt
 }
 
-fn hash_etag<T: ?Sized>(r: &HttpRequest, body: &'static T, shash: &str, quoted: &str, ct: &str) -> impl Responder
+fn hash_etag<T: ?Sized>(r: HttpRequest, body: &'static T, shash: &str, quoted: &str, ct: &str) -> impl Responder
 where &'static T: MessageBody {
     if let Some(e) = r.headers().get(header::IF_NONE_MATCH) {
         if let Ok(s) = e.to_str() {
@@ -87,17 +87,17 @@ where &'static T: MessageBody {
 
 // For maximum robustness, serve CSS, font and icon from any path. Collision with RDF resource URIs unlikely.
 #[get("{_anypath:.*/|}rickview.css")]
-async fn rickview_css(r: HttpRequest) -> impl Responder { hash_etag(&r, RICKVIEW_CSS, &RICKVIEW_CSS_SHASH, &RICKVIEW_CSS_SHASH_QUOTED, "text/css") }
+async fn rickview_css(r: HttpRequest) -> impl Responder { hash_etag(r, RICKVIEW_CSS, &RICKVIEW_CSS_SHASH, &RICKVIEW_CSS_SHASH_QUOTED, "text/css") }
 
 #[get("{_anypath:.*/|}roboto.css")]
-async fn roboto_css(r: HttpRequest) -> impl Responder { hash_etag(&r, ROBOTO_CSS, &ROBOTO_CSS_SHASH, &ROBOTO_CSS_SHASH_QUOTED, "text/css") }
+async fn roboto_css(r: HttpRequest) -> impl Responder { hash_etag(r, ROBOTO_CSS, &ROBOTO_CSS_SHASH, &ROBOTO_CSS_SHASH_QUOTED, "text/css") }
 
 // cached automatically by browser
 #[get("{_anypath:.*/|}roboto300.woff2")]
 async fn roboto300() -> impl Responder { HttpResponse::Ok().content_type("font/woff2").body(ROBOTO300) }
 
 #[get("{_anypath:.*/|}favicon.ico")]
-async fn favicon(r: HttpRequest) -> impl Responder { hash_etag(&r, &FAVICON[..], &FAVICON_SHASH, &FAVICON_SHASH_QUOTED, "image/x-icon") }
+async fn favicon(r: HttpRequest) -> impl Responder { hash_etag(r, &FAVICON[..], &FAVICON_SHASH, &FAVICON_SHASH_QUOTED, "image/x-icon") }
 
 fn res_result(resource: &str, content_type: &str, result: Result<String, Box<dyn Error>>) -> HttpResponse {
     match result {
