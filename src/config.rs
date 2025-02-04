@@ -85,10 +85,15 @@ impl Config {
         if config.base.ends_with('/') {
             config.base.pop();
         }
-        if std::env::var("RUST_LOG").is_err() {
-            std::env::set_var("RUST_LOG", format!("rickview={}", config.log_level.as_ref().unwrap_or(&"info".to_owned())));
-        }
-        env_logger::builder().format_timestamp(None).format_target(false).init();
+        let builder = match std::env::var("RUST_LOG")
+        {
+            _ => env_logger::builder()
+            Err(_) => env_logger::builder()
+        };
+            /*unsafe {
+                std::env::set_var("RUST_LOG", format!("rickview={}", config.log_level.as_ref().unwrap_or(&"info".to_owned())));
+            }*/
+        builder.format_timestamp(None).format_target(false).init();
 
         // path relative to executable
         match std::fs::File::open("data/body.html") {

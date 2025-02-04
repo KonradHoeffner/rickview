@@ -22,15 +22,15 @@ use actix_web::body::MessageBody;
 use actix_web::http::header::{self, ETag, EntityTag};
 use actix_web::middleware::Compress;
 use actix_web::web::scope;
-use actix_web::{get, head, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, get, head, web};
 use const_fnv1a_hash::{fnv1a_hash_32, fnv1a_hash_str_32};
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
 use serde_json::Value;
 use sophia::iri::IriRef;
 use std::error::Error;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::LazyLock;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tinytemplate::TinyTemplate;
 
@@ -72,7 +72,7 @@ fn template() -> TinyTemplate<'static> {
     tt
 }
 
-fn hash_etag<T: ?Sized>(r: &HttpRequest, body: &'static T, shash: &str, quoted: &str, ct: &str) -> impl Responder
+fn hash_etag<T: ?Sized>(r: &HttpRequest, body: &'static T, shash: &str, quoted: &str, ct: &str) -> impl Responder + use<T>
 where &'static T: MessageBody {
     if let Some(e) = r.headers().get(header::IF_NONE_MATCH) {
         if let Ok(s) = e.to_str() {
