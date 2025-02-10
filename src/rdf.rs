@@ -221,7 +221,7 @@ pub fn titles() -> &'static HashMap<String, String> {
                             SimpleTerm::LiteralLanguage(lit, tag) => tagged.insert(tag.as_str().to_owned(), (uri, lit.to_string())),
                             SimpleTerm::LiteralDatatype(lit, _) => tagged.insert(String::new(), (uri, lit.to_string())),
                             _ => warn!("Invalid title value {:?}, skipping", t.o().as_simple()),
-                        };
+                        }
                     }
                 }
             }
