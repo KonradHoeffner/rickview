@@ -65,10 +65,11 @@ jobs:
           context: .
           tags: |
             ${{ steps.meta.outputs.tags }}
-            ghcr.io/konradhoeffner/rickview/build:latest-${{matrix.config.arch}}
+            ghcr.io/konradhoeffner/rickview:latest-${{matrix.config.arch}}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=ghcr.io/konradhoeffner/rickview:master-${{matrix.config.arch}}
           cache-to: type=inline
+          push: true
 
   merge-docker-manifest:
     runs-on: ubuntu-24.04-arm
@@ -83,5 +84,5 @@ jobs:
         uses: Noelware/docker-manifest-action@master
         with:
           inputs: ghcr.io/konradhoeffner/rickview:latest
-          images: ghcr.io/konradhoeffner/rickview/build:latest-amd64,ghcr.io/konradhoeffner/rickview/build:latest-arm64
+          images: ghcr.io/konradhoeffner/rickview:latest-amd64,ghcr.io/konradhoeffner/rickview:latest-arm64
           push: true
