@@ -10,7 +10,7 @@ body:
       label: What happened?
     validations:
       required: true
-  - type: input 
+  - type: input
     id: version
     attributes:
       label: RickView version (lower left corner in the web page)
