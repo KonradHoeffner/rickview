@@ -14,7 +14,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 RUN cargo build --release --bin rickview
 
-FROM gcr.io/distroless/cc-debian12 AS runtime
+FROM chainguard/wolfi-base AS runtime
 COPY --link --from=builder /app/target/release/rickview /usr/local/bin/rickview
 WORKDIR /app
 CMD ["/usr/local/bin/rickview"]
