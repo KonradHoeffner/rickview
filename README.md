@@ -25,11 +25,11 @@ Feel free to browse around!
 
 |CPU Architecture    |OS           |Compiles|Release|Docker                   |
 |--------------------|-------------|--------|-------|-------------------------|
-|AMD64 (x86-64)      |Linux GNU    |yes     |yes    |yes (docker-glibc branch)|
-|AMD64 (x86-64)      |Linux MUSL   |yes     |yes    |yes                      |
+|AMD64 (x86-64)      |Linux GNU    |yes     |yes    |yes                      |
+|AMD64 (x86-64)      |Linux MUSL   |yes     |yes    |not anymore due to DNS problems|
 |AMD64 (x86-64)      |Apple Darwin |yes     |yes    |use a Linux image        |
 |AMD64 (x86-64)      |Windows      |yes     |yes    |use a Linux image        |
-|ARM64 (AArch64)     |Linux        |yes     |yes    |build yourself           |
+|ARM64 (AArch64)     |Linux        |yes     |yes    |yes                      |
 |IA-32 (i386, 32 Bit)|             |no|||
 
 ## Docker
@@ -37,8 +37,6 @@ Feel free to browse around!
 Try it out with the example knowledge base:
 
     docker run --rm -p 8080:8080 ghcr.io/konradhoeffner/rickview
-
-Rootless Docker may have DNS issues when loading an ontology e.g. from GitHub, in those rare cases you can use the larger ghcr.io/konradhoeffner/rickview:glibc image.
 
 ### Docker Compose Example
 
@@ -74,7 +72,7 @@ This requires you to install [Rust including Cargo](https://www.rust-lang.org/to
 Default configuration is stored in `data/default.toml`, which you can override with a custom `data/config.toml` or environment variables.
 Configuration keys are in lower\_snake\_case, while environment variables are prefixed with RICKVIEW\_ and are in SCREAMING\_SNAKE\_CASE.
 For example, `namespace = "http://hitontology.eu/ontology/"` in `config.toml` is equivalent to `RICKVIEW_NAMESPACE=http://hitontology.eu/ontology/` as an environment variable.
-You need to provide a knowledge base in RDF Turtle or HDT format, whose default path is `data/kb.ttl`.
+You need to provide a knowledge base file path or URL, the default is `data/kb.ttl`.
 If you don't, RickView will show a minimal example knowledge base.
 You can add custom HTML to the index page by adding a `data/body.html` file.
 You can add embedded CSS using the `css` environment variable.
@@ -86,7 +84,7 @@ If this is not an issue for you and, for example, you want to display Chinese or
 Compile and run with `cargo run` and then open <http://localhost:8080> in your browser.
 
 ## Supported File Formats
-The recognized formats and extensions are Turtle (`.ttl`), N-Triples (`.nt`), HDT (`.hdt`) as created by [hdt-cpp](https://github.com/rdfhdt/hdt-cpp) and zstd compressed HDT (`.hdt.zst`).
+The recognized RDF serialization formats and extensions to load a knowledge base are Turtle (`.ttl`), N-Triples (`.nt`), RDF/XML (`.rdf`), HDT (`.hdt`) as created by [hdt-cpp](https://github.com/rdfhdt/hdt-cpp) and zstd compressed HDT (`.hdt.zst`).
 
 ## Logging
 The default log level is "info" for RickView and "error" for libraries.
@@ -96,7 +94,7 @@ Override this setting using the `RUST_LOG` env var to configure the log levels o
     RUST_LOG=rickview=debug cargo run
 
 ## Motivation
-Existing RDF browsers like [LodView](https://github.com/LodLive/LodView/) look great but use too much hardware ressources as they are based on interpreted or garbage collected languages.
+Existing RDF browsers like [LodView](https://github.com/LodLive/LodView/) look great but use too much hardware resources as they are based on interpreted or garbage collected languages.
 This leads to long wait times and out of memory errors on typical small scale research VMs with dozens of docker containers for longtime archival of finished research projects, whose results should still be available to enable reproducible science.
 
 ## Goals
@@ -227,7 +225,7 @@ For example, RickView on <http://linkedspending.aksw.org/> uses ~ 2.6 GB RAM and
 ### When to use compression and why not support other compression formats?
 
 [HDT](https://www.rdfhdt.org/) is a compressed binary format that still supports fast querying.
-It can be further compressed but then RickView needs to uncompress it before loading, which in a test with a large knowledge base increased loading time from ~15s to ~17s.
+It can be further compressed but then RickView needs to decompress it before loading, which in a test with a large knowledge base increased loading time from ~15s to ~17s.
 Because decompression is done in streaming mode, this restricts the available compressors and may even result in faster loading if you use a slow drive such as an HDD and a fast CPU.
 zstd was chosen because it compresses and decompresses quickly with a high ratio, supports streaming, and adds little overhead to the RickView binary.
 Brotli compresses extremely slowly on high compression settings while GZip results in much larger file sizes.
