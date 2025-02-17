@@ -21,7 +21,7 @@ impl About {
         let graph_size = match graph() {
             #[cfg(feature = "hdt")]
             GraphEnum::HdtGraph(hdt_graph) => Some(ByteSize(hdt_graph.size_in_bytes() as u64).to_string()),
-            GraphEnum::FastGraph(g) => Some(format!("~{} triples", g.triples().size_hint().0)),
+            GraphEnum::FastGraph(g, _) => Some(format!("~{} triples", g.triples().size_hint().0)),
         };
         About {
             cargo_pkg_version: VERSION,
