@@ -4,6 +4,10 @@ use crate::config::config;
 use crate::resource::Resource;
 #[cfg(feature = "hdt")]
 use hdt::HdtGraph;
+use horned_owl::error::*;
+use horned_owl::io::*;
+use horned_owl::model::*;
+use horned_owl::ontology::set::*;
 use log::*;
 use multimap::MultiMap;
 use sophia::api::graph::Graph;
@@ -27,7 +31,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 #[cfg(feature = "hdt")]
 use zstd::stream::read::Decoder;
@@ -83,7 +87,7 @@ impl From<IriRef<&str>> for Piri {
 pub enum GraphEnum {
     // Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
     // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
-    FastGraph(FastGraph),
+    FastGraph(FastGraph, SetOntology<Arc<str>>),
     #[cfg(feature = "hdt")]
     HdtGraph(HdtGraph),
 }
@@ -97,7 +101,7 @@ impl GraphEnum {
     {
         match self {
             // both graphs produce infallible results
-            GraphEnum::FastGraph(g) => Box::new(g.triples_matching(sm, pm, om).flatten().map(|triple| Ok(triple.map(SimpleTerm::from_term)))),
+            GraphEnum::FastGraph(g, _) => Box::new(g.triples_matching(sm, pm, om).flatten().map(|triple| Ok(triple.map(SimpleTerm::from_term)))),
             #[cfg(feature = "hdt")]
             GraphEnum::HdtGraph(g) => Box::new(g.triples_matching(sm, pm, om).flatten().map(|triple| Ok(triple.map(SimpleTerm::from_term)))),
         }
@@ -174,8 +178,20 @@ pub fn graph() -> &'static GraphEnum {
                 t.elapsed()
             );
         }
-        GraphEnum::FastGraph(g)
+        GraphEnum::FastGraph(g, load_ontology().unwrap())
     })
+}
+
+fn load_ontology() -> Result<SetOntology<ArcStr>, HornedError> {
+    let path = Path::new("data/snik.rdf");
+    let b = Build::<ArcStr>::new();
+    let iri = horned_owl::resolve::path_to_file_iri(&b, path);
+    Ok(horned_owl::io::ParserOutput::rdf(horned_owl::io::rdf::closure_reader::read::<Arc<str>, ArcAnnotatedComponent>(
+        &iri,
+        ParserConfiguration::default(),
+    )?)
+    .decompose()
+    .0)
 }
 
 /// (prefix,iri) pairs from the config
