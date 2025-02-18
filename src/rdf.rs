@@ -7,6 +7,7 @@ use hdt::HdtGraph;
 use horned_owl::error::*;
 use horned_owl::io::*;
 use horned_owl::model::*;
+use horned_owl::ontology::iri_mapped::*;
 use horned_owl::ontology::set::*;
 use log::*;
 use multimap::MultiMap;
@@ -28,6 +29,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::convert::Infallible;
 use std::error::Error;
 use std::fmt;
+use std::fmt::Write;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
@@ -80,6 +82,11 @@ impl From<IriRef<&str>> for Piri {
     fn from(iref: IriRef<&str>) -> Piri { Piri::new(Iri::new_unchecked(&iref)) }
 }
 
+//static COMPILES: OnceLock<SetOntology<Arc<str>>> = OnceLock::new();
+//static FAILS: OnceLock<ArcIRIMappedOntology> = OnceLock::new();
+//use std::cell::RefCell;
+//static FAILS: OnceLock<RefCell<String>> = OnceLock::new();
+
 // Graph cannot be made into a trait object as of Rust 1.67 and Sophia 0.7, see https://github.com/pchampin/sophia_rs/issues/122.
 // Enum is cumbersome but we don't have a choice.
 // There may be a more elegant way in future Rust and Sophia versions.
@@ -88,6 +95,7 @@ pub enum GraphEnum {
     // Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
     // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
     FastGraph(FastGraph, SetOntology<Arc<str>>),
+    //FastGraph(FastGraph, ArcIRIMappedOntology),
     #[cfg(feature = "hdt")]
     HdtGraph(HdtGraph),
 }
@@ -178,18 +186,19 @@ pub fn graph() -> &'static GraphEnum {
                 t.elapsed()
             );
         }
-        GraphEnum::FastGraph(g, load_ontology().unwrap())
+        GraphEnum::FastGraph(g, load_ontology().unwrap().into())
     })
 }
 
 fn load_ontology() -> Result<SetOntology<ArcStr>, HornedError> {
-    let path = Path::new("data/snik.rdf");
+    //let path = Path::new("/home/konrad/projekte/rust/rickview/data/snik.rdf");
     let b = Build::<ArcStr>::new();
-    let iri = horned_owl::resolve::path_to_file_iri(&b, path);
-    Ok(horned_owl::io::ParserOutput::rdf(horned_owl::io::rdf::closure_reader::read::<Arc<str>, ArcAnnotatedComponent>(
-        &iri,
-        ParserConfiguration::default(),
-    )?)
+    //let iri = horned_owl::resolve::path_to_file_iri(&b, path);
+    //let iri = b.iri("file:///home/konrad/projekte/rust/rickview/data/snik.rdf");
+    let mut br = kb_reader("data/annods.owl").unwrap();
+    Ok(horned_owl::io::ParserOutput::<Arc<str>, ArcAnnotatedComponent>::rdf(
+        horned_owl::io::rdf::reader::read_with_build(&mut br, &b, ParserConfiguration::default()).unwrap(),
+    )
     .decompose()
     .0)
 }
@@ -452,7 +461,13 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     let mut all_directs = properties(&PropertyType::Direct, &source, 0);
     let descriptions = convert(config().description_properties.iter().filter_map(|p| all_directs.remove_entry(p)).collect());
     let directs = convert(all_directs);
-    let title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
+    let mut title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
+    if let crate::rdf::GraphEnum::FastGraph(g, o) = graph() {
+        title = String::new();
+        title += "Fast Graph\n";
+        let comp = &o.iter().next().unwrap().component;
+        write!(&mut title, "{:?}", comp);
+    }
     let main_type = types().get(&suffix).cloned();
     let inverses = if config().show_inverse { convert(properties(&PropertyType::Inverse, &source, 0)) } else { Vec::new() };
     Resource {
