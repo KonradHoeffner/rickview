@@ -27,7 +27,8 @@ zstd = { version = "0.13", features = ["zstdmt"] }
 ureq = "3"
 const-fnv1a-hash = "1"
 serde_json = "1"
-horned-owl = "1.0.0"
+#horned-owl = "1"
+horned-owl = { git = "https://github.com/phillord/horned-owl", branch = "devel" }
 
 [features]
 default = ["rdfxml", "hdt"]
