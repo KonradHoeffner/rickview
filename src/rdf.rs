@@ -82,11 +82,6 @@ impl From<IriRef<&str>> for Piri {
     fn from(iref: IriRef<&str>) -> Piri { Piri::new(Iri::new_unchecked(&iref)) }
 }
 
-//static COMPILES: OnceLock<SetOntology<Arc<str>>> = OnceLock::new();
-//static FAILS: OnceLock<ArcIRIMappedOntology> = OnceLock::new();
-//use std::cell::RefCell;
-//static FAILS: OnceLock<RefCell<String>> = OnceLock::new();
-
 // Graph cannot be made into a trait object as of Rust 1.67 and Sophia 0.7, see https://github.com/pchampin/sophia_rs/issues/122.
 // Enum is cumbersome but we don't have a choice.
 // There may be a more elegant way in future Rust and Sophia versions.
@@ -94,8 +89,8 @@ impl From<IriRef<&str>> for Piri {
 pub enum GraphEnum {
     // Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
     // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
-    FastGraph(FastGraph, SetOntology<Arc<str>>),
-    //FastGraph(FastGraph, ArcIRIMappedOntology),
+    //FastGraph(FastGraph, SetOntology<Arc<str>>),
+    FastGraph(FastGraph, ArcIRIMappedOntology),
     #[cfg(feature = "hdt")]
     HdtGraph(HdtGraph),
 }
@@ -197,7 +192,7 @@ fn load_ontology() -> Result<SetOntology<ArcStr>, HornedError> {
     //let iri = b.iri("file:///home/konrad/projekte/rust/rickview/data/snik.rdf");
     let mut br = kb_reader("data/annods.owl").unwrap();
     Ok(horned_owl::io::ParserOutput::<Arc<str>, ArcAnnotatedComponent>::rdf(
-        horned_owl::io::rdf::reader::read_with_build(&mut br, &b, ParserConfiguration::default()).unwrap(),
+        horned_owl::io::rdf::reader::read_with_build(&mut br, &b, ParserConfiguration::default())?,
     )
     .decompose()
     .0)
@@ -462,11 +457,11 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     let descriptions = convert(config().description_properties.iter().filter_map(|p| all_directs.remove_entry(p)).collect());
     let directs = convert(all_directs);
     let mut title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
-    if let crate::rdf::GraphEnum::FastGraph(g, o) = graph() {
+    if let crate::rdf::GraphEnum::FastGraph(_, o) = graph() {
         title = String::new();
         title += "Fast Graph\n";
         let comp = &o.iter().next().unwrap().component;
-        write!(&mut title, "{:?}", comp);
+        write!(&mut title, "{comp:?}").unwrap();
     }
     let main_type = types().get(&suffix).cloned();
     let inverses = if config().show_inverse { convert(properties(&PropertyType::Inverse, &source, 0)) } else { Vec::new() };
