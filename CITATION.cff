@@ -1,0 +1,18 @@
+---
+cff-version: 1.2.0
+title: RickView—A performant RDF browser
+type: software
+authors:
+  - given-names: Konrad
+    family-names: Höffner
+    email: konrad.hoeffner@uni-leipzig.de
+    affiliation: Institute for Medical Informatics, Statistics and Epidemiology (IMISE), Leipzig, Germany
+    orcid: https://orcid.org/0000-0001-7358-3217
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.8290117
+    description: Zenodo archive, all versions
+repository-code: https://github.com/konradhoeffner/rickview
+url: https://crates.io/crates/rickview
+keywords: [RDF, Rust, Linked Data, Linked Data Browser, Semantic Web]
+license: MIT
