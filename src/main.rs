@@ -1,3 +1,4 @@
+#![feature(hash_set_entry)]
 #![warn(missing_docs)]
 #![warn(clippy::pedantic)]
 #![allow(clippy::wildcard_imports)]
@@ -11,6 +12,7 @@
 //! Default configuration is stored in `data/default.toml`, which can be overriden in `data/config.toml` or environment variables.
 //! Configuration keys are in `lower_snake_case`, while environment variables are prefixed with RICKVIEW\_ and are `in SCREAMING_SNAKE_CASE`.
 mod about;
+mod classes;
 /// The main module uses Actix Web to serve resources as HTML and other formats.
 mod config;
 mod rdf;
@@ -238,6 +240,9 @@ async fn about_page() -> impl Responder {
     }
 }
 
+#[get("/classes")]
+async fn class_page() -> impl Responder { HttpResponse::Ok().content_type("text/html").body(crate::classes::class_tree()) }
+
 #[head("{_anypath:.*}")]
 async fn head() -> HttpResponse { HttpResponse::MethodNotAllowed().body("RickView does not support HEAD requests.") }
 
@@ -261,7 +266,7 @@ async fn main() -> std::io::Result<()> {
             .service(roboto300)
             .service(favicon)
             .service(head)
-            .service(scope(&config().base).service(about_page).service(rdf_resource).service(redirect))
+            .service(scope(&config().base).service(about_page).service(class_page).service(rdf_resource).service(redirect))
     })
     .bind(("0.0.0.0", config().port))?
     .run()
