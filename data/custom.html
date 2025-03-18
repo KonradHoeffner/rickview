@@ -1,0 +1,15 @@
+{{ call header with config}}
+  <body>
+    <article>
+      <header>
+        <hgroup>
+          {{- if page.title }}<h1>{page.title}</h1>{{ endif }}
+        </hgroup>
+        <div id="abstract"></div>
+        <aside class="empty"></aside>
+        <div id="directs">
+          {{ if page.body }}<div id="custom">{ page.body | unescaped }</div>{{ endif }}
+        </div>
+      </header>
+    </article>
+{{ call footer with config}}

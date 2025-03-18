@@ -39,7 +39,7 @@ static SKOLEM_START: &str = ".well-known/genid/";
 type PrefixItem = (Prefix<Box<str>>, Iri<Box<str>>);
 
 // Prefixed IRI
-struct Piri {
+pub struct Piri {
     full: String,
     prefixed: Option<(String, String)>,
 }
@@ -49,7 +49,7 @@ impl fmt::Display for Piri {
 }
 
 impl Piri {
-    fn new(iri: Iri<&str>) -> Self {
+    pub fn new(iri: Iri<&str>) -> Self {
         Self { prefixed: prefixes().get_prefixed_pair(iri).map(|(p, ms)| (p.to_string(), String::from(ms))), full: iri.as_str().to_owned() }
     }
     fn embrace(&self) -> String { format!("&lt;{self}&gt;") }
@@ -62,10 +62,14 @@ impl Piri {
             self.to_string()
         }
     }
-    fn short(&self) -> String { self.prefixed_string(false, false) }
-    fn suffix(&self) -> String { self.prefixed.as_ref().map_or_else(|| self.full.clone(), |pair| pair.1.clone()) }
-    fn root_relative(&self) -> String { self.full.replace(config().namespace.as_str(), &(config().base.clone() + "/")) }
+    pub fn short(&self) -> String { self.prefixed_string(false, false) }
+    pub fn suffix(&self) -> String { self.prefixed.as_ref().map_or_else(|| self.full.clone(), |pair| pair.1.clone()) }
+    pub fn root_relative(&self) -> String { self.full.replace(config().namespace.as_str(), &(config().base.clone() + "/")) }
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
+}
+
+impl<T: std::borrow::Borrow<str>> From<&IriRef<T>> for Piri {
+    fn from(iref: &IriRef<T>) -> Piri { Piri::new(Iri::new_unchecked(iref.as_str())) }
 }
 
 impl From<IriRef<&str>> for Piri {
@@ -85,7 +89,7 @@ pub enum GraphEnum {
 }
 
 impl GraphEnum {
-    fn triples_matching<'s, S, P, O>(&'s self, sm: S, pm: P, om: O) -> Box<dyn Iterator<Item = Result<[SimpleTerm<'static>; 3], Infallible>> + 's>
+    pub fn triples_matching<'s, S, P, O>(&'s self, sm: S, pm: P, om: O) -> Box<dyn Iterator<Item = Result<[SimpleTerm<'static>; 3], Infallible>> + 's>
     where
         S: TermMatcher + 's,
         P: TermMatcher + 's,
