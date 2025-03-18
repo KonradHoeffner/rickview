@@ -11,6 +11,7 @@
 //! Default configuration is stored in `data/default.toml`, which can be overriden in `data/config.toml` or environment variables.
 //! Configuration keys are in `lower_snake_case`, while environment variables are prefixed with RICKVIEW\_ and are `in SCREAMING_SNAKE_CASE`.
 mod about;
+mod classes;
 /// The main module uses Actix Web to serve resources as HTML and other formats.
 mod config;
 mod rdf;
@@ -47,6 +48,7 @@ static ROBOTO_CSS_HASH: u32 = fnv1a_hash_str_32(ROBOTO_CSS);
 static ROBOTO300: &[u8] = std::include_bytes!("../fonts/roboto300.woff2");
 static INDEX: &str = std::include_str!("../data/index.html");
 static ABOUT: &str = std::include_str!("../data/about.html");
+static CUSTOM: &str = std::include_str!("../data/custom.html");
 static RUN_ID: AtomicU32 = AtomicU32::new(0);
 
 // 8 chars hexadecimal, not worth it to add base64 dependency to save 2 chars
@@ -58,10 +60,18 @@ static ROBOTO_CSS_SHASH: LazyLock<String> = LazyLock::new(|| format!("{ROBOTO_CS
 static ROBOTO_CSS_SHASH_QUOTED: LazyLock<String> = LazyLock::new(|| format!("\"{}\"", *ROBOTO_CSS_SHASH));
 
 #[derive(Serialize)]
+struct Page {
+    title: String,
+    //subtitle: String,
+    body: String,
+}
+
+#[derive(Serialize)]
 struct Context {
     config: &'static Config,
     about: Option<About>,
     resource: Option<Resource>,
+    page: Option<Page>,
 }
 
 fn template() -> TinyTemplate<'static> {
@@ -71,6 +81,7 @@ fn template() -> TinyTemplate<'static> {
     tt.add_template("resource", RESOURCE).expect("Could not parse resource page template");
     tt.add_template("index", INDEX).expect("Could not parse index page template");
     tt.add_template("about", ABOUT).expect("Could not parse about page template");
+    tt.add_template("custom", CUSTOM).expect("Could not parse about page template");
     tt.add_formatter("uri_to_suffix", |json, output| {
         let s = json.as_str().unwrap_or_else(|| panic!("JSON value is not a string: {json}"));
         let mut s = s.rsplit_once('/').unwrap_or_else(|| panic!("no '/' in URI '{s}'")).1;
@@ -173,7 +184,7 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
                 if accept.contains(HTML) {
                     res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
                     // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
-                    return match template().render("resource", &Context { config: config(), resource: Some(res), about: None }) {
+                    return match template().render("resource", &Context { config: config(), resource: Some(res), about: None, page: None }) {
                         Ok(html) => HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html)),
                         Err(e) => HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(format!("{warning}\n\n{e}")),
                     };
@@ -196,7 +207,7 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
                 return res_result(&prefixed, XML, rdf::serialize_rdfxml(iri.as_ref()));
             }
             if accept.contains(HTML) && output != Some(TTL) {
-                let context = Context { config: config(), about: None, resource: Some(res) };
+                let context = Context { config: config(), about: None, page: None, resource: Some(res) };
                 return match template().render("resource", &context) {
                     Ok(html) => {
                         debug!("{} HTML {:?}", prefixed, t.elapsed());
@@ -218,7 +229,7 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
 
 /// does not get shown when there is a resource whose URI equals the namespace, with or without slash
 fn index() -> HttpResponse {
-    let context = Context { config: config(), about: None, resource: None };
+    let context = Context { config: config(), about: None, page: None, resource: None };
     match template().render("index", &context) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
         Err(e) => error_response("index page", e),
@@ -227,10 +238,20 @@ fn index() -> HttpResponse {
 
 #[get("/about")]
 async fn about_page() -> impl Responder {
-    let context = Context { config: config(), about: Some(About::new()), resource: None };
+    let context = Context { config: config(), about: Some(About::new()), page: None, resource: None };
     match template().render("about", &context) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
         Err(e) => error_response("about page", e),
+    }
+}
+
+#[get("/classes")]
+async fn class_page() -> impl Responder {
+    let body = crate::classes::class_tree();
+    let context = Context { config: config(), about: None, page: Some(Page { title: "Classes".to_owned(), body }), resource: None };
+    match template().render("custom", &context) {
+        Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
+        Err(e) => error_response("class page", e),
     }
 }
 
@@ -257,7 +278,7 @@ async fn main() -> std::io::Result<()> {
             .service(roboto300)
             .service(favicon)
             .service(head)
-            .service(scope(&config().base).service(about_page).service(rdf_resource).service(redirect))
+            .service(scope(&config().base).service(about_page).service(class_page).service(rdf_resource).service(redirect))
     })
     .bind(("0.0.0.0", config().port))?
     .run()
