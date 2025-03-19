@@ -99,14 +99,16 @@ async fn roboto300() -> impl Responder { HttpResponse::Ok().content_type("font/w
 #[get("{_anypath:.*/|}favicon.ico")]
 async fn favicon(r: HttpRequest) -> impl Responder { hash_etag(&r, &FAVICON[..], &FAVICON_SHASH, &FAVICON_SHASH_QUOTED, "image/x-icon") }
 
+fn error_response(source: &str, error: impl std::fmt::Debug) -> HttpResponse {
+    let message = format!("Could not render {source}: {error:?}");
+    error!("{}", message);
+    HttpResponse::InternalServerError().body(message)
+}
+
 fn res_result(resource: &str, content_type: &str, result: Result<String, Box<dyn Error>>) -> HttpResponse {
     match result {
         Ok(s) => HttpResponse::Ok().content_type(content_type).body(s),
-        Err(err) => {
-            let message = format!("Internal server error. Could not render resource {resource}:\n{err}.");
-            error!("{}", message);
-            HttpResponse::InternalServerError().body(message)
-        }
+        Err(e) => error_response(&format!("resource {resource}"), e),
     }
 }
 
@@ -174,9 +176,10 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
                 if accept.contains(HTML) {
                     res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
                     // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
-                    if let Ok(html) = template().render("resource", &res) {
-                        return HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html));
-                    }
+                    return match template().render("resource", &res) {
+                        Ok(html) => HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html)),
+                        Err(e) => HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(format!("{warning}\n\n{e}")),
+                    };
                 }
             }
         }
@@ -203,11 +206,7 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
                         debug!("{} HTML {:?}", prefixed, t.elapsed());
                         HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html))
                     }
-                    Err(err) => {
-                        let message = format!("Internal server error. Could not render resource {prefixed}:\n{err}.");
-                        error!("{}", message);
-                        HttpResponse::InternalServerError().append_header(etag).body(message)
-                    }
+                    Err(err) => error_response(&format!("resource {prefixed}"), err),
                 };
             }
             if !accept.contains(TTL) {
@@ -225,11 +224,7 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
 fn index() -> HttpResponse {
     match template().render("index", config()) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
-        Err(e) => {
-            let message = format!("Could not render index page: {e:?}");
-            error!("{}", message);
-            HttpResponse::InternalServerError().body(message)
-        }
+        Err(e) => error_response("index page", e),
     }
 }
 
@@ -239,11 +234,7 @@ async fn about_page() -> impl Responder {
     merge(&mut config_json, &serde_json::to_value(About::new()).unwrap());
     match template().render("about", &config_json) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
-        Err(e) => {
-            let message = format!("Could not render about page: {e:?}");
-            error!("{}", message);
-            HttpResponse::InternalServerError().body(message)
-        }
+        Err(e) => error_response("about page", e),
     }
 }
 
