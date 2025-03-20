@@ -1,13 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>{title}</title>
-    <base href="{base}/">
-    <link rel="stylesheet" href="rickview.css" type="text/css" />
-    <link rel="stylesheet" href="roboto.css" type="text/css" />
-    <link rel="shortcut icon" href="favicon.ico" />
+{{ call header with header}}
     {{ if css }}<style>{css | unescaped}</style>{{ endif }}
   </head>
   <body>
@@ -32,8 +23,8 @@
           See also:
           <ul>
             {{ if homepage }}<li><a href="{homepage}">Homepage</a></li>{{ endif }}
-			{{ if endpoint }}<li><a href="{endpoint}">SPARQL Endpoint</a></li>{{ endif }}
-			{{ if doc }}<li><a href="{doc}">Documentation</a></li>{{ endif }}
+            {{ if endpoint }}<li><a href="{endpoint}">SPARQL Endpoint</a></li>{{ endif }}
+            {{ if doc }}<li><a href="{doc}">Documentation</a></li>{{ endif }}
           </ul>
         </div>
       </header>

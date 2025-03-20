@@ -34,6 +34,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tinytemplate::TinyTemplate;
 
+static HEADER: &str = std::include_str!("../data/header.html");
 static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
 // extremely low risk of collision, worst case is out of date favicon or CSS
@@ -57,6 +58,7 @@ static ROBOTO_CSS_SHASH_QUOTED: LazyLock<String> = LazyLock::new(|| format!("\"{
 
 fn template() -> TinyTemplate<'static> {
     let mut tt = TinyTemplate::new();
+    tt.add_template("header", HEADER).expect("Could not parse header template");
     tt.add_template("resource", RESOURCE).expect("Could not parse resource page template");
     tt.add_template("index", INDEX).expect("Could not parse index page template");
     tt.add_template("about", ABOUT).expect("Could not parse about page template");
