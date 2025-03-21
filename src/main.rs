@@ -16,7 +16,8 @@ mod config;
 mod rdf;
 mod resource;
 
-use crate::config::config;
+use crate::config::{Config, config};
+use crate::resource::Resource;
 use about::About;
 use actix_web::body::MessageBody;
 use actix_web::http::header::{self, ETag, EntityTag};
@@ -25,8 +26,7 @@ use actix_web::web::scope;
 use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, get, head, web};
 use const_fnv1a_hash::{fnv1a_hash_32, fnv1a_hash_str_32};
 use log::{debug, error, info, trace, warn};
-use serde::Deserialize;
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
 use sophia::iri::IriRef;
 use std::error::Error;
 use std::sync::LazyLock;
@@ -55,6 +55,13 @@ static RICKVIEW_CSS_SHASH: LazyLock<String> = LazyLock::new(|| format!("{RICKVIE
 static RICKVIEW_CSS_SHASH_QUOTED: LazyLock<String> = LazyLock::new(|| format!("\"{}\"", *RICKVIEW_CSS_SHASH));
 static ROBOTO_CSS_SHASH: LazyLock<String> = LazyLock::new(|| format!("{ROBOTO_CSS_HASH:x}"));
 static ROBOTO_CSS_SHASH_QUOTED: LazyLock<String> = LazyLock::new(|| format!("\"{}\"", *ROBOTO_CSS_SHASH));
+
+#[derive(Serialize)]
+struct Context {
+    config: &'static Config,
+    about: Option<About>,
+    resource: Option<Resource>,
+}
 
 fn template() -> TinyTemplate<'static> {
     let mut tt = TinyTemplate::new();
@@ -126,20 +133,6 @@ struct Params {
     output: Option<String>,
 }
 
-// https://github.com/serde-rs/json/issues/377#issuecomment-341490464
-fn merge(a: &mut Value, b: &Value) {
-    match (a, b) {
-        (&mut Value::Object(ref mut a), Value::Object(b)) => {
-            for (k, v) in b {
-                merge(a.entry(k.clone()).or_insert(Value::Null), v);
-            }
-        }
-        (a, b) => {
-            *a = b.clone();
-        }
-    }
-}
-
 #[get("/{suffix:.*}")]
 /// Serve an RDF resource either as HTML or one of various serializations depending on the accept header.
 async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
@@ -201,9 +194,8 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
                 return res_result(&prefixed, XML, rdf::serialize_rdfxml(iri.as_ref()));
             }
             if accept.contains(HTML) && output != Some(TTL) {
-                let mut config_json = serde_json::to_value(config()).unwrap();
-                merge(&mut config_json, &serde_json::to_value(res).unwrap());
-                return match template().render("resource", &config_json) {
+                let context = Context { config: config(), about: None, resource: Some(res) };
+                return match template().render("resource", &context) {
                     Ok(html) => {
                         debug!("{} HTML {:?}", prefixed, t.elapsed());
                         HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html))
@@ -232,9 +224,10 @@ fn index() -> HttpResponse {
 
 #[get("/about")]
 async fn about_page() -> impl Responder {
-    let mut config_json = serde_json::to_value(config()).unwrap();
-    merge(&mut config_json, &serde_json::to_value(About::new()).unwrap());
-    match template().render("about", &config_json) {
+    //let mut config_json = serde_json::to_value(config()).unwrap();
+    //merge(&mut config_json, &serde_json::to_value(About::new()).unwrap());
+    let context = Context { config: config(), about: Some(About::new()), resource: None };
+    match template().render("about", &context) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
         Err(e) => error_response("about page", e),
     }
