@@ -2,34 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <title>About RickView {cargo_pkg_version}</title>
+    <title>About RickView {config.cargo_pkg_version}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <link rel="stylesheet" href="rickview.css" type="text/css" />
     <link rel="stylesheet" href="roboto.css" type="text/css" />
     <link rel="shortcut icon" href="favicon.ico" />
-    {{ if css }}<style>{css | unescaped}</style>{{ endif }}
+    {{ if config.css }}<style>{config.css | unescaped}</style>{{ endif }}
   </head>
   <body>
     <article>
       <header>
         <hgroup>
-          <h1>About RickView {cargo_pkg_version}</h1>
+          <h1>About RickView {config.cargo_pkg_version}</h1>
         </hgroup>
         <div id="abstract">
         </div>
         <aside class="empty"></aside>
         <div id="directs">
           <ul>
-			<li>title index {num_titles} entries with size {titles_size}</li>
-			<li>type index {num_types} entries with size {types_size}</li>
-			<li>graph size {graph_size}</li>
+           <li>title index {about.num_titles} entries with size {about.titles_size}</li>
+           <li>type index {about.num_types} entries with size {about.types_size}</li>
+           <li>graph size {about.graph_size}</li>
           </ul>
         </div>
       </header>
     </article>
     <footer>
       <div id="footer-left">
-        <p><a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">RickView {cargo_pkg_version}</a></p>
+        <p><a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">RickView {config.cargo_pkg_version}</a></p>
         <p><a href="about" class="uppercase">graph stats</a></p>
       </div>
       <div id="footer-right">
