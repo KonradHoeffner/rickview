@@ -35,6 +35,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tinytemplate::TinyTemplate;
 
 static HEADER: &str = std::include_str!("../data/header.html");
+static FOOTER: &str = std::include_str!("../data/footer.html");
 static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
 // extremely low risk of collision, worst case is out of date favicon or CSS
@@ -66,6 +67,7 @@ struct Context {
 fn template() -> TinyTemplate<'static> {
     let mut tt = TinyTemplate::new();
     tt.add_template("header", HEADER).expect("Could not parse header template");
+    tt.add_template("footer", FOOTER).expect("Could not parse footer template");
     tt.add_template("resource", RESOURCE).expect("Could not parse resource page template");
     tt.add_template("index", INDEX).expect("Could not parse index page template");
     tt.add_template("about", ABOUT).expect("Could not parse about page template");
@@ -216,7 +218,8 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
 
 /// does not get shown when there is a resource whose URI equals the namespace, with or without slash
 fn index() -> HttpResponse {
-    match template().render("index", config()) {
+    let context = Context { config: config(), about: None, resource: None };
+    match template().render("index", &context) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
         Err(e) => error_response("index page", e),
     }

@@ -8,12 +8,6 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Header {
-    pub title: Option<String>,
-    pub subtitle: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     /// Server-side common path prefix (scope) that normally matches the last part of the namespace but may also be "" e.g. for local testing.
     /// For example, port 8080, empty base (default) and namespace <http://ab.com/d/> would serve <http://ab.com/d/X> at <localhost:8080/X>.
@@ -21,7 +15,6 @@ pub struct Config {
     /// Don't use a trailing slash, it will be removed.
     /// See also <https://docs.rs/actix-web/latest/actix_web/struct.Scope.html>.
     pub base: String,
-    pub header: Header,
     pub title: Option<String>,
     pub subtitle: Option<String>,
     pub kb_file: Option<String>,

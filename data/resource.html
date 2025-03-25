@@ -1,37 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width,initial-scale=1" />
-		<title>{title}</title>
-		<link rel="stylesheet" href="rickview.css" type="text/css" />
-		<link rel="stylesheet" href="roboto.css" type="text/css" />
-		<link rel="shortcut icon" href="favicon.ico" />
-		{{- if css }}
-		<style>
-			{css | unescaped}
-		</style>
-		{{- endif }}
-	</head>
+{{ call header with config}}
 	<body>
 		<article>
 			<header>
 				<hgroup>
-					<h1>{title }</h1>
-					{{- if depiction }}<img class="depiction" src="{ depiction }" />{{ endif }}
-					<h2> {uri}
-						{{- if main_type }}
+					<h1>{resource.title }</h1>
+					{{- if resource.depiction }}<img class="depiction" src="{ resource.depiction }" />{{ endif }}
+					<h2> {resource.uri}
+						{{- if resource.main_type }}
 						<span class="instance">
-							<a title="<{main_type}>" href="{main_type}" target="_blank">
+							<a title="<{resource.main_type}>" href="{resource.main_type}" target="_blank">
 								<span class="instanceof">an entity of type:</span>
-								<span>{ main_type | uri_to_suffix }</span>
+								<span>{ resource.main_type | uri_to_suffix }</span>
 							</a>
 						</span>
 					{{ endif }}</h2>
 				</hgroup>
 				<div id="abstract">
 					<table>
-						{{- for entry in descriptions }}
+						{{- for entry in resource.descriptions }}
 						<tr>
 							<td class="td1">
 								<label class="c1">{ entry.0 | unescaped }</label>
@@ -49,7 +35,7 @@
 				<aside class="empty"></aside>
 				<div id="directs">
 					<table>
-						{{- for entry in directs }}
+						{{- for entry in resource.directs }}
 						<tr>
 							<td class="td1">
 								<label class="c1">{ entry.0 | unescaped }</label>
@@ -69,7 +55,7 @@
 			<div id="inverses">
 				<h3>inverse relations</h3>
 				<table>
-					{{- for entry in inverses }}
+					{{- for entry in resource.inverses }}
 					<tr>
 						<td class="td1">
 							<label class="c1">is { entry.0 | unescaped } of</label>
@@ -88,10 +74,10 @@
 		<footer>
 			<div id="footer-left">
 				<p>
-					<a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">RickView {cargo_pkg_version}</a>
+					<a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">RickView {config.cargo_pkg_version}</a>
 				</p>
 				<p><a href="about" class="uppercase">graph stats</a></p>
-				<p>{duration}</p>
+				<p>{resource.duration}</p>
 			</div>
 			<div id="footer-right">
 				<ul>
@@ -101,14 +87,14 @@
 						<a href="?output=application/n-triples">ntriples,</a>
 						<a href="?output=application/turtle">turtle</a>
 					</li>
-					{{- if github_issue_url }}
+					{{- if resource.github_issue_url }}
 					<li>
-						<a target="_blank" href="{github_issue_url}">create issue about this resource on GitHub</a>
+						<a target="_blank" href="{resource.github_issue_url}">create issue about this resource on GitHub</a>
 					</li>
 					{{- endif }}
 					<li>
-						{{if github}}
-						<a target="_blank" href="{github}/issues">view issues about the knowledge base on GitHub</a>
+						{{if config.github}}
+						<a target="_blank" href="{config.github}/issues">view issues about the knowledge base on GitHub</a>
 						{{- endif }}
 					</li>
 				</ul>
