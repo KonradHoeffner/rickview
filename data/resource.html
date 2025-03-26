@@ -52,6 +52,7 @@
 				</div>
 			</header>
 			<aside class="empty"></aside>
+			{{- if resource.inverses }}
 			<div id="inverses">
 				<h3>inverse relations</h3>
 				<table>
@@ -70,6 +71,7 @@
 					{{- endfor }}
 				</table>
 			</div>
+			{{- endif }}
 		</article>
 		<footer>
 			<div id="footer-left">

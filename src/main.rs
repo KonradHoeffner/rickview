@@ -173,7 +173,7 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
                 if accept.contains(HTML) {
                     res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
                     // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
-                    return match template().render("resource", &res) {
+                    return match template().render("resource", &Context { config: config(), resource: Some(res), about: None }) {
                         Ok(html) => HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html)),
                         Err(e) => HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(format!("{warning}\n\n{e}")),
                     };
@@ -227,8 +227,6 @@ fn index() -> HttpResponse {
 
 #[get("/about")]
 async fn about_page() -> impl Responder {
-    //let mut config_json = serde_json::to_value(config()).unwrap();
-    //merge(&mut config_json, &serde_json::to_value(About::new()).unwrap());
     let context = Context { config: config(), about: Some(About::new()), resource: None };
     match template().render("about", &context) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
