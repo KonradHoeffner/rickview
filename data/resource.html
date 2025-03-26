@@ -65,7 +65,7 @@
 							{{- for value in entry.1 }} {{ if not @first }}
 							{{- endif }}
 							<span class="c2">{ value | unescaped }</span>
-							{{- endfor }}
+							{{- endfor }}Bone
 						</td>
 					</tr>
 					{{- endfor }}
@@ -94,11 +94,11 @@
 						<a target="_blank" href="{resource.github_issue_url}">create issue about this resource on GitHub</a>
 					</li>
 					{{- endif }}
+					{{if config.github}}
 					<li>
-						{{if config.github}}
 						<a target="_blank" href="{config.github}/issues">view issues about the knowledge base on GitHub</a>
-						{{- endif }}
 					</li>
+					{{- endif }}
 				</ul>
 			</div>
 		</footer>
