@@ -16,7 +16,8 @@ mod config;
 mod rdf;
 mod resource;
 
-use crate::config::config;
+use crate::config::{Config, config};
+use crate::resource::Resource;
 use about::About;
 use actix_web::body::MessageBody;
 use actix_web::http::header::{self, ETag, EntityTag};
@@ -25,8 +26,7 @@ use actix_web::web::scope;
 use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, get, head, web};
 use const_fnv1a_hash::{fnv1a_hash_32, fnv1a_hash_str_32};
 use log::{debug, error, info, trace, warn};
-use serde::Deserialize;
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
 use sophia::iri::IriRef;
 use std::error::Error;
 use std::sync::LazyLock;
@@ -34,6 +34,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tinytemplate::TinyTemplate;
 
+static HEADER: &str = std::include_str!("../data/header.html");
+static FOOTER: &str = std::include_str!("../data/footer.html");
 static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
 // extremely low risk of collision, worst case is out of date favicon or CSS
@@ -55,8 +57,17 @@ static RICKVIEW_CSS_SHASH_QUOTED: LazyLock<String> = LazyLock::new(|| format!("\
 static ROBOTO_CSS_SHASH: LazyLock<String> = LazyLock::new(|| format!("{ROBOTO_CSS_HASH:x}"));
 static ROBOTO_CSS_SHASH_QUOTED: LazyLock<String> = LazyLock::new(|| format!("\"{}\"", *ROBOTO_CSS_SHASH));
 
+#[derive(Serialize)]
+struct Context {
+    config: &'static Config,
+    about: Option<About>,
+    resource: Option<Resource>,
+}
+
 fn template() -> TinyTemplate<'static> {
     let mut tt = TinyTemplate::new();
+    tt.add_template("header", HEADER).expect("Could not parse header template");
+    tt.add_template("footer", FOOTER).expect("Could not parse footer template");
     tt.add_template("resource", RESOURCE).expect("Could not parse resource page template");
     tt.add_template("index", INDEX).expect("Could not parse index page template");
     tt.add_template("about", ABOUT).expect("Could not parse about page template");
@@ -124,20 +135,6 @@ struct Params {
     output: Option<String>,
 }
 
-// https://github.com/serde-rs/json/issues/377#issuecomment-341490464
-fn merge(a: &mut Value, b: &Value) {
-    match (a, b) {
-        (&mut Value::Object(ref mut a), Value::Object(b)) => {
-            for (k, v) in b {
-                merge(a.entry(k.clone()).or_insert(Value::Null), v);
-            }
-        }
-        (a, b) => {
-            *a = b.clone();
-        }
-    }
-}
-
 #[get("/{suffix:.*}")]
 /// Serve an RDF resource either as HTML or one of various serializations depending on the accept header.
 async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
@@ -176,7 +173,7 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
                 if accept.contains(HTML) {
                     res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
                     // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
-                    return match template().render("resource", &res) {
+                    return match template().render("resource", &Context { config: config(), resource: Some(res), about: None }) {
                         Ok(html) => HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html)),
                         Err(e) => HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(format!("{warning}\n\n{e}")),
                     };
@@ -199,9 +196,8 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
                 return res_result(&prefixed, XML, rdf::serialize_rdfxml(iri.as_ref()));
             }
             if accept.contains(HTML) && output != Some(TTL) {
-                let mut config_json = serde_json::to_value(config()).unwrap();
-                merge(&mut config_json, &serde_json::to_value(res).unwrap());
-                return match template().render("resource", &config_json) {
+                let context = Context { config: config(), about: None, resource: Some(res) };
+                return match template().render("resource", &context) {
                     Ok(html) => {
                         debug!("{} HTML {:?}", prefixed, t.elapsed());
                         HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html))
@@ -222,7 +218,8 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
 
 /// does not get shown when there is a resource whose URI equals the namespace, with or without slash
 fn index() -> HttpResponse {
-    match template().render("index", config()) {
+    let context = Context { config: config(), about: None, resource: None };
+    match template().render("index", &context) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
         Err(e) => error_response("index page", e),
     }
@@ -230,9 +227,8 @@ fn index() -> HttpResponse {
 
 #[get("/about")]
 async fn about_page() -> impl Responder {
-    let mut config_json = serde_json::to_value(config()).unwrap();
-    merge(&mut config_json, &serde_json::to_value(About::new()).unwrap());
-    match template().render("about", &config_json) {
+    let context = Context { config: config(), about: Some(About::new()), resource: None };
+    match template().render("about", &context) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
         Err(e) => error_response("about page", e),
     }

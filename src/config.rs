@@ -66,6 +66,8 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 impl Config {
     pub fn new() -> Result<Self, ConfigError> {
+        // configuration precedence: env var > config key > default value
+        // namespaces cannot be configured with env vars
         let mut config: Config = config::Config::builder()
             .add_source(File::from_str(DEFAULT, FileFormat::Toml))
             .add_source(File::new("data/config.toml", FileFormat::Toml).required(false))
@@ -86,7 +88,7 @@ impl Config {
         if config.base.ends_with('/') {
             config.base.pop();
         }
-        // log level precedence: env var > config key > default value
+        // initialize logging here because we want it as early as possible but we need the log level
         let mut binding = env_logger::Builder::new();
         let builder = match std::env::var("RUST_LOG") {
             Err(_) => binding.filter(
@@ -98,6 +100,7 @@ impl Config {
 
         let _ = builder.format_timestamp(None).format_target(false).try_init();
 
+        // optional custom HTML included only in the index.html template
         // path relative to executable
         match std::fs::File::open("data/body.html") {
             Ok(body_file) => {
