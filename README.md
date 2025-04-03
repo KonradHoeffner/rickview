@@ -238,6 +238,43 @@ If you need support for another streaming compressor, please [create an issue](h
 4. Users of LodView can switch without training.
 5. Performance comparisons are easier when the interface is very similar. 
 
+### Can I deploy multiple knowledge graphs or one using OWL imports with a single instance of RickView?
+A single instance of RickView always loads a single file or URL and has a single namespace.
+All triples from the file that are within the namespace are displayed and mapped to the configured base path.
+OWL import statements are treated as normal triples and therefore have no special effects.
+URLs outside of the namespace are then resolved normally by the browser, so hopefully this ontology has an RDF browser behind it.
+If you want to host multiple ontologies or knowledge graphs with RickView, there are several options:
+
+#### Same Domain
+If they are on the same domain and you have control over the common prefix, you can specify that as the namespace.
+For example, the prefixes of [SNIK](https://github.com/snikproject/ontology) include:
+
+```ttl
+@base <http://www.snik.eu/ontology/> .
+@prefix meta: <meta/> .
+@prefix bb: <bb/> .
+@prefix ob: <ob/> .
+```
+
+RickView now runs on the server that hosts the <https://www.snik.eu> website and other things, and all requests to `/ontology` are redirected to RickView.
+We [set the base to `/ontology`](https://github.com/snikproject/docker/blob/master/docker-compose.yml) and merge all SNIK files into a snik.ttl file, which is loaded by RickView.
+In the GitHub repository, the files are stored individually (meta.ttl, bb.ttl,...).
+There is a GitHub Workflow that runs [a merge script](https://github.com/snikproject/ontology/blob/master/.github/workflows/build.yml)
+with every commit, which validates and merges the files and pushes the result to a separate branch "dist".
+When loading the file with RickView, you only need to make sure that the server from GitHub also provides the file and not HTML.
+If you take it directly from the branch, you may need to load the URL with GitHub pages or a service that maps GitHub URLs into ones that download as the raw content.
+
+In practical use, we don't do it that way with SNIK, but have integrated the ontology as a Git submodule in the GitHub repository.
+The reason for this is that during the parallel development of the ontology and the Docker container, you can immediately see the changes without having to wait for the pipeline.
+Furthermore, you can then also check out an old state of the Docker repository and have the correct ontology version from that time.
+For example, if there were changes to the namespace, the RickView configuration must follow the ontology change, and if you want to look at it from two years ago for some reason, you can do that.
+Alternatively instead of the latest commit you can use the latest release via the "latest" reference, which works directly via <https://github.com/myorganization/myrepository/releases/latest/download/myfile.ttl>.
+
+#### Different Domains
+If there are different domains or there is no common path over which you have control or the above methods are too convoluted for your use case, you can just run different RickView instances, which should have a low overhead.
+It can also be easier to manage if the different ontologies are in different repositories.
+For example, then you don't need a separate CI pipeline that merges the files with every commit or release and then attaches the merged file to the release.
+
 ## Community Guidelines
 
 ### Issues and Support
