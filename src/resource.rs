@@ -1,11 +1,5 @@
 use serde::Serialize;
 
-#[derive(Serialize)]
-pub struct Property {
-    pub uri: String,
-    pub tooltip: String,
-}
-
 /// Summary of an RDF resource.
 #[derive(Serialize)]
 pub struct Resource {

@@ -123,7 +123,7 @@ pub fn graph() -> &'static GraphEnum {
             }
             Some(filename) => match kb_reader(filename) {
                 Err(e) => {
-                    error!("Cannot open '{}': {}. Check kb_file data/config.toml or env var RICKVIEW_KB_FILE. EXITING RICKVIEW.", filename, e);
+                    error!("Cannot open '{filename}': {e}. Check kb_file data/config.toml or env var RICKVIEW_KB_FILE. EXITING RICKVIEW.");
                     std::process::exit(1);
                 }
                 Ok(br) => {
@@ -309,10 +309,10 @@ fn blank_html(props: BTreeMap<String, Property>, depth: usize) -> String {
         return "...".to_owned();
     }
     // temporary manchester syntax emulation
-    if let Some(on_property) = props.get("http://www.w3.org/2002/07/owl#onProperty") {
-        if let Some(some) = props.get("http://www.w3.org/2002/07/owl#someValuesFrom") {
-            return format!("{} <b>some</b> {}", on_property.target_htmls.join(", "), some.target_htmls.join(", "));
-        }
+    if let Some(on_property) = props.get("http://www.w3.org/2002/07/owl#onProperty")
+        && let Some(some) = props.get("http://www.w3.org/2002/07/owl#someValuesFrom")
+    {
+        return format!("{} <b>some</b> {}", on_property.target_htmls.join(", "), some.target_htmls.join(", "));
     }
     let indent = "\n".to_owned() + &"\t".repeat(9 + depth);
     let indent2 = indent.clone() + "\t";

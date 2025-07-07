@@ -96,12 +96,11 @@ fn template() -> TinyTemplate<'static> {
 
 fn hash_etag<T: ?Sized>(r: &HttpRequest, body: &'static T, shash: &str, quoted: &str, ct: &str) -> impl Responder + use<T>
 where &'static T: MessageBody {
-    if let Some(e) = r.headers().get(header::IF_NONE_MATCH) {
-        if let Ok(s) = e.to_str() {
-            if s == quoted {
-                return HttpResponse::NotModified().finish();
-            }
-        }
+    if let Some(e) = r.headers().get(header::IF_NONE_MATCH)
+        && let Ok(s) = e.to_str()
+        && s == quoted
+    {
+        return HttpResponse::NotModified().finish();
     }
     let tag = ETag(EntityTag::new_strong(shash.to_owned()));
     HttpResponse::Ok().content_type(ct).append_header((header::CACHE_CONTROL, "public, max-age=31536000, immutable")).append_header(tag).body(body)
@@ -123,7 +122,7 @@ async fn favicon(r: HttpRequest) -> impl Responder { hash_etag(&r, &FAVICON[..],
 
 fn error_response(source: &str, error: impl std::fmt::Debug) -> HttpResponse {
     let message = format!("Could not render {source}: {error:?}");
-    error!("{}", message);
+    error!("{message}");
     HttpResponse::InternalServerError().body(message)
 }
 
@@ -157,12 +156,11 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
     let suffix: &str = &suffix;
     let id = RUN_ID.load(Ordering::Relaxed).to_string();
     let quoted = format!("\"{id}\"");
-    if let Some(e) = r.headers().get(header::IF_NONE_MATCH) {
-        if let Ok(s) = e.to_str() {
-            if s == quoted {
-                return HttpResponse::NotModified().finish();
-            }
-        }
+    if let Some(e) = r.headers().get(header::IF_NONE_MATCH)
+        && let Ok(s) = e.to_str()
+        && s == quoted
+    {
+        return HttpResponse::NotModified().finish();
     }
     let etag = ETag(EntityTag::new_strong(id));
     let output = params.output.as_deref();
@@ -178,25 +176,24 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
             return index();
         }
         let warning = format!("No triples found for {suffix}. Did you configure the namespace correctly?");
-        warn!("{}", warning);
-        if let Some(a) = r.head().headers().get("Accept") {
-            if let Ok(accept) = a.to_str() {
-                if accept.contains(HTML) {
-                    res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
-                    // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
-                    return match template().render("resource", &Context { config: config(), resource: Some(res), about: None, page: None }) {
-                        Ok(html) => HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html)),
-                        Err(e) => HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(format!("{warning}\n\n{e}")),
-                    };
-                }
-            }
+        warn!("{warning}");
+        if let Some(a) = r.head().headers().get("Accept")
+            && let Ok(accept) = a.to_str()
+            && accept.contains(HTML)
+        {
+            res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
+            // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
+            return match template().render("resource", &Context { config: config(), resource: Some(res), about: None, page: None }) {
+                Ok(html) => HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html)),
+                Err(e) => HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(format!("{warning}\n\n{e}")),
+            };
         }
         // return 404 with plain text
         return HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(warning);
     }
     if let Some(a) = r.head().headers().get("Accept") {
         if let Ok(accept) = a.to_str() {
-            trace!("{} accept header {}", prefixed, accept);
+            trace!("{prefixed} accept header {accept}");
             if accept.contains(NT) || output == Some(NT) {
                 debug!("{} N-Triples {:?}", prefixed, t.elapsed());
                 return res_result(&prefixed, NT, rdf::serialize_nt(iri.as_ref()));
@@ -217,11 +214,11 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
                 };
             }
             if !accept.contains(TTL) {
-                warn!("{} accept header {} and 'output' param {:?} not recognized, default to RDF Turtle", prefixed, accept, output);
+                warn!("{prefixed} accept header {accept} and 'output' param {output:?} not recognized, default to RDF Turtle");
             }
         }
     } else {
-        warn!("{} accept header missing, using RDF Turtle", prefixed);
+        warn!("{prefixed} accept header missing, using RDF Turtle");
     }
     debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
     res_result(&prefixed, TTL, rdf::serialize_turtle(iri.as_ref()))
@@ -260,7 +257,7 @@ async fn head() -> HttpResponse { HttpResponse::MethodNotAllowed().body("RickVie
 
 #[get("")]
 /// redirect /base to correct index page /base/
-/// For example, a user may erroneously open http://mydomain.org/ontology but mean http://mydomain.org/ontology/, which should be the base resource if it exists as the latter is inside the namespace.
+/// For example, a user may erroneously open <http://mydomain.org/ontology> but mean <http://mydomain.org/ontology/>, which should be the base resource if it exists as the latter is inside the namespace.
 async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append_header(("location", config().base.clone() + "/")).finish() }
 
 #[actix_web::main]
