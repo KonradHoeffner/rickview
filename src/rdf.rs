@@ -3,7 +3,7 @@
 use crate::config::config;
 use crate::resource::Resource;
 #[cfg(feature = "hdt")]
-use hdt::HdtGraph;
+use hdt::Hdt;
 use log::*;
 use multimap::MultiMap;
 use sophia::api::graph::Graph;
@@ -85,7 +85,7 @@ pub enum GraphEnum {
     // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
     FastGraph(FastGraph),
     #[cfg(feature = "hdt")]
-    HdtGraph(HdtGraph),
+    HdtGraph(Hdt),
 }
 
 impl GraphEnum {
@@ -139,15 +139,15 @@ pub fn graph() -> &'static GraphEnum {
                         #[cfg(feature = "hdt")]
                         Some("zst") if filename.ends_with("hdt.zst") => {
                             let decoder = Decoder::with_buffer(br).expect("Error creating zstd decoder.");
-                            let hdt = hdt::Hdt::new(BufReader::new(decoder)).expect("Error loading HDT.");
+                            let hdt = hdt::Hdt::read(BufReader::new(decoder)).expect("Error loading HDT.");
                             info!("Decompressed and loaded HDT from {filename} in {:?}", t.elapsed());
-                            return GraphEnum::HdtGraph(hdt::HdtGraph::new(hdt));
+                            return GraphEnum::HdtGraph(hdt);
                         }
                         #[cfg(feature = "hdt")]
                         Some("hdt") => {
-                            let hdt_graph = hdt::HdtGraph::new(hdt::Hdt::new(br).unwrap_or_else(|e| panic!("Error loading HDT from {filename}: {e}")));
+                            let hdt = Hdt::read(br).unwrap_or_else(|e| panic!("Error loading HDT from {filename}: {e}"));
                             info!("Loaded HDT from {filename} in {:?}", t.elapsed());
-                            return GraphEnum::HdtGraph(hdt_graph);
+                            return GraphEnum::HdtGraph(hdt);
                         }
                         Some(ext) => {
                             error!("Unknown extension: \"{ext}\": cannot parse knowledge base. Aborting.");
@@ -431,7 +431,7 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     let mut all_directs = properties(&PropertyType::Direct, &source, 0);
     let descriptions = convert(config().description_properties.iter().filter_map(|p| all_directs.remove_entry(p)).collect());
     let directs = convert(all_directs);
-    let title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
+    let title = titles().get(&piri.full).unwrap_or(&suffix).clone().replace(SKOLEM_START, "Blank Node ");
     let main_type = types().get(&suffix).cloned();
     let inverses = if config().show_inverse { convert(properties(&PropertyType::Inverse, &source, 0)) } else { Vec::new() };
     Resource {
