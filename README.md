@@ -9,7 +9,7 @@
 
 Easy to deploy low-resource stand-alone RDF knowledge graph browser written in Rust.
 No SPARQL endpoint needed!
-See also the unpublished [paper draft](https://github.com/KonradHoeffner/rickview/releases/download/0.0.2/paper.pdf).
+See also the unpublished [paper draft](https://github.com/KonradHoeffner/rickview-paper).
 Layout copied from [LodView](https://github.com/LodLive/LodView).
 
 ## Current deployments
