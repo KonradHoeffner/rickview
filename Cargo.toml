@@ -20,7 +20,7 @@ serde = { version = "1", features = ["derive"] }
 config = { version = "0.15", default-features = false, features = ["toml"] }
 log = "0.4"
 env_logger = { version = "0.11", default-features = false, features = ["auto-color"] }
-hdt = { version = "0.4.0-alpha.0", optional = true }
+hdt = { version = "0.4.0", optional = true }
 deepsize = { version = "0.2", default-features = false, features = ["std"] }
 bytesize = "2"
 zstd = { version = "0.13", features = ["zstdmt"] }
