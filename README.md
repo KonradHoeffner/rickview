@@ -6,6 +6,7 @@
 [![RickView @ Leipzig Semantic Web Day 2023 Video](https://img.shields.io/badge/video-8A2BE2)](https://www.youtube.com/watch?v=n8Kb2P8ilwg&t=8250s)
 [![SaxFDM Open Data Award 2024](https://img.shields.io/badge/Open_Data_Award-118811)](https://saxfdm.de/wrapup/)
 [![DOI](https://zenodo.org/badge/472769298.svg)](https://zenodo.org/badge/latestdoi/472769298)
+[![SWH](https://archive.softwareheritage.org/badge/swh:1:dir:1b84548b658e9c6752760e1796a36f9d217f3ba3/)](https://archive.softwareheritage.org/swh:1:dir:1b84548b658e9c6752760e1796a36f9d217f3ba3;origin=https://github.com/KonradHoeffner/rickview;visit=swh:1:snp:782268deea403d27c2cc92fe981732aacf4be55a;anchor=swh:1:rev:2cdfe8d6b503db518ec2f01e59f93eedb378f7ce)
 
 Easy to deploy low-resource stand-alone RDF knowledge graph browser written in Rust.
 No SPARQL endpoint needed!
