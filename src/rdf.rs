@@ -304,6 +304,7 @@ fn deskolemize<'a>(iri: &'a Iri<&str>) -> SimpleTerm<'a> {
     if let Some(id) = iri.as_str().split(SKOLEM_START).nth(1) { SimpleTerm::from_term(BnodeId::new_unchecked(id.to_owned())) } else { iri.as_simple() }
 }
 
+/// Recursively display blank nodes
 fn blank_html(props: BTreeMap<String, Property>, depth: usize) -> String {
     if depth > 9 {
         return "...".to_owned();
@@ -401,7 +402,16 @@ pub fn serialize_rdfxml(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
 /// Export all triples (s,p,o) for a given subject s as RDF Turtle using the config prefixes.
 pub fn serialize_turtle(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
     let config = TurtleConfig::new().with_pretty(true).with_own_prefix_map(prefixes().clone());
-    Ok(TurtleSerializer::new_stringifier_with_config(config).serialize_triples(graph().triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
+    let mut triples: Vec<_> = graph().triples_matching(Some(deskolemize(&iri)), Any, Any).collect();
+    // TODO: in case of blank nodes we want to recurse into them as we are already doing for HTML
+    for res in &triples {
+        let triple = res.as_ref().unwrap();
+        let o = triple.o();
+        if let SimpleTerm::BlankNode(blank) = o {
+            let subtriples = graph().triples_matching(blank, Any, Any).collect();
+        }
+    }
+    Ok(TurtleSerializer::new_stringifier_with_config(config).serialize_triples(triples.into_iter())?.to_string())
 }
 
 /// Export all triples (s,p,o) for a given subject s as N-Triples.
