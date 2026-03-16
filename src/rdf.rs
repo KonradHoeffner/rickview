@@ -2,11 +2,12 @@
 #![allow(rustdoc::bare_urls)]
 use crate::config::config;
 use crate::resource::Resource;
+use anyhow::{Context, Result};
 #[cfg(feature = "hdt")]
 use hdt::Hdt;
 use log::*;
 use multimap::MultiMap;
-use sophia::api::graph::Graph;
+use sophia::api::graph::{Graph, MutableGraph};
 use sophia::api::prefix::{Prefix, PrefixMap};
 use sophia::api::prelude::Triple;
 use sophia::api::serializer::{Stringifier, TripleSerializer};
@@ -104,7 +105,7 @@ impl GraphEnum {
     }
 }
 
-pub fn kb_reader(filename: &str) -> Result<BufReader<impl std::io::Read>, Box<dyn std::error::Error>> {
+pub fn kb_reader(filename: &str) -> anyhow::Result<BufReader<impl std::io::Read>> {
     Ok(BufReader::new(if filename.starts_with("http") {
         Box::new(ureq::get(filename).call()?.into_body().into_reader()) as Box<dyn std::io::Read>
     } else {
@@ -112,79 +113,87 @@ pub fn kb_reader(filename: &str) -> Result<BufReader<impl std::io::Read>, Box<dy
     }))
 }
 
-/// Load RDF graph from the RDF Turtle file specified in the config.
-pub fn graph() -> &'static GraphEnum {
-    use sophia::api::graph::MutableGraph;
+fn load_dir(g: &mut FastGraph, filename: &str) -> anyhow::Result<usize> {
+    info!("Loading all .ttl and .nt files from directory {filename}");
+    std::fs::read_dir(filename)
+        .context("Failed to read directory")?
+        .flatten()
+        .map(|e| -> anyhow::Result<usize> {
+            let p = e.path();
 
-    GRAPH.get_or_init(|| {
-        let t = Instant::now();
-        let mut g = FastGraph::new();
-        let num_triples = match &config().kb_file {
-            None => {
-                warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
-                g.insert_all(turtle::parse_str(EXAMPLE_KB)).expect("Error parsing example knowledge base")
-            }
-            Some(filename) if std::fs::metadata(filename).is_ok_and(|m| m.is_dir()) => {
-                info!("Loading all .ttl and .nt files from directory {filename}");
-                std::fs::read_dir(filename)
-                    .unwrap_or_else(|e| {
-                        error!("Cannot read dir '{filename}': {e}.");
-                        std::process::exit(1);
-                    })
-                    .flatten()
-                    .map(|e| {
-                        let p = e.path();
-                        let reader = || BufReader::new(File::open(&p).unwrap_or_else(|e| panic!("Error opening file {p:?}: {e}")));
-                        match p.extension().and_then(std::ffi::OsStr::to_str) {
-                            Some("ttl") => g.insert_all(turtle::parse_bufread(reader())).expect("Error parsing Turtle"),
-                            Some("nt") => g.insert_all(nt::parse_bufread(reader())).expect("Error loading NT"),
-                            #[cfg(feature = "rdfxml")]
-                            Some("rdf" | "owl") => g.insert_all(xml::parser::parse_bufread(reader())).expect("Error loading RDF/XML"),
-                            _ => 0,
-                        }
-                    })
-                    .sum()
-            }
-            Some(filename) => match kb_reader(filename) {
-                Err(e) => {
-                    error!("Cannot open '{filename}': {e}. Check kb_file data/config.toml or env var RICKVIEW_KB_FILE. EXITING RICKVIEW.");
-                    std::process::exit(1);
-                }
-                Ok(br) => {
-                    match Path::new(&filename).extension().and_then(std::ffi::OsStr::to_str) {
-                        Some("ttl") => g.insert_all(turtle::parse_bufread(br)).expect("Error parsing Turtle"),
-                        Some("nt") => g.insert_all(nt::parse_bufread(br)).expect("Error loading NT"),
-                        // error types not compatible
+            match p.extension().and_then(std::ffi::OsStr::to_str) {
+                Some(ext @ ("ttl" | "nt" | "rdf" | "owl")) => {
+                    let br = BufReader::new(File::open(&p).context("Error opening file")?);
+                    match ext {
+                        "ttl" => g.insert_all(turtle::parse_bufread(br)).context("Error parsing Turtle"),
+                        "nt" => g.insert_all(nt::parse_bufread(br)).context("Error loading N-Triples"),
                         #[cfg(feature = "rdfxml")]
-                        Some("rdf" | "owl") | None => {
-                            g.insert_all(xml::parser::parse_bufread(br)).unwrap_or_else(|e| panic!("Error parsing {filename} as RDF/XML: {e}"))
-                        }
-                        #[cfg(feature = "hdt")]
-                        Some("zst") if filename.ends_with("hdt.zst") => {
-                            let decoder = Decoder::with_buffer(br).expect("Error creating zstd decoder.");
-                            let hdt = hdt::Hdt::read(BufReader::new(decoder)).expect("Error loading HDT.");
-                            info!("Decompressed and loaded HDT from {filename} in {:?}", t.elapsed());
-                            return GraphEnum::HdtGraph(hdt);
-                        }
-                        #[cfg(feature = "hdt")]
-                        Some("hdt") => {
-                            let hdt = Hdt::read(br).unwrap_or_else(|e| panic!("Error loading HDT from {filename}: {e}"));
-                            info!("Loaded HDT from {filename} in {:?}", t.elapsed());
-                            return GraphEnum::HdtGraph(hdt);
-                        }
-                        Some(ext) => {
-                            error!("Unknown extension: \"{ext}\": cannot parse knowledge base. Aborting.");
-                            std::process::exit(1);
-                        }
+                        "rdf" | "owl" => g.insert_all(xml::parser::parse_bufread(br)).context("Error loading RDF/XML"),
+                        _ => Ok(0),
                     }
                 }
-            },
-        };
+                .context("Failed to parse file"),
+                _ => Ok(0),
+            }
+            .with_context(|| format!("Failed to read file {} within directory", p.display()))
+        })
+        .sum()
+}
 
-        if log_enabled!(Level::Info) {
-            info!("Loaded {} FastGraph triples from {} in {:?}", num_triples, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
+fn load_graph() -> anyhow::Result<GraphEnum> {
+    //let load = || -> anyhow::Result<(FastGraph, usize)> {
+    let mut g = FastGraph::new();
+    let t = Instant::now();
+    let num_triples = match &config().kb_file {
+        None => {
+            warn!("No knowledge base configured. Loading example knowledge base. Set kb_file in data/config.toml or env var RICKVIEW_KB_FILE.");
+            g.insert_all(turtle::parse_str(EXAMPLE_KB)).context("Failed to parse example knowledge base")?
         }
-        GraphEnum::FastGraph(g)
+        Some(filename) if std::fs::metadata(filename).is_ok_and(|m| m.is_dir()) => load_dir(&mut g, filename)?,
+        Some(filename) => {
+            let br = kb_reader(filename).context("Cannot read from file or URL.")?;
+            match Path::new(&filename).extension().and_then(std::ffi::OsStr::to_str) {
+                Some("ttl") => g.insert_all(turtle::parse_bufread(br)).context("Failed to parse Turtle"),
+                // error types not compatible
+                #[cfg(feature = "rdfxml")]
+                Some("rdf" | "owl") | None => g.insert_all(xml::parser::parse_bufread(br)).context("Failed to parse RDF/XML"),
+                #[allow(unreachable_patterns)] // None in case feature "rdfxml" is not active
+                Some("nt") | None => g.insert_all(nt::parse_bufread(br)).context("Failed to parse N-Triples"),
+                #[cfg(feature = "hdt")]
+                Some("zst") if filename.ends_with("hdt.zst") => {
+                    let decoder = Decoder::with_buffer(br).context("Failed to create zstd decoder")?;
+                    let hdt = hdt::Hdt::read(BufReader::new(decoder)).context("Failed to load HDT")?;
+                    info!("Decompressed and loaded HDT from {filename} in {:?}", t.elapsed());
+                    return Ok(GraphEnum::HdtGraph(hdt));
+                }
+                #[cfg(feature = "hdt")]
+                Some("hdt") => {
+                    let hdt = Hdt::read(br).context("Failed to load HDT")?;
+                    info!("Loaded HDT from {filename} in {:?}", t.elapsed());
+                    return Ok(GraphEnum::HdtGraph(hdt));
+                }
+                Some(ext) => Err(anyhow::anyhow!("Unknown extension: \"{ext}\": cannot parse knowledge graph.")),
+            }
+            .with_context(|| format!("Failed to load file '{filename}'"))?
+        }
+    };
+    if num_triples == 0 {
+        return Err(anyhow::anyhow!("Graph is empty"));
+    }
+    if log_enabled!(Level::Info) {
+        info!("Loaded {} FastGraph triples from {} in {:?}", num_triples, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
+    }
+    Ok(GraphEnum::FastGraph(g))
+}
+
+/// Load RDF graph from the RDF Turtle file specified in the config.
+pub fn graph() -> &'static GraphEnum {
+    //let (g, num_triples) = load()
+    GRAPH.get_or_init(|| {
+        load_graph().unwrap_or_else(|e| {
+            error!("Fatal error loading graph from {}: {e:?}", &config().kb_file.as_deref().unwrap_or("example kb"));
+            std::process::exit(1);
+        })
     })
 }
 
