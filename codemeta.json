@@ -15,7 +15,7 @@
             "givenName": "Konrad"
         }
     ],
-    "codeRepository": "git+https://github.com/konradhoeffner/rickview",
+    "codeRepository": "git+https://github.com/KonradHoeffner/rickview",
     "dateCreated": "2022-03-22",
     "datePublished": "2022-08-31",
     "description": "Easy to deploy low-resource stand-alone RDF knowledge graph browser written in Rust",
@@ -23,6 +23,7 @@
     "identifier": "10.5281/zenodo.8290117",
     "keywords": [
         "RDF",
+        "Rust",
         "Linked Data",
         "Linked Data Browser",
         "Semantic Web",

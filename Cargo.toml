@@ -8,7 +8,7 @@ categories = ["web-programming::http-server"]
 description = "A fast RDF viewer (Linked Data browser)"
 authors = ["Konrad Höffner"]
 readme = "README.md"
-repository = "https://github.com/konradhoeffner/rickview"
+repository = "https://github.com/KonradHoeffner/rickview"
 rust-version = "1.88"
 
 [dependencies]

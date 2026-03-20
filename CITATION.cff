@@ -12,7 +12,7 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.8290117
     description: Zenodo archive, all versions
-repository-code: https://github.com/konradhoeffner/rickview
+repository-code: https://github.com/KonradHoeffner/rickview
 url: https://crates.io/crates/rickview
-keywords: [RDF, Rust, Linked Data, Linked Data Browser, Semantic Web]
+keywords: [RDF, Rust, Linked Data, Linked Data Browser, Semantic Web, Knowledge Graph]
 license: MIT
