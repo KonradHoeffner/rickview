@@ -28,7 +28,7 @@ use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, get, head
 use const_fnv1a_hash::{fnv1a_hash_32, fnv1a_hash_str_32};
 use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
-use sophia::iri::IriRef;
+use sophia::iri::{Iri, IriRef};
 use std::error::Error;
 use std::sync::LazyLock;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -171,25 +171,31 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
     let mut res = rdf::resource(iri.as_ref());
     // no triples found
     if res.directs.is_empty() && res.inverses.is_empty() {
-        // resource URI equal to namespace takes precedence
         if suffix.is_empty() {
-            return index();
+            // handle knowledge graphs with meta information in URI equal to the namespace with trailing slash removed
+            let iri_noslash = Iri::new_unchecked(iri.as_str().trim_end_matches('/'));
+            res = rdf::resource(iri_noslash);
+            if res.directs.is_empty() && res.inverses.is_empty() {
+                // index page is only shown if resource URI equal to namespace with or without slash does not exist
+                return index();
+            }
+        } else {
+            let warning = format!("No triples found for {suffix}. Did you configure the namespace correctly?");
+            warn!("{warning}");
+            if let Some(a) = r.head().headers().get("Accept")
+                && let Ok(accept) = a.to_str()
+                && accept.contains(HTML)
+            {
+                res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
+                // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
+                return match template().render("resource", &Context { config: config(), resource: Some(res), about: None, page: None }) {
+                    Ok(html) => HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html)),
+                    Err(e) => HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(format!("{warning}\n\n{e}")),
+                };
+            }
+            // return 404 with plain text
+            return HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(warning);
         }
-        let warning = format!("No triples found for {suffix}. Did you configure the namespace correctly?");
-        warn!("{warning}");
-        if let Some(a) = r.head().headers().get("Accept")
-            && let Ok(accept) = a.to_str()
-            && accept.contains(HTML)
-        {
-            res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
-            // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
-            return match template().render("resource", &Context { config: config(), resource: Some(res), about: None, page: None }) {
-                Ok(html) => HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html)),
-                Err(e) => HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(format!("{warning}\n\n{e}")),
-            };
-        }
-        // return 404 with plain text
-        return HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(warning);
     }
     if let Some(a) = r.head().headers().get("Accept") {
         if let Ok(accept) = a.to_str() {

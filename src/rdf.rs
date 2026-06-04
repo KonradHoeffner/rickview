@@ -181,7 +181,7 @@ fn load_graph() -> anyhow::Result<GraphEnum> {
         return Err(anyhow::anyhow!("Graph is empty"));
     }
     if log_enabled!(Level::Info) {
-        info!("Loaded {} FastGraph triples from {} in {:?}", num_triples, &config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
+        info!("Loaded {} FastGraph triples from {} in {:?}", num_triples, config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
     }
     Ok(GraphEnum::FastGraph(g))
 }
@@ -191,7 +191,7 @@ pub fn graph() -> &'static GraphEnum {
     //let (g, num_triples) = load()
     GRAPH.get_or_init(|| {
         load_graph().unwrap_or_else(|e| {
-            error!("Fatal error loading graph from {}: {e:?}", &config().kb_file.as_deref().unwrap_or("example kb"));
+            error!("Fatal error loading graph from {}: {e:?}", config().kb_file.as_deref().unwrap_or("example kb"));
             std::process::exit(1);
         })
     })
