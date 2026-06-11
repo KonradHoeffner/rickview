@@ -17,7 +17,7 @@ use sophia::api::term::{FromTerm, SimpleTerm, Term};
 use sophia::inmem::graph::FastGraph;
 use sophia::iri::{Iri, IriRef};
 use sophia::turtle::parser::{nt, turtle};
-use sophia::turtle::serializer::nt::NtSerializer;
+use sophia::turtle::serializer::nt::NTriplesSerializer;
 use sophia::turtle::serializer::turtle::{TurtleConfig, TurtleSerializer};
 #[cfg(feature = "rdfxml")]
 use sophia::xml::{self, serializer::RdfXmlSerializer};
@@ -90,11 +90,12 @@ pub enum GraphEnum {
 }
 
 impl GraphEnum {
-    pub fn triples_matching<'s, S, P, O>(&'s self, sm: S, pm: P, om: O) -> Box<dyn Iterator<Item = Result<[SimpleTerm<'static>; 3], Infallible>> + 's>
+    pub fn triples_matching<'s, 't, S, P, O>(&'s self, sm: S, pm: P, om: O) -> Box<dyn Iterator<Item = Result<[SimpleTerm<'static>; 3], Infallible>> + 't>
     where
-        S: TermMatcher + 's,
-        P: TermMatcher + 's,
-        O: TermMatcher + 's,
+        's: 't,
+        S: TermMatcher + 't,
+        P: TermMatcher + 't,
+        O: TermMatcher + 't,
     {
         match self {
             // both graphs produce infallible results
@@ -237,7 +238,7 @@ pub fn titles() -> &'static HashMap<String, String> {
                         }
                         let uri = t.s().as_simple().iri().expect("invalid title subject IRI").as_str().to_owned();
                         match t.o() {
-                            SimpleTerm::LiteralLanguage(lit, tag) => tagged.insert(tag.as_str().to_owned(), (uri, lit.to_string())),
+                            SimpleTerm::LiteralLanguage(lit, tag, _) => tagged.insert(tag.as_str().to_owned(), (uri, lit.to_string())),
                             SimpleTerm::LiteralDatatype(lit, _) => tagged.insert(String::new(), (uri, lit.to_string())),
                             _ => warn!("Invalid title value {:?}, skipping", t.o().as_simple()),
                         }
@@ -365,7 +366,7 @@ fn properties(conn_type: &PropertyType, source: &SimpleTerm<'_>, depth: usize) -
             PropertyType::Inverse => triple.s(),
         };
         let target_html = match target_term.as_simple() {
-            SimpleTerm::LiteralLanguage(lit, tag) => format!("{lit} @{}", tag.as_str()),
+            SimpleTerm::LiteralLanguage(lit, tag, _) => format!("{lit} @{}", tag.as_str()),
 
             SimpleTerm::LiteralDatatype(lit, dt) => format!(r#"{lit}<div class="datatype">{}</div>"#, Piri::from(dt.as_ref()).short()),
 
@@ -426,7 +427,7 @@ pub fn serialize_turtle(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
 
 /// Export all triples (s,p,o) for a given subject s as N-Triples.
 pub fn serialize_nt(iri: Iri<&str>) -> Result<String, Box<dyn Error>> {
-    Ok(NtSerializer::new_stringifier().serialize_triples(graph().triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
+    Ok(NTriplesSerializer::new_stringifier().serialize_triples(graph().triples_matching(Some(deskolemize(&iri)), Any, Any))?.to_string())
 }
 
 fn depiction_iri(iri: Iri<&str>) -> Option<String> {

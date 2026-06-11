@@ -148,11 +148,11 @@ struct Params {
 #[get("/{suffix:.*}")]
 /// Serve an RDF resource either as HTML or one of various serializations depending on the accept header.
 async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
-    const NT: &str = "application/n-triples";
-    const TTL: &str = "application/turtle";
+    const MIME_HTML: &str = "text/html";
     #[cfg(feature = "rdfxml")]
-    const XML: &str = "application/rdf+xml";
-    const HTML: &str = "text/html";
+    const MIME_XML: &str = "application/rdf+xml";
+    const MIME_NT: &str = "application/n-triples";
+    const MIME_TTL: &str = "application/turtle";
     let suffix: &str = &suffix;
     let id = RUN_ID.load(Ordering::Relaxed).to_string();
     let quoted = format!("\"{id}\"");
@@ -167,6 +167,40 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
     let t = Instant::now();
     let prefixed = config().prefix.to_string() + ":" + suffix;
 
+    #[derive(PartialEq)]
+    enum Accept {
+        NT,
+        TTL,
+        HTML,
+        #[cfg(feature = "rdfxml")]
+        XML,
+    }
+    use Accept::*;
+
+    let accept: Accept = output
+        .and_then(|o| match o {
+            MIME_NT => Some(NT),
+            MIME_TTL => Some(TTL),
+            #[cfg(feature = "rdfxml")]
+            MIME_XML => Some(XML),
+            MIME_HTML => Some(HTML),
+            _ => None,
+        })
+        .unwrap_or_else(|| {
+            let a = r.head().headers().get("Accept").and_then(|a| a.to_str().ok());
+            match a {
+                Some(ah) if ah.contains(MIME_NT) => NT,
+                Some(ah) if ah.contains(MIME_TTL) => TTL,
+                #[cfg(feature = "rdfxml")]
+                Some(ah) if ah.contains(MIME_XML) => XML,
+                Some(ah) if ah.contains(MIME_HTML) => HTML,
+                _ => {
+                    warn!("{prefixed} accept header {a:?} and 'output' param missing or not recognized, default to RDF Turtle");
+                    TTL
+                }
+            }
+        });
+
     let iri = config().namespace.resolve(IriRef::new_unchecked(suffix));
     let mut res = rdf::resource(iri.as_ref());
     // no triples found
@@ -175,17 +209,15 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
             // handle knowledge graphs with meta information in URI equal to the namespace with trailing slash removed
             let iri_noslash = Iri::new_unchecked(iri.as_str().trim_end_matches('/'));
             res = rdf::resource(iri_noslash);
-            if res.directs.is_empty() && res.inverses.is_empty() {
-                // index page is only shown if resource URI equal to namespace with or without slash does not exist
+            if res.directs.is_empty() && res.inverses.is_empty() && accept == HTML
+            // index page is only shown as HTML and only if resource URI equal to namespace with or without slash does not exist
+            {
                 return index();
             }
         } else {
             let warning = format!("No triples found for {suffix}. Did you configure the namespace correctly?");
             warn!("{warning}");
-            if let Some(a) = r.head().headers().get("Accept")
-                && let Ok(accept) = a.to_str()
-                && accept.contains(HTML)
-            {
+            if accept == HTML {
                 res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
                 // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
                 return match template().render("resource", &Context { config: config(), resource: Some(res), about: None, page: None }) {
@@ -197,37 +229,23 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
             return HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(warning);
         }
     }
-    if let Some(a) = r.head().headers().get("Accept") {
-        if let Ok(accept) = a.to_str() {
-            trace!("{prefixed} accept header {accept}");
-            if accept.contains(NT) || output == Some(NT) {
-                debug!("{} N-Triples {:?}", prefixed, t.elapsed());
-                return res_result(&prefixed, NT, rdf::serialize_nt(iri.as_ref()));
-            }
-            #[cfg(feature = "rdfxml")]
-            if accept.contains(XML) || output == Some(XML) {
-                debug!("{} RDF/XML {:?}", prefixed, t.elapsed());
-                return res_result(&prefixed, XML, rdf::serialize_rdfxml(iri.as_ref()));
-            }
-            if accept.contains(HTML) && output != Some(TTL) {
-                let context = Context { config: config(), about: None, page: None, resource: Some(res) };
-                return match template().render("resource", &context) {
-                    Ok(html) => {
-                        debug!("{} HTML {:?}", prefixed, t.elapsed());
-                        HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html))
-                    }
-                    Err(err) => error_response(&format!("resource {prefixed}"), err),
-                };
-            }
-            if !accept.contains(TTL) {
-                warn!("{prefixed} accept header {accept} and 'output' param {output:?} not recognized, default to RDF Turtle");
+
+    match accept {
+        NT => res_result(&prefixed, MIME_NT, rdf::serialize_nt(iri.as_ref())),
+        TTL => res_result(&prefixed, MIME_TTL, rdf::serialize_turtle(iri.as_ref())),
+        #[cfg(feature = "rdfxml")]
+        XML => res_result(&prefixed, MIME_XML, rdf::serialize_rdfxml(iri.as_ref())),
+        HTML => {
+            let context = Context { config: config(), about: None, page: None, resource: Some(res) };
+            match template().render("resource", &context) {
+                Ok(html) => {
+                    debug!("{} HTML {:?}", prefixed, t.elapsed());
+                    HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html))
+                }
+                Err(err) => error_response(&format!("resource {prefixed}"), err),
             }
         }
-    } else {
-        warn!("{prefixed} accept header missing, using RDF Turtle");
     }
-    debug!("{} RDF Turtle {:?}", prefixed, t.elapsed());
-    res_result(&prefixed, TTL, rdf::serialize_turtle(iri.as_ref()))
 }
 
 /// does not get shown when there is a resource whose URI equals the namespace, with or without slash
