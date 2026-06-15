@@ -26,7 +26,7 @@ use actix_web::middleware::Compress;
 use actix_web::web::scope;
 use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, get, head, web};
 use const_fnv1a_hash::{fnv1a_hash_32, fnv1a_hash_str_32};
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use sophia::iri::{Iri, IriRef};
 use std::error::Error;
@@ -167,36 +167,37 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
     let t = Instant::now();
     let prefixed = config().prefix.to_string() + ":" + suffix;
 
+    #[allow(clippy::items_after_statements)]
     #[derive(PartialEq)]
     enum Accept {
-        NT,
-        TTL,
-        HTML,
+        Nt,
+        Ttl,
+        Html,
         #[cfg(feature = "rdfxml")]
-        XML,
+        Xml,
     }
     use Accept::*;
 
     let accept: Accept = output
         .and_then(|o| match o {
-            MIME_NT => Some(NT),
-            MIME_TTL => Some(TTL),
+            MIME_NT => Some(Nt),
+            MIME_TTL => Some(Ttl),
             #[cfg(feature = "rdfxml")]
-            MIME_XML => Some(XML),
-            MIME_HTML => Some(HTML),
+            MIME_XML => Some(Xml),
+            MIME_HTML => Some(Html),
             _ => None,
         })
         .unwrap_or_else(|| {
             let a = r.head().headers().get("Accept").and_then(|a| a.to_str().ok());
             match a {
-                Some(ah) if ah.contains(MIME_NT) => NT,
-                Some(ah) if ah.contains(MIME_TTL) => TTL,
+                Some(ah) if ah.contains(MIME_NT) => Nt,
+                Some(ah) if ah.contains(MIME_TTL) => Ttl,
                 #[cfg(feature = "rdfxml")]
-                Some(ah) if ah.contains(MIME_XML) => XML,
-                Some(ah) if ah.contains(MIME_HTML) => HTML,
+                Some(ah) if ah.contains(MIME_XML) => Xml,
+                Some(ah) if ah.contains(MIME_HTML) => Html,
                 _ => {
                     warn!("{prefixed} accept header {a:?} and 'output' param missing or not recognized, default to RDF Turtle");
-                    TTL
+                    Ttl
                 }
             }
         });
@@ -209,7 +210,7 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
             // handle knowledge graphs with meta information in URI equal to the namespace with trailing slash removed
             let iri_noslash = Iri::new_unchecked(iri.as_str().trim_end_matches('/'));
             res = rdf::resource(iri_noslash);
-            if res.directs.is_empty() && res.inverses.is_empty() && accept == HTML
+            if res.directs.is_empty() && res.inverses.is_empty() && accept == Html
             // index page is only shown as HTML and only if resource URI equal to namespace with or without slash does not exist
             {
                 return index();
@@ -217,7 +218,7 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
         } else {
             let warning = format!("No triples found for {suffix}. Did you configure the namespace correctly?");
             warn!("{warning}");
-            if accept == HTML {
+            if accept == Html {
                 res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
                 // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
                 return match template().render("resource", &Context { config: config(), resource: Some(res), about: None, page: None }) {
@@ -231,11 +232,11 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
     }
 
     match accept {
-        NT => res_result(&prefixed, MIME_NT, rdf::serialize_nt(iri.as_ref())),
-        TTL => res_result(&prefixed, MIME_TTL, rdf::serialize_turtle(iri.as_ref())),
+        Nt => res_result(&prefixed, MIME_NT, rdf::serialize_nt(iri.as_ref())),
+        Ttl => res_result(&prefixed, MIME_TTL, rdf::serialize_turtle(iri.as_ref())),
         #[cfg(feature = "rdfxml")]
-        XML => res_result(&prefixed, MIME_XML, rdf::serialize_rdfxml(iri.as_ref())),
-        HTML => {
+        Xml => res_result(&prefixed, MIME_XML, rdf::serialize_rdfxml(iri.as_ref())),
+        Html => {
             let context = Context { config: config(), about: None, page: None, resource: Some(res) };
             match template().render("resource", &context) {
                 Ok(html) => {
