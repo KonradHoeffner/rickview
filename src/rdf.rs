@@ -5,7 +5,10 @@ use crate::resource::Resource;
 use anyhow::{Context, Result};
 #[cfg(feature = "hdt")]
 use hdt::Hdt;
+use horned_functional::to_string as to_functional_string;
 use horned_owl::error::*;
+//use horned_functional::AsFunctional;
+use horned_owl::io::ofn::writer::AsFunctional;
 use horned_owl::io::*;
 use horned_owl::model::*;
 //use horned_owl::ontology::iri_mapped::*;
@@ -191,7 +194,7 @@ fn load_graph() -> anyhow::Result<GraphEnum> {
     if log_enabled!(Level::Info) {
         info!("Loaded {} FastGraph triples from {} in {:?}", num_triples, config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
     }
-    Ok(GraphEnum::FastGraph(g,load_ontology().unwrap()))
+    Ok(GraphEnum::FastGraph(g, load_ontology().unwrap()))
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
@@ -202,7 +205,7 @@ pub fn graph() -> &'static GraphEnum {
             error!("Fatal error loading graph from {}: {e:?}", config().kb_file.as_deref().unwrap_or("example kb"));
             std::process::exit(1);
         })
-        })
+    })
 }
 
 fn load_ontology() -> Result<SetOntology<ArcStr>, HornedError> {
@@ -211,9 +214,11 @@ fn load_ontology() -> Result<SetOntology<ArcStr>, HornedError> {
     //let iri = horned_owl::resolve::path_to_file_iri(&b, path);
     //let iri = b.iri("file:///home/konrad/projekte/rust/rickview/data/snik.rdf");
     let mut br = kb_reader("data/annods.owl").unwrap();
-    Ok(horned_owl::io::ParserOutput::<Arc<str>, ArcAnnotatedComponent>::rdf(
-        horned_owl::io::rdf::reader::read_with_build(&mut br, &b, ParserConfiguration::default())?,
-    )
+    Ok(horned_owl::io::ParserOutput::<Arc<str>, ArcAnnotatedComponent>::rdf(horned_owl::io::rdf::reader::read_with_build(
+        &mut br,
+        &b,
+        ParserConfiguration::default(),
+    )?)
     .decompose()
     .0)
 }
@@ -474,10 +479,38 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     let directs = convert(all_directs);
     let mut title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
     if let crate::rdf::GraphEnum::FastGraph(_, o) = graph() {
-        title = String::new();
-        title += "Fast Graph\n";
-        let comp = &o.iter().next().unwrap().component;
-        write!(&mut title, "{comp:?}").unwrap();
+        title.clear();
+        title += &format!("OWL Axioms for {}\n\n", piri.full);
+        //let comp = &o.iter().next().unwrap().component;
+        //write!(&mut title, "{comp:?}").unwrap();
+        let target_iri_bracketed = format!("<{}>", piri.full);
+
+        for annotated_component in o.iter() {
+            // Serialize the axiom to Functional-Style Syntax.
+            // Passing `None` means we aren't providing a custom PrefixMapping,
+            // so it will use full, bracketed URIs.
+            let component = &annotated_component.component;
+            let axiom_str = component.as_functional().to_string();
+
+            // Filter for forward relations by checking the subject of the AST node.
+            // format!("{:?}") is a short hack to avoid deep AST unwrapping.
+            let is_forward = match component {
+                Component::SubClassOf(a) => format!("{:?}", a.sub).contains(&piri.full),
+                Component::ClassAssertion(a) => format!("{:?}", a.i).contains(&piri.full),
+                Component::ObjectPropertyAssertion(a) => format!("{:?}", a.from).contains(&piri.full),
+                Component::DataPropertyAssertion(a) => format!("{:?}", a.from).contains(&piri.full),
+                // Equivalence and Declarations are bidirectional/singular, so allow them through
+                //Component::EquivalentClasses(_) | Component::Declaration(_) => true,
+                Component::EquivalentClasses(_) => true,
+                _ => false,
+            };
+
+            // Only append if it's a forward relation AND mentions our URI
+            if is_forward && axiom_str.contains(&target_iri_bracketed) {
+                title.push_str(&axiom_str);
+                title.push('\n');
+            }
+        }
     }
     let main_type = types().get(&suffix).cloned();
     let inverses = if config().show_inverse { convert(properties(&PropertyType::Inverse, &source, 0)) } else { Vec::new() };

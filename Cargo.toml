@@ -31,6 +31,7 @@ anyhow = "1.0.102"
 #horned-owl = "1"
 # use devel branch of horned-owl to use IRI index in multi threaded context)
 horned-owl = { git = "https://github.com/phillord/horned-owl", branch = "devel" }
+horned-functional = "0.4.0"
 
 [features]
 # temporarily remove rdfxml from default features as sophia/xml currently conflicts with horned-owl
