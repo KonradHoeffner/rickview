@@ -8,7 +8,7 @@ use hdt::Hdt;
 use horned_owl::error::*;
 use horned_owl::io::*;
 use horned_owl::model::*;
-use horned_owl::ontology::iri_mapped::*;
+//use horned_owl::ontology::iri_mapped::*;
 use horned_owl::ontology::set::*;
 use log::*;
 use multimap::MultiMap;
@@ -90,8 +90,8 @@ impl From<IriRef<&str>> for Piri {
 pub enum GraphEnum {
     // Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
     // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
-    //FastGraph(FastGraph, SetOntology<Arc<str>>),
-    FastGraph(FastGraph, ArcIRIMappedOntology),
+    FastGraph(FastGraph, SetOntology<Arc<str>>),
+    //FastGraph(FastGraph, ArcIRIMappedOntology),
     #[cfg(feature = "hdt")]
     HdtGraph(Hdt),
 }
@@ -191,7 +191,7 @@ fn load_graph() -> anyhow::Result<GraphEnum> {
     if log_enabled!(Level::Info) {
         info!("Loaded {} FastGraph triples from {} in {:?}", num_triples, config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
     }
-    Ok(GraphEnum::FastGraph(g))
+    Ok(GraphEnum::FastGraph(g,load_ontology().unwrap()))
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
@@ -201,17 +201,8 @@ pub fn graph() -> &'static GraphEnum {
         load_graph().unwrap_or_else(|e| {
             error!("Fatal error loading graph from {}: {e:?}", config().kb_file.as_deref().unwrap_or("example kb"));
             std::process::exit(1);
-        });
-        if log_enabled!(Level::Debug) {
-            info!(
-                "Loaded ~{} FastGraph triples from {} in {:?}",
-                g.triples().size_hint().0,
-                &config().kb_file.as_deref().unwrap_or("example kb"),
-                t.elapsed()
-            );
-        }
-        GraphEnum::FastGraph(g, load_ontology().unwrap().into())
-    })
+        })
+        })
 }
 
 fn load_ontology() -> Result<SetOntology<ArcStr>, HornedError> {
