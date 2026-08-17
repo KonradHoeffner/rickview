@@ -11,7 +11,7 @@ use horned_owl::error::*;
 use horned_owl::io::ofn::writer::AsFunctional;
 use horned_owl::io::*;
 use horned_owl::model::*;
-//use horned_owl::ontology::iri_mapped::*;
+use horned_owl::ontology::iri_mapped::*;
 use horned_owl::ontology::set::*;
 use log::*;
 use multimap::MultiMap;
@@ -37,7 +37,7 @@ use std::fmt::Write;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock};
 use std::time::Instant;
 #[cfg(feature = "hdt")]
 use zstd::stream::read::Decoder;
@@ -93,8 +93,8 @@ impl From<IriRef<&str>> for Piri {
 pub enum GraphEnum {
     // Sophia: "A heavily indexed graph. Fast to query but slow to load, with a relatively high memory footprint.".
     // Alternatively, use LightGraph, see <https://docs.rs/sophia/latest/sophia/graph/inmem/type.LightGraph.html>.
-    FastGraph(FastGraph, SetOntology<Arc<str>>),
-    //FastGraph(FastGraph, ArcIRIMappedOntology),
+    //FastGraph(FastGraph, SetOntology<Arc<str>>),
+    FastGraph(FastGraph, RwLock<ArcIRIMappedOntology>),
     #[cfg(feature = "hdt")]
     HdtGraph(Hdt),
 }
@@ -194,7 +194,7 @@ fn load_graph() -> anyhow::Result<GraphEnum> {
     if log_enabled!(Level::Info) {
         info!("Loaded {} FastGraph triples from {} in {:?}", num_triples, config().kb_file.as_deref().unwrap_or("example kb"), t.elapsed());
     }
-    Ok(GraphEnum::FastGraph(g, load_ontology().unwrap()))
+    Ok(GraphEnum::FastGraph(g, RwLock::new(load_ontology().unwrap().into())))
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
@@ -213,7 +213,8 @@ fn load_ontology() -> Result<SetOntology<ArcStr>, HornedError> {
     let b = Build::<ArcStr>::new();
     //let iri = horned_owl::resolve::path_to_file_iri(&b, path);
     //let iri = b.iri("file:///home/konrad/projekte/rust/rickview/data/snik.rdf");
-    let mut br = kb_reader("data/annods.owl").unwrap();
+    let mut br = kb_reader("data/anno.rdf").unwrap();
+    //let mut br = kb_reader("data/annods.owl").unwrap();
     Ok(horned_owl::io::ParserOutput::<Arc<str>, ArcAnnotatedComponent>::rdf(horned_owl::io::rdf::reader::read_with_build(
         &mut br,
         &b,
@@ -468,6 +469,7 @@ fn depiction_iri(iri: Iri<&str>) -> Option<String> {
 
 /// Returns the resource with the given IRI from the configured namespace.
 pub fn resource(subject: Iri<&str>) -> Resource {
+    use horned_owl::curie::PrefixMapping;
     let start = Instant::now();
     let piri = Piri::new(subject.as_ref());
     let suffix = piri.suffix();
@@ -479,39 +481,27 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     let directs = convert(all_directs);
     let mut axioms = Vec::new();
     let mut title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
-    if let crate::rdf::GraphEnum::FastGraph(_, o) = graph() {
+    let mut mapping = PrefixMapping::default();
+    mapping.set_default("https://annosaxfdm.de/ontology/");
+    if let crate::rdf::GraphEnum::FastGraph(_, o_lock) = graph() {
         title.clear();
         //title += &format!("OWL Axioms for {}\n\n", piri.full);
         //let comp = &o.iter().next().unwrap().component;
         //write!(&mut title, "{comp:?}").unwrap();
         let target_iri_bracketed = format!("<{}>", piri.full);
 
-        for annotated_component in o.iter() {
+        //for annotated_component in o.iter() {
+        let mut o = o_lock.write().unwrap();
+        let hiri = Build::new_arc().iri(subject.as_str());
+        for annotated_component in o.components_for_iri(&hiri) {
             // Serialize the axiom to Functional-Style Syntax.
             // Passing `None` means we aren't providing a custom PrefixMapping,
             // so it will use full, bracketed URIs.
             let component = &annotated_component.component;
-            let axiom_str = component.as_functional().to_string();
+            //let axiom_str = component.as_functional().to_string();
+            let axiom_str = component.as_functional_with_prefixes(&mapping).to_string();
 
-            // Filter for forward relations by checking the subject of the AST node.
-            // format!("{:?}") is a short hack to avoid deep AST unwrapping.
-            let is_forward = match component {
-                Component::SubClassOf(a) => format!("{:?}", a.sub).contains(&piri.full),
-                Component::ClassAssertion(a) => format!("{:?}", a.i).contains(&piri.full),
-                Component::ObjectPropertyAssertion(a) => format!("{:?}", a.from).contains(&piri.full),
-                Component::DataPropertyAssertion(a) => format!("{:?}", a.from).contains(&piri.full),
-                // Equivalence and Declarations are bidirectional/singular, so allow them through
-                //Component::EquivalentClasses(_) | Component::Declaration(_) => true,
-                Component::EquivalentClasses(_) => true,
-                _ => false,
-            };
-
-            // Only append if it's a forward relation AND mentions our URI
-            if is_forward && axiom_str.contains(&target_iri_bracketed) {
-                axioms.push(axiom_str);
-                //title.push_str(&axiom_str);
-                //title.push('\n');
-            }
+            axioms.push(axiom_str);
         }
     }
     let main_type = types().get(&suffix).cloned();
