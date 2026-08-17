@@ -35,6 +35,11 @@
 				<aside class="empty"></aside>
 				<div id="directs">
 					<table>
+						{{- for entry in resource.axioms }}
+						<tr><td class="td1"></td><td class="td2">
+							{ entry }
+						</td></tr>
+						{{- endfor }}
 						{{- for entry in resource.directs }}
 						<tr>
 							<td class="td1">

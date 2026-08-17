@@ -477,10 +477,11 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     let mut all_directs = properties(&PropertyType::Direct, &source, 0);
     let descriptions = convert(config().description_properties.iter().filter_map(|p| all_directs.remove_entry(p)).collect());
     let directs = convert(all_directs);
+    let mut axioms = Vec::new();
     let mut title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
     if let crate::rdf::GraphEnum::FastGraph(_, o) = graph() {
         title.clear();
-        title += &format!("OWL Axioms for {}\n\n", piri.full);
+        //title += &format!("OWL Axioms for {}\n\n", piri.full);
         //let comp = &o.iter().next().unwrap().component;
         //write!(&mut title, "{comp:?}").unwrap();
         let target_iri_bracketed = format!("<{}>", piri.full);
@@ -507,8 +508,9 @@ pub fn resource(subject: Iri<&str>) -> Resource {
 
             // Only append if it's a forward relation AND mentions our URI
             if is_forward && axiom_str.contains(&target_iri_bracketed) {
-                title.push_str(&axiom_str);
-                title.push('\n');
+                axioms.push(axiom_str);
+                //title.push_str(&axiom_str);
+                //title.push('\n');
             }
         }
     }
@@ -523,6 +525,7 @@ pub fn resource(subject: Iri<&str>) -> Resource {
         main_type,
         descriptions,
         directs,
+        axioms,
         inverses,
         depiction: depiction_iri(subject),
     }
