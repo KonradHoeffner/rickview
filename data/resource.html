@@ -35,8 +35,28 @@
 				<aside class="empty"></aside>
 				<div id="directs">
 					<table>
+						{{ if resource.superclasses }}
+						  <tr>
+								<td class="td1">SubClass Of</td>
+								<td class="td2">
+						      {{- for entry in resource.superclasses }}
+									  <span>{ entry | unescaped }</span><br>
+						      {{- endfor }}
+						    </td>
+							</tr>
+				    {{- endif }}
+						{{ if resource.instances}}
+						  <tr>
+								<td class="td1">instances</td>
+								<td class="td2">
+						      {{- for entry in resource.instances}}
+									  <span>{ entry | unescaped }</span><br>
+						      {{- endfor }}
+						    </td>
+							</tr>
+				    {{- endif }}
 						{{- for entry in resource.axioms }}
-						<tr><td class="td1"></td><td class="td2">
+						<tr><td class="td1">Axiom</td><td class="td2">
 							{ entry }
 						</td></tr>
 						{{- endfor }}

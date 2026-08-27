@@ -58,6 +58,7 @@ impl fmt::Display for Piri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.full) }
 }
 
+/// Prefixed IRI
 impl Piri {
     pub fn new(iri: Iri<&str>) -> Self {
         Self { prefixed: prefixes().get_prefixed_pair(iri).map(|(p, ms)| (p.to_string(), String::from(ms))), full: iri.as_str().to_owned() }
@@ -76,6 +77,16 @@ impl Piri {
     pub fn suffix(&self) -> String { self.prefixed.as_ref().map_or_else(|| self.full.clone(), |pair| pair.1.clone()) }
     pub fn root_relative(&self) -> String { self.full.replace(config().namespace.as_str(), &(config().base.clone() + "/")) }
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
+
+    fn link(&self) -> String {
+        let title = if let Some(title) = titles().get(&self.to_string()) { format!("<br><span>&#8618; {title}</span>") } else { String::new() };
+        let target = if self.to_string().starts_with(config().namespace.as_str()) { "" } else { " target='_blank' " };
+        format!("<a href='{}'{target}>{}{title}</a>", self.root_relative(), self.prefixed_string(false, true))
+    }
+}
+
+impl From<&str> for Piri {
+    fn from(s: &str) -> Piri { Piri::new(Iri::new_unchecked(s)) }
 }
 
 impl<T: std::borrow::Borrow<str>> From<&IriRef<T>> for Piri {
@@ -396,12 +407,7 @@ fn properties(conn_type: &PropertyType, source: &SimpleTerm<'_>, depth: usize) -
 
             SimpleTerm::LiteralDatatype(lit, dt) => format!(r#"{lit}<div class="datatype">{}</div>"#, Piri::from(dt.as_ref()).short()),
 
-            SimpleTerm::Iri(iri) => {
-                let piri = Piri::from(iri.as_ref());
-                let title = if let Some(title) = titles().get(&piri.to_string()) { format!("<br><span>&#8618; {title}</span>") } else { String::new() };
-                let target = if piri.to_string().starts_with(config().namespace.as_str()) { "" } else { " target='_blank' " };
-                format!("<a href='{}'{target}>{}{title}</a>", piri.root_relative(), piri.prefixed_string(false, true))
-            }
+            SimpleTerm::Iri(iri) => Piri::from(iri.as_ref()).link(),
             // https://www.w3.org/TR/rdf11-concepts/ Section 3.5 Replacing Blank Nodes with IRIs
             SimpleTerm::BlankNode(blank) => {
                 let id = blank.as_str();
@@ -479,10 +485,15 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     let mut all_directs = properties(&PropertyType::Direct, &source, 0);
     let descriptions = convert(config().description_properties.iter().filter_map(|p| all_directs.remove_entry(p)).collect());
     let directs = convert(all_directs);
+    let mut superclasses = Vec::new();
+    let mut instances = Vec::new();
     let mut axioms = Vec::new();
     let mut title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
     let mut mapping = PrefixMapping::default();
     mapping.set_default("https://annosaxfdm.de/ontology/");
+    prefixes().iter().for_each(|(prefix, iri)| {
+        mapping.add_prefix(prefix, iri).unwrap();
+    });
     if let crate::rdf::GraphEnum::FastGraph(_, o_lock) = graph() {
         title.clear();
         //title += &format!("OWL Axioms for {}\n\n", piri.full);
@@ -494,14 +505,29 @@ pub fn resource(subject: Iri<&str>) -> Resource {
         let mut o = o_lock.write().unwrap();
         let hiri = Build::new_arc().iri(subject.as_str());
         for annotated_component in o.components_for_iri(&hiri) {
-            // Serialize the axiom to Functional-Style Syntax.
-            // Passing `None` means we aren't providing a custom PrefixMapping,
-            // so it will use full, bracketed URIs.
-            let component = &annotated_component.component;
-            //let axiom_str = component.as_functional().to_string();
-            let axiom_str = component.as_functional_with_prefixes(&mapping).to_string();
+            match &annotated_component.component {
+                Component::SubClassOf(sco) => {
+                    // Ensure the current resource is strictly the subject
+                    if let ClassExpression::Class(sub_cls) = &sco.sub {
+                        if sub_cls.0 == hiri {
+                            if let ClassExpression::Class(sup_cls) = &sco.sup {
+                                superclasses.push(Piri::from(sup_cls.0.as_ref()).link());
+                            } else {
+                                superclasses.push(sco.sup.as_functional_with_prefixes(&mapping).to_string());
+                            }
+                        }
+                    }
+                }
+                component => {
+                    // Serialize the axiom to Functional-Style Syntax.
+                    // Passing `None` means we aren't providing a custom PrefixMapping,
+                    // so it will use full, bracketed URIs.
+                    //let axiom_str = component.as_functional().to_string();
+                    let axiom_str = component.as_functional_with_prefixes(&mapping).to_string();
 
-            axioms.push(axiom_str);
+                    axioms.push(axiom_str);
+                }
+            }
         }
     }
     let main_type = types().get(&suffix).cloned();
@@ -515,6 +541,8 @@ pub fn resource(subject: Iri<&str>) -> Resource {
         main_type,
         descriptions,
         directs,
+        superclasses,
+        instances,
         axioms,
         inverses,
         depiction: depiction_iri(subject),
