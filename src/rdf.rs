@@ -471,9 +471,18 @@ fn depiction_iri(iri: Iri<&str>) -> Option<String> {
         .next()
 }
 
+use horned_owl::curie::PrefixMapping;
+
+fn format_ce(ce: &ClassExpression<Arc<str>>, mapping: &PrefixMapping) -> String {
+    if let ClassExpression::Class(cls) = ce { Piri::from(cls.0.as_ref()).link() } else { ce.as_functional_with_prefixes(mapping).to_string() }
+}
+
+fn format_class(ce: &ClassExpression<Arc<str>>, mapping: &PrefixMapping) -> String {
+    if let ClassExpression::Class(cls) = ce { Piri::from(cls.0.as_ref()).link() } else { ce.as_functional_with_prefixes(mapping).to_string() }
+}
+
 /// Returns the resource with the given IRI from the configured namespace.
 pub fn resource(subject: Iri<&str>) -> Resource {
-    use horned_owl::curie::PrefixMapping;
     let start = Instant::now();
     let piri = Piri::new(subject.as_ref());
     let suffix = piri.suffix();
@@ -484,6 +493,7 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     let descriptions = convert(config().description_properties.iter().filter_map(|p| all_directs.remove_entry(p)).collect());
     let directs = convert(all_directs);
     let mut superclasses = Vec::new();
+    let mut classes = Vec::new();
     let mut instances = Vec::new();
     let mut axioms = Vec::new();
     let mut title = titles().get(&piri.full).unwrap_or(&suffix).to_string().replace(SKOLEM_START, "Blank Node ");
@@ -508,13 +518,21 @@ pub fn resource(subject: Iri<&str>) -> Resource {
                     // Ensure the current resource is strictly the subject
                     if let ClassExpression::Class(sub_cls) = &sco.sub {
                         if sub_cls.0 == hiri {
-                            if let ClassExpression::Class(sup_cls) = &sco.sup {
-                                superclasses.push(Piri::from(sup_cls.0.as_ref()).link());
-                            } else {
-                                superclasses.push(sco.sup.as_functional_with_prefixes(&mapping).to_string());
-                            }
+                            superclasses.push(format_ce(&sco.sup, &mapping));
                         }
                     }
+                }
+                Component::DeclareClass(ca) => {
+                    let class = format_class(ca.0);
+                    println!("push class {class}");
+                    classes.push(class);
+                }
+                Component::OntologyAnnotation(component) => {
+                    let axiom_str = component.as_functional_with_prefixes(&mapping).to_string();
+                    axioms.push(axiom_str + " onto anno");
+                }
+                Component::AnnotationAssertion(component) => {
+                    // those are our "normal triples" that RickView already shows, so skip them here
                 }
                 component => {
                     // Serialize the axiom to Functional-Style Syntax.
@@ -539,6 +557,7 @@ pub fn resource(subject: Iri<&str>) -> Resource {
         main_type,
         descriptions,
         directs,
+        classes,
         superclasses,
         instances,
         axioms,

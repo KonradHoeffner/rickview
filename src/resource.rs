@@ -14,6 +14,7 @@ pub struct Resource {
     pub directs: Vec<(String, Vec<String>)>,
     pub axioms: Vec<String>,
     pub superclasses: Vec<String>,
+    pub classes: Vec<String>,
     pub instances: Vec<String>,
     /// HTML representations of subjects and properties of triples where this resource is an object.
     pub inverses: Vec<(String, Vec<String>)>,

@@ -35,6 +35,16 @@
 				<aside class="empty"></aside>
 				<div id="directs">
 					<table>
+						{{ if resource.classes }}
+						  <tr>
+								<td class="td1">Types</td>
+								<td class="td2">
+						      {{- for entry in resource.classes }}
+									  <span>{ entry | unescaped }</span><br>
+						      {{- endfor }}
+						    </td>
+							</tr>
+				    {{- endif }}
 						{{ if resource.superclasses }}
 						  <tr>
 								<td class="td1">SubClass Of</td>
