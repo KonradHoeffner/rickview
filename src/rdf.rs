@@ -221,15 +221,13 @@ pub fn graph() -> &'static GraphEnum {
 
 fn load_ontology() -> Result<SetOntology<ArcStr>, HornedError> {
     //let path = Path::new("/home/konrad/projekte/rust/rickview/data/snik.rdf");
-    let b = Build::<ArcStr>::new();
     //let iri = horned_owl::resolve::path_to_file_iri(&b, path);
     //let iri = b.iri("file:///home/konrad/projekte/rust/rickview/data/snik.rdf");
     let mut br = kb_reader("data/anno.rdf").unwrap();
     //let mut br = kb_reader("data/annods.owl").unwrap();
-    Ok(horned_owl::io::ParserOutput::<Arc<str>, ArcAnnotatedComponent>::rdf(horned_owl::io::rdf::reader::read_with_build(
+    Ok(horned_owl::io::ParserOutput::<Arc<str>, ArcAnnotatedComponent>::rdf(horned_owl::io::rdf::reader::read(
         &mut br,
-        &b,
-        ParserConfiguration::default(),
+        RDFParserConfiguration::default(),
     )?)
     .decompose()
     .0)
