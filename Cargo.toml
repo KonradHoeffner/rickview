@@ -30,7 +30,8 @@ serde_json = "1"
 anyhow = "1.0.102"
 #horned-owl = "1"
 # use devel branch of horned-owl to use IRI index in multi threaded context)
-horned-owl = { git = "https://github.com/phillord/horned-owl", branch = "devel" }
+#horned-owl = { git = "https://github.com/phillord/horned-owl", branch = "devel" }
+horned-owl = { git = "https://github.com/phillord/horned-owl", branch = "feature/streaming-parsing" }
 horned-functional = "0.4.0"
 
 [features]

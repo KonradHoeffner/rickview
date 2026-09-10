@@ -5,7 +5,6 @@ use crate::resource::Resource;
 use anyhow::{Context, Result};
 #[cfg(feature = "hdt")]
 use hdt::Hdt;
-use horned_functional::to_string as to_functional_string;
 use horned_owl::error::*;
 //use horned_functional::AsFunctional;
 use horned_owl::io::ofn::writer::AsFunctional;
@@ -33,7 +32,6 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::convert::Infallible;
 use std::error::Error;
 use std::fmt;
-use std::fmt::Write;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
@@ -474,12 +472,10 @@ fn depiction_iri(iri: Iri<&str>) -> Option<String> {
 use horned_owl::curie::PrefixMapping;
 
 fn format_ce(ce: &ClassExpression<Arc<str>>, mapping: &PrefixMapping) -> String {
-    if let ClassExpression::Class(cls) = ce { Piri::from(cls.0.as_ref()).link() } else { ce.as_functional_with_prefixes(mapping).to_string() }
+    if let ClassExpression::Class(cls) = ce { format_class(cls) } else { ce.as_functional_with_prefixes(mapping).to_string() }
 }
 
-fn format_class(ce: &ClassExpression<Arc<str>>, mapping: &PrefixMapping) -> String {
-    if let ClassExpression::Class(cls) = ce { Piri::from(cls.0.as_ref()).link() } else { ce.as_functional_with_prefixes(mapping).to_string() }
-}
+fn format_class(cls: &Class<Arc<str>>) -> String { Piri::from(cls.0.as_ref()).link() }
 
 /// Returns the resource with the given IRI from the configured namespace.
 pub fn resource(subject: Iri<&str>) -> Resource {
@@ -522,8 +518,8 @@ pub fn resource(subject: Iri<&str>) -> Resource {
                         }
                     }
                 }
-                Component::DeclareClass(ca) => {
-                    let class = format_class(ca.0);
+                Component::DeclareClass(dc) => {
+                    let class = format_class(&dc.0);
                     println!("push class {class}");
                     classes.push(class);
                 }
@@ -531,7 +527,7 @@ pub fn resource(subject: Iri<&str>) -> Resource {
                     let axiom_str = component.as_functional_with_prefixes(&mapping).to_string();
                     axioms.push(axiom_str + " onto anno");
                 }
-                Component::AnnotationAssertion(component) => {
+                Component::AnnotationAssertion(_) => {
                     // those are our "normal triples" that RickView already shows, so skip them here
                 }
                 component => {
