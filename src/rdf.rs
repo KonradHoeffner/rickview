@@ -479,6 +479,7 @@ fn format_class(cls: &Class<Arc<str>>) -> String { Piri::from(cls.0.as_ref()).li
 
 /// Returns the resource with the given IRI from the configured namespace.
 pub fn resource(subject: Iri<&str>) -> Resource {
+    use horned_owl::model::Individual::*;
     let start = Instant::now();
     let piri = Piri::new(subject.as_ref());
     let suffix = piri.suffix();
@@ -523,11 +524,19 @@ pub fn resource(subject: Iri<&str>) -> Resource {
                     println!("push class {class}");
                     classes.push(class);
                 }
+                Component::ClassAssertion(ca) => match ca.i {
+                    Named(ref ni) => {
+                        let individual = Piri::from(ni.as_ref()).link();
+                        instances.push(individual);
+                    }
+                    _ => {}
+                },
                 Component::OntologyAnnotation(component) => {
                     let axiom_str = component.as_functional_with_prefixes(&mapping).to_string();
                     axioms.push(axiom_str + " onto anno");
                 }
-                Component::AnnotationAssertion(_) => {
+                Component::AnnotationAssertion(x) => {
+                    println!("annotation assertion: {x:?}");
                     // those are our "normal triples" that RickView already shows, so skip them here
                 }
                 component => {
