@@ -121,6 +121,26 @@ a {
   text-decoration: revert;
 }
 
+ul.class-tree, ul.class-tree ul {
+  list-style: none;
+}
+
+ul.class-tree ul {
+  margin-left: 1.25em;
+}
+
+ul.class-tree li {
+  margin: 0.25em 0;
+}
+
+ul.class-tree summary {
+  cursor: pointer;
+}
+
+ul.class-tree summary a {
+  font-weight: 500;
+}
+
 .td1 {
   min-width: 15em;
 }
