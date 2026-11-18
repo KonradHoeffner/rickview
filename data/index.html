@@ -18,6 +18,10 @@
         <aside class="empty"></aside>
         <div id="directs">
           {{ if config.body }}<div id="custom">{ config.body | unescaped }</div>{{ endif }}
+          {{ if classes }}
+          <h3 id="class-tree">Class tree</h3>
+          { classes | unescaped }
+          {{ endif }}
           See also:
           <ul>
             {{ if config.homepage }}<li><a href="{config.homepage}">Homepage</a></li>{{ endif }}

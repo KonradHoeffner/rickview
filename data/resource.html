@@ -49,6 +49,10 @@
 						</tr>
 						{{- endfor }}
 					</table>
+					{{ if classes }}
+					<h3 id="class-tree">Class tree</h3>
+					{ classes | unescaped }
+					{{ endif }}
 				</div>
 			</header>
 			<aside class="empty"></aside>
@@ -65,7 +69,7 @@
 							{{- for value in entry.1 }} {{ if not @first }}
 							{{- endif }}
 							<span class="c2">{ value | unescaped }</span>
-							{{- endfor }}Bone
+							{{- endfor }}
 						</td>
 					</tr>
 					{{- endfor }}
@@ -80,6 +84,7 @@
 				</p>
 				<p><a href="{config.base}/" class="uppercase">home</a></p>
 				<p><a href="about" class="uppercase">graph stats</a></p>
+				<p><a href="{config.base}/#class-tree" class="uppercase">class tree</a></p>
 				<p>{resource.duration}</p>
 			</div>
 			<div id="footer-right">
