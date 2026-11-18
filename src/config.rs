@@ -18,6 +18,17 @@ pub struct Config {
     pub title: Option<String>,
     pub subtitle: Option<String>,
     pub kb_file: Option<String>,
+    /// Parse the knowledge base as OWL and show axioms in addition to the raw triples.
+    /// Only has an effect when `RickView` is compiled with the `owl` feature.
+    #[serde(default = "default_true")]
+    pub owl: bool,
+    /// Optional ontology file used for OWL axioms. Defaults to `kb_file` when it is an RDF/OWL format.
+    /// Set this when the knowledge base is an HDT file or a directory.
+    #[serde(default)]
+    pub ontology_file: Option<String>,
+    /// Syntax used to display OWL axioms, either `manchester` or `functional`.
+    #[serde(default = "default_manchester")]
+    pub owl_syntax: String,
     pub port: u16,
     pub github: Option<String>,
     pub prefix: Box<str>,
@@ -44,6 +55,9 @@ pub struct Config {
     /// disable memory and CPU intensive preprocessing on large knowledge bases
     pub large: bool,
 }
+
+fn default_true() -> bool { true }
+fn default_manchester() -> String { "manchester".to_owned() }
 
 mod iri_serde {
     use serde::{Deserialize, Deserializer, Serializer};

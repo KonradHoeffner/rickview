@@ -15,42 +15,62 @@
 						</span>
 					{{ endif }}</h2>
 				</hgroup>
-				<div id="abstract">
-					<table>
-						{{- for entry in resource.descriptions }}
-						<tr>
-							<td class="td1">
-								<label class="c1">{ entry.0 | unescaped }</label>
-							</td>
-							<td>
-								{{- for value in entry.1 }} {{ if not @first }}
-								{{- endif }}
-								<span class="c2">{ value | unescaped }</span>
-								{{- endfor }}
-							</td>
-						</tr>
-						{{- endfor }}
-					</table>
-				</div>
-				<aside class="empty"></aside>
-				<div id="directs">
-					<table>
-						{{- for entry in resource.directs }}
-						<tr>
-							<td class="td1">
-								<label class="c1">{ entry.0 | unescaped }</label>
-							</td>
-							<td class="td2">
-								{{- for value in entry.1 }} {{ if not @first }}
-								{{- endif }}
-								<span class="c2">{ value | unescaped }</span>
-								{{- endfor }}
-							</td>
-						</tr>
-						{{- endfor }}
-					</table>
-				</div>
 			</header>
+			<div id="abstract">
+				<table>
+					{{- for entry in resource.descriptions }}
+					<tr>
+						<td class="td1">
+							<label class="c1">{ entry.0 | unescaped }</label>
+						</td>
+						<td>
+							{{- for value in entry.1 }} {{ if not @first }}
+							{{- endif }}
+							<span class="c2">{ value | unescaped }</span>
+							{{- endfor }}
+						</td>
+					</tr>
+					{{- endfor }}
+				</table>
+			</div>
+			<aside class="empty"></aside>
+			{{- if resource.ontology }}
+			<div id="ontology">
+				<div class="ontology-header">
+					<span>OWL axioms ({ resource.ontology_syntax } syntax)</span>
+					<a href="?syntax={ resource.ontology_other_syntax }">show { resource.ontology_other_label } syntax</a>
+				</div>
+				<table>
+					{{- for section in resource.ontology }}
+					<tr>
+						<td class="td1">{ section.label }</td>
+						<td class="td2">
+							{{- for entry in section.entries }}
+							<span class="c2">{ entry | unescaped }</span>
+							{{- endfor }}
+						</td>
+					</tr>
+					{{- endfor }}
+				</table>
+			</div>
+			{{- endif }}
+			<div id="directs">
+				<table>
+					{{- for entry in resource.directs }}
+					<tr>
+						<td class="td1">
+							<label class="c1">{ entry.0 | unescaped }</label>
+						</td>
+						<td class="td2">
+							{{- for value in entry.1 }} {{ if not @first }}
+							{{- endif }}
+							<span class="c2">{ value | unescaped }</span>
+							{{- endfor }}
+						</td>
+					</tr>
+					{{- endfor }}
+				</table>
+			</div>
 			<aside class="empty"></aside>
 			{{- if resource.inverses }}
 			<div id="inverses">
@@ -65,7 +85,7 @@
 							{{- for value in entry.1 }} {{ if not @first }}
 							{{- endif }}
 							<span class="c2">{ value | unescaped }</span>
-							{{- endfor }}Bone
+							{{- endfor }}
 						</td>
 					</tr>
 					{{- endfor }}

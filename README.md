@@ -87,6 +87,30 @@ Compile and run with `cargo run` and then open <http://localhost:8080> in your b
 ## Supported File Formats
 The recognized RDF serialization formats and extensions to load a knowledge base are Turtle (`.ttl`), N-Triples (`.nt`), RDF/XML (`.rdf`), HDT (`.hdt`) as created by [hdt-cpp](https://github.com/rdfhdt/hdt-cpp) and zstd compressed HDT (`.hdt.zst`).
 
+## OWL Axioms
+RickView can display OWL axioms about a resource in
+[OWL 2 Manchester syntax](https://www.w3.org/TR/owl2-manchester-syntax/) or
+[OWL 2 functional-style syntax](https://www.w3.org/TR/owl2-syntax/).
+This is optional and off by default, because it adds the [horned-owl](https://crates.io/crates/horned-owl) dependency:
+
+    cargo build --features owl
+
+The OWL source is `ontology_file` if set, otherwise the knowledge base itself when it is a single
+Turtle, N-Triples, RDF/XML, OWL, OWL/XML (`.owx`), functional-style (`.ofn`), Manchester (`.omn`) or OBO file.
+For HDT knowledge bases or directories, set `ontology_file` explicitly, for example:
+
+    ontology_file = "data/ontology.ttl"
+    owl_syntax = "manchester"
+
+OWL is disabled for large knowledge bases (`large = true`) and when the source is an HDT file without
+an `ontology_file`. Parse errors are logged and only disable the ontology section; they never stop
+RickView from serving the RDF graph.
+Switch syntax per page with `?syntax=functional` or `?syntax=manchester`, or set the default with
+`owl_syntax`. The `owl` setting can disable OWL display entirely.
+
+Note that horned-owl is licensed under LGPL-3.0, while RickView itself is MIT licensed.
+If you distribute a binary that includes the `owl` feature, check the LGPL-3.0 requirements.
+
 ## Logging
 The default log level is "info" for RickView and "error" for libraries.
 Change the log level of RickView with the `log_level` configuration key or the `RICKVIEW_LOG_LEVEL` environment variable.

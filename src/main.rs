@@ -14,11 +14,13 @@ mod about;
 mod classes;
 /// The main module uses Actix Web to serve resources as HTML and other formats.
 mod config;
+#[cfg(feature = "owl")]
+mod owl;
 mod rdf;
 mod resource;
 
 use crate::config::{Config, config};
-use crate::resource::Resource;
+use crate::resource::{OwlSyntax, Resource};
 use about::About;
 use actix_web::body::MessageBody;
 use actix_web::http::header::{self, ETag, EntityTag};
@@ -143,6 +145,8 @@ fn add_hashes(body: &str) -> String {
 #[derive(Deserialize)]
 struct Params {
     output: Option<String>,
+    /// Display OWL axioms in `manchester` or `functional` syntax.
+    syntax: Option<String>,
 }
 
 #[get("/{suffix:.*}")]
@@ -202,14 +206,15 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
             }
         });
 
+    let syntax = params.syntax.as_deref().and_then(OwlSyntax::from_str).unwrap_or_else(|| OwlSyntax::from_str(&config().owl_syntax).unwrap_or_default());
     let iri = config().namespace.resolve(IriRef::new_unchecked(suffix));
-    let mut res = rdf::resource(iri.as_ref());
+    let mut res = rdf::resource(iri.as_ref(), syntax);
     // no triples found
     if res.directs.is_empty() && res.inverses.is_empty() {
         if suffix.is_empty() {
             // handle knowledge graphs with meta information in URI equal to the namespace with trailing slash removed
             let iri_noslash = Iri::new_unchecked(iri.as_str().trim_end_matches('/'));
-            res = rdf::resource(iri_noslash);
+            res = rdf::resource(iri_noslash, syntax);
             if res.directs.is_empty() && res.inverses.is_empty() && accept == Html
             // index page is only shown as HTML and only if resource URI equal to namespace with or without slash does not exist
             {
