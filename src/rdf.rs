@@ -1,7 +1,7 @@
 //! Load the RDF graph and summarize RDF resources.
 #![allow(rustdoc::bare_urls)]
 use crate::config::config;
-use crate::resource::{OntologySection, OwlSyntax, Resource};
+use crate::resource::{OntologySection, Resource};
 use anyhow::{Context, Result};
 #[cfg(feature = "hdt")]
 use hdt::Hdt;
@@ -713,13 +713,13 @@ fn depiction_iri(iri: Iri<&str>) -> Option<String> {
 }
 
 #[cfg(feature = "owl")]
-fn ontology_sections(iri: &str, syntax: OwlSyntax) -> Vec<OntologySection> { crate::owl::sections(iri, syntax) }
+fn ontology_sections(iri: &str) -> Vec<OntologySection> { crate::owl::sections(iri) }
 
 #[cfg(not(feature = "owl"))]
-fn ontology_sections(_iri: &str, _syntax: OwlSyntax) -> Vec<OntologySection> { Vec::new() }
+fn ontology_sections(_iri: &str) -> Vec<OntologySection> { Vec::new() }
 
 /// Returns the resource with the given IRI from the configured namespace.
-pub fn resource(subject: Iri<&str>, syntax: OwlSyntax) -> Resource {
+pub fn resource(subject: Iri<&str>) -> Resource {
     let start = Instant::now();
     let piri = Piri::new(subject.as_ref());
     let suffix = piri.suffix();
@@ -730,7 +730,7 @@ pub fn resource(subject: Iri<&str>, syntax: OwlSyntax) -> Resource {
     let descriptions = convert(config().description_properties.iter().filter_map(|p| all_directs.remove_entry(p)).collect());
     let directs = convert(all_directs);
     let title = titles().get(&piri.full).unwrap_or(&suffix).clone().replace(SKOLEM_START, "Blank Node ");
-    let ontology = ontology_sections(&piri.full, syntax);
+    let ontology = ontology_sections(&piri.full);
     let main_type = types().get(&suffix).cloned();
     let inverses = if config().show_inverse { convert(properties(&PropertyType::Inverse, &source, 0)) } else { Vec::new() };
     Resource {
@@ -743,9 +743,6 @@ pub fn resource(subject: Iri<&str>, syntax: OwlSyntax) -> Resource {
         descriptions,
         directs,
         ontology,
-        ontology_syntax: syntax.label().to_owned(),
-        ontology_other_syntax: syntax.other().as_str().to_owned(),
-        ontology_other_label: syntax.other().label().to_owned(),
         inverses,
         depiction: depiction_iri(subject),
     }

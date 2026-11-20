@@ -26,9 +26,6 @@ pub struct Config {
     /// Set this when the knowledge base is an HDT file or a directory.
     #[serde(default)]
     pub ontology_file: Option<String>,
-    /// Syntax used to display OWL axioms, either `manchester` or `functional`.
-    #[serde(default = "default_manchester")]
-    pub owl_syntax: String,
     pub port: u16,
     pub github: Option<String>,
     pub prefix: Box<str>,
@@ -57,7 +54,6 @@ pub struct Config {
 }
 
 fn default_true() -> bool { true }
-fn default_manchester() -> String { "manchester".to_owned() }
 
 mod iri_serde {
     use serde::{Deserialize, Deserializer, Serializer};
