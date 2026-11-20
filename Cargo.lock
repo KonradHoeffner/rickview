@@ -918,9 +918,9 @@ dependencies = [
 
 [[package]]
 name = "horned-owl"
-version = "4.0.0"
+version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8134a59b919c125e37395aede4b68137dd16fb5820be983d55fb228ccd362527"
+checksum = "b25da05a517d76c07df773f316937e6246e6b4dfacaa05db21ca47e8f78e5e36"
 dependencies = [
  "curie",
  "enum_meta",

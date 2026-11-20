@@ -19,8 +19,6 @@ owl = true
 # Optional separate ontology file, needed when kb_file is an HDT file or a directory.
 # Supported extensions: ttl, nt, rdf, owl, ofn, omn, owx and obo.
 # ontology_file = "data/ontology.ttl"
-# Either "manchester" or "functional". Append ?syntax=functional to a resource URL to switch.
-owl_syntax = "manchester"
 [header]
 title = "test title"
 subtitle = "test subtitle"
