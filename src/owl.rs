@@ -136,13 +136,21 @@ pub fn sections(iri: &str, syntax: OwlSyntax) -> Vec<OntologySection> {
     const ORDER: &[&str] = &[
         "Types", "Sub Class Of", "Super Class Of", "Equivalent To", "Disjoint With", "Disjoint Union Of", "Domain", "Range", "In Domain Of",
         "In Range Of", "Characteristics", "Sub Property Of", "Super Property Of", "Inverse Of", "Has Key", "Key For", "Same As", "Different From",
-        "Instances", "Rules",
+        "Instances", "Rules", "Referenced In",
     ];
     let Some(index) = index() else { return Vec::new() };
     let Some(indices) = index.by_iri.get(iri) else { return Vec::new() };
     let mut sections = BTreeMap::<String, BTreeSet<String>>::new();
     for i in indices {
-        classify(&index.components[*i].component, iri, syntax, &mut sections);
+        let component = &index.components[*i].component;
+        let mut component_sections = BTreeMap::new();
+        classify(component, iri, syntax, &mut component_sections);
+        if component_sections.is_empty() && !is_ignored(component) {
+            push(&mut component_sections, "Referenced In", render_component(component, syntax));
+        }
+        for (label, entries) in component_sections {
+            sections.entry(label).or_default().extend(entries);
+        }
     }
     let mut result = Vec::new();
     for label in ORDER {
@@ -233,6 +241,31 @@ fn render_sub_property(sub: &SubObjectPropertyExpression<ArcStr>, syntax: OwlSyn
 }
 
 fn render_component(component: &Component<ArcStr>, syntax: OwlSyntax) -> String { linkify(&render_as!(component, syntax)) }
+
+/// Components that are already visible as ordinary RDF triples and therefore get no OWL section.
+fn is_ignored(component: &Component<ArcStr>) -> bool {
+    matches!(
+        component,
+        Component::AnnotationAssertion(_)
+            | Component::OntologyAnnotation(_)
+            | Component::OntologyID { .. }
+            | Component::DocIRI(_)
+            | Component::Import(_)
+            | Component::DeclareClass(_)
+            | Component::DeclareObjectProperty(_)
+            | Component::DeclareAnnotationProperty(_)
+            | Component::DeclareDataProperty(_)
+            | Component::DeclareNamedIndividual(_)
+            | Component::DeclareDatatype(_)
+            | Component::ObjectPropertyAssertion(_)
+            | Component::NegativeObjectPropertyAssertion(_)
+            | Component::DataPropertyAssertion(_)
+            | Component::NegativeDataPropertyAssertion(_)
+            | Component::SubAnnotationPropertyOf(_)
+            | Component::AnnotationPropertyDomain(_)
+            | Component::AnnotationPropertyRange(_)
+    )
+}
 
 #[allow(clippy::too_many_lines)]
 fn classify(component: &Component<ArcStr>, iri: &str, syntax: OwlSyntax, sections: &mut BTreeMap<String, BTreeSet<String>>) {
@@ -424,24 +457,7 @@ fn classify(component: &Component<ArcStr>, iri: &str, syntax: OwlSyntax, section
         Component::Rule { .. } => push(sections, "Rules", render_component(component, syntax)),
         // Annotation assertions, declarations, imports, ontology metadata and plain property
         // assertions are already visible as normal RDF triples.
-        Component::AnnotationAssertion(_)
-        | Component::OntologyAnnotation(_)
-        | Component::OntologyID { .. }
-        | Component::DocIRI(_)
-        | Component::Import(_)
-        | Component::DeclareClass(_)
-        | Component::DeclareObjectProperty(_)
-        | Component::DeclareAnnotationProperty(_)
-        | Component::DeclareDataProperty(_)
-        | Component::DeclareNamedIndividual(_)
-        | Component::DeclareDatatype(_)
-        | Component::ObjectPropertyAssertion(_)
-        | Component::NegativeObjectPropertyAssertion(_)
-        | Component::DataPropertyAssertion(_)
-        | Component::NegativeDataPropertyAssertion(_)
-        | Component::SubAnnotationPropertyOf(_)
-        | Component::AnnotationPropertyDomain(_)
-        | Component::AnnotationPropertyRange(_) => {}
+        _ => {}
     }
 }
 
