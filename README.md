@@ -100,7 +100,6 @@ Axioms are not shown for HDT knowledge bases or directories because they cannot 
 
 OWL is disabled for large knowledge bases (`large = true`). Parse errors are logged and only disable
 the ontology section; they never stop RickView from serving the RDF graph.
-The `owl` setting can disable OWL display entirely.
 
 Note that horned-owl is licensed under LGPL-3.0, while RickView itself is MIT licensed.
 If you distribute a binary that includes the `owl` feature, check the LGPL-3.0 requirements.

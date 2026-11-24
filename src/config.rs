@@ -18,10 +18,6 @@ pub struct Config {
     pub title: Option<String>,
     pub subtitle: Option<String>,
     pub kb_file: Option<String>,
-    /// Parse the knowledge base as OWL and show axioms in addition to the raw triples.
-    /// Only has an effect when `RickView` is compiled with the `owl` feature.
-    #[serde(default = "default_true")]
-    pub owl: bool,
     pub port: u16,
     pub github: Option<String>,
     pub prefix: Box<str>,
@@ -48,8 +44,6 @@ pub struct Config {
     /// disable memory and CPU intensive preprocessing on large knowledge bases
     pub large: bool,
 }
-
-fn default_true() -> bool { true }
 
 mod iri_serde {
     use serde::{Deserialize, Deserializer, Serializer};

@@ -30,7 +30,8 @@ static INDEX: OnceLock<Option<OwlIndex>> = OnceLock::new();
 fn index() -> Option<&'static OwlIndex> { INDEX.get_or_init(load_index).as_ref() }
 
 fn load_index() -> Option<OwlIndex> {
-    if !config().owl || config().large {
+    if config().large {
+        info!("OWL axioms are not shown for large knowledge bases.");
         return None;
     }
     let configured = config().kb_file.as_deref();
