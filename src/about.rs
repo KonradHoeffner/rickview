@@ -1,4 +1,5 @@
 //! About page with stats about the package version and the loaded graph.
+use crate::config::config;
 use crate::rdf::{GraphEnum, graph, titles, types};
 use bytesize::ByteSize;
 use deepsize::DeepSizeOf;
@@ -10,6 +11,7 @@ use serde::Serialize;
 pub struct About {
     pub cargo_pkg_version: &'static str,
     pub build: String,
+    pub kb: String,
     pub num_titles: usize,
     pub num_types: usize,
     pub titles_size: String,
@@ -33,6 +35,7 @@ impl About {
         About {
             cargo_pkg_version: VERSION,
             build: format!("{} build with features {}", if cfg!(debug_assertions) { "debug" } else { "release" }, features),
+            kb: kb_description(),
             num_titles: titles().len(),
             num_types: types().len(),
             types_size: ByteSize(types().deep_size_of() as u64).to_string(),
@@ -40,4 +43,21 @@ impl About {
             graph_size,
         }
     }
+}
+
+fn kb_description() -> String {
+    let Some(path) = config().kb_file.as_deref() else { return "bundled example (Turtle)".to_owned() };
+    if std::fs::metadata(path).is_ok_and(|m| m.is_dir()) {
+        return format!("{path} (directory)");
+    }
+    let format = match path.rsplit_once('.').map(|(_, extension)| extension) {
+        Some("ttl") => "Turtle",
+        Some("nt") => "N-Triples",
+        Some("rdf" | "owl" | "xml") => "RDF/XML",
+        Some("hdt") => "HDT",
+        _ if path.ends_with(".hdt.zst") => "HDT, zstd",
+        Some(extension) => extension,
+        None => "unknown",
+    };
+    format!("{path} ({format})")
 }
