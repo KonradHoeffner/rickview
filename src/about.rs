@@ -37,8 +37,11 @@ impl About {
         About {
             cargo_pkg_version: VERSION,
             build: format!(
-                r#"{} build, <a href="https://docs.rs/crate/rickview/latest/features" class="uppercase">features</a> {features}"#,
-                if cfg!(debug_assertions) { "debug" } else { "release" }
+                r#"{} build, {}/{}/{}, <a href="https://docs.rs/crate/rickview/latest/features" class="uppercase">features</a> {features}"#,
+                if cfg!(debug_assertions) { "debug" } else { "release" },
+                std::env::consts::OS,
+                std::env::consts::ARCH,
+                std::env::consts::FAMILY
             ),
             num_titles: titles().len(),
             num_types: types().len(),
