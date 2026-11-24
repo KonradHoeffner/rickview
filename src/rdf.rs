@@ -66,7 +66,9 @@ impl Piri {
     }
     pub fn short(&self) -> String { self.prefixed_string(false, false) }
     pub fn suffix(&self) -> String { self.prefixed.as_ref().map_or_else(|| self.full.clone(), |pair| pair.1.clone()) }
-    pub fn root_relative(&self) -> String { self.full.replace(config().namespace.as_str(), &(config().base.clone() + "/")) }
+    pub fn root_relative(&self) -> String {
+        self.full.replace(config().namespace.as_str(), &(config().base.clone() + "/")).replace('&', "&amp;").replace('\'', "&#39;")
+    }
     fn property_anchor(&self) -> String { format!("<a href='{}'>{}</a>", self.root_relative(), self.prefixed_string(true, false)) }
 
     pub(crate) fn link(&self) -> String {
