@@ -22,6 +22,7 @@ pub struct About {
 
 // features shown with their state, keep in sync with [features] in Cargo.toml (except "default")
 const FEATURES: [(&str, bool); 2] = [("rdfxml", cfg!(feature = "rdfxml")), ("hdt", cfg!(feature = "hdt"))];
+const DOCS_FEATURES: &str = "https://docs.rs/crate/rickview/latest/features";
 
 impl About {
     pub fn new() -> About {
@@ -40,7 +41,10 @@ impl About {
             .join(" ");
         About {
             cargo_pkg_version: VERSION,
-            build: format!("{} build, features {features}", if cfg!(debug_assertions) { "debug" } else { "release" }),
+            build: format!(
+                r#"{} build, <a href="{DOCS_FEATURES}" class="link">features</a> {features}"#,
+                if cfg!(debug_assertions) { "debug" } else { "release" }
+            ),
             kb: kb_description(),
             num_titles: titles().len(),
             num_types: types().len(),
@@ -53,8 +57,10 @@ impl About {
 
 fn kb_description() -> String {
     let Some(path) = config().kb_file.as_deref() else { return "bundled example (Turtle)".to_owned() };
+    let mut escaped = String::new();
+    tinytemplate::escape(path, &mut escaped);
     if std::fs::metadata(path).is_ok_and(|m| m.is_dir()) {
-        return format!("{path} (directory)");
+        return format!("{escaped} (directory)");
     }
     let format = match path.rsplit_once('.').map(|(_, extension)| extension) {
         Some("ttl") => "Turtle",
@@ -65,5 +71,6 @@ fn kb_description() -> String {
         Some(extension) => extension,
         None => "unknown",
     };
+    let path = if path.starts_with("http") { format!(r#"<a href="{escaped}" class="link">{escaped}</a>"#) } else { escaped };
     format!("{path} ({format})")
 }
