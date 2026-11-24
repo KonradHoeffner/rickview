@@ -3,6 +3,7 @@ use crate::rdf::{GraphEnum, graph, titles, types};
 use bytesize::ByteSize;
 use deepsize::DeepSizeOf;
 use sophia::api::graph::Graph;
+use std::env::consts::{ARCH, FAMILY, OS};
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 use serde::Serialize;
@@ -20,6 +21,8 @@ pub struct About {
 
 // features shown with their state, keep in sync with [features] in Cargo.toml (except "default")
 const FEATURES: [(&str, bool); 2] = [("rdfxml", cfg!(feature = "rdfxml")), ("hdt", cfg!(feature = "hdt"))];
+const PROFILE: &str = if cfg!(debug_assertions) { "debug" } else { "release" };
+const FEATURES_DOCS: &str = "https://docs.rs/crate/rickview/latest/features";
 
 impl About {
     pub fn new() -> About {
@@ -36,13 +39,7 @@ impl About {
             .join(" ");
         About {
             cargo_pkg_version: VERSION,
-            build: format!(
-                r#"{} build, {}/{}/{}, <a href="https://docs.rs/crate/rickview/latest/features" class="uppercase">features</a> {features}"#,
-                if cfg!(debug_assertions) { "debug" } else { "release" },
-                std::env::consts::OS,
-                std::env::consts::ARCH,
-                std::env::consts::FAMILY
-            ),
+            build: format!(r#"{PROFILE} build, {OS}/{ARCH}/{FAMILY}, <a href="{FEATURES_DOCS}" class="uppercase">features</a> {features}"#),
             num_titles: titles().len(),
             num_types: types().len(),
             types_size: ByteSize(types().deep_size_of() as u64).to_string(),
