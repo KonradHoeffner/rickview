@@ -211,12 +211,10 @@ footer #footer-left, footer #footer-left a {
 
 .enabled {
   color: #2e7d32;
-  white-space: nowrap;
 }
 
 .disabled {
   color: #c62828;
-  white-space: nowrap;
 }
 
 

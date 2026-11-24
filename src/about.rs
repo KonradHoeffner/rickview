@@ -22,7 +22,6 @@ pub struct About {
 
 // features shown with their state, keep in sync with [features] in Cargo.toml (except "default")
 const FEATURES: [(&str, bool); 2] = [("rdfxml", cfg!(feature = "rdfxml")), ("hdt", cfg!(feature = "hdt"))];
-const DOCS_FEATURES: &str = "https://docs.rs/crate/rickview/latest/features";
 
 impl About {
     pub fn new() -> About {
@@ -32,17 +31,15 @@ impl About {
             GraphEnum::FastGraph(g) => Some(format!("~{} triples", g.triples().size_hint().0)),
         };
         let features = FEATURES
-            .iter()
             .map(|(name, enabled)| {
-                let (class, symbol) = if *enabled { ("enabled", "✓") } else { ("disabled", "✗") };
+                let (class, symbol) = if enabled { ("enabled", "✓") } else { ("disabled", "✗") };
                 format!(r#"<span class="{class}" title="{class}">{symbol} {name}</span>"#)
             })
-            .collect::<Vec<_>>()
             .join(" ");
         About {
             cargo_pkg_version: VERSION,
             build: format!(
-                r#"{} build, <a href="{DOCS_FEATURES}" class="link">features</a> {features}"#,
+                r#"{} build, <a href="https://docs.rs/crate/rickview/latest/features" class="link">features</a> {features}"#,
                 if cfg!(debug_assertions) { "debug" } else { "release" }
             ),
             kb: kb_description(),
@@ -56,21 +53,14 @@ impl About {
 }
 
 fn kb_description() -> String {
-    let Some(path) = config().kb_file.as_deref() else { return "bundled example (Turtle)".to_owned() };
+    let Some(path) = config().kb_file.as_deref() else { return "bundled example (TTL)".to_owned() };
+    let kind = if std::fs::metadata(path).is_ok_and(|m| m.is_dir()) {
+        "DIRECTORY".to_owned()
+    } else {
+        path.rsplit_once('.').map_or("UNKNOWN".to_owned(), |(_, extension)| extension.to_uppercase())
+    };
     let mut escaped = String::new();
     tinytemplate::escape(path, &mut escaped);
-    if std::fs::metadata(path).is_ok_and(|m| m.is_dir()) {
-        return format!("{escaped} (directory)");
-    }
-    let format = match path.rsplit_once('.').map(|(_, extension)| extension) {
-        Some("ttl") => "Turtle",
-        Some("nt") => "N-Triples",
-        Some("rdf" | "owl" | "xml") => "RDF/XML",
-        Some("hdt") => "HDT",
-        _ if path.ends_with(".hdt.zst") => "HDT, zstd",
-        Some(extension) => extension,
-        None => "unknown",
-    };
     let path = if path.starts_with("http") { format!(r#"<a href="{escaped}" class="link">{escaped}</a>"#) } else { escaped };
-    format!("{path} ({format})")
+    format!("{path} ({kind})")
 }
