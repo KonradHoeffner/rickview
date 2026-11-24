@@ -194,27 +194,12 @@ where for<'a> horned_owl::io::omn::Manchester<'a, T, ArcStr>: std::fmt::Display 
 }
 
 /// Components that are already visible as ordinary RDF triples and therefore get no OWL section.
+#[rustfmt::skip]
 fn is_ignored(component: &Component<ArcStr>) -> bool {
+    use Component::*;
     matches!(
         component,
-        Component::AnnotationAssertion(_)
-            | Component::OntologyAnnotation(_)
-            | Component::OntologyID { .. }
-            | Component::DocIRI(_)
-            | Component::Import(_)
-            | Component::DeclareClass(_)
-            | Component::DeclareObjectProperty(_)
-            | Component::DeclareAnnotationProperty(_)
-            | Component::DeclareDataProperty(_)
-            | Component::DeclareNamedIndividual(_)
-            | Component::DeclareDatatype(_)
-            | Component::ObjectPropertyAssertion(_)
-            | Component::NegativeObjectPropertyAssertion(_)
-            | Component::DataPropertyAssertion(_)
-            | Component::NegativeDataPropertyAssertion(_)
-            | Component::SubAnnotationPropertyOf(_)
-            | Component::AnnotationPropertyDomain(_)
-            | Component::AnnotationPropertyRange(_)
+        AnnotationAssertion(_) | OntologyAnnotation(_) | OntologyID { .. } | DocIRI(_) | Import(_) | DeclareClass(_) | DeclareObjectProperty(_) | DeclareAnnotationProperty(_) | DeclareDataProperty(_) | DeclareNamedIndividual(_) | DeclareDatatype(_) | ObjectPropertyAssertion(_) | NegativeObjectPropertyAssertion(_) | DataPropertyAssertion(_) | NegativeDataPropertyAssertion(_) | SubAnnotationPropertyOf(_) | AnnotationPropertyDomain(_) | AnnotationPropertyRange(_)
     )
 }
 
