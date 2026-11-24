@@ -40,7 +40,7 @@ impl About {
             .join(" ");
         About {
             cargo_pkg_version: VERSION,
-            build: format!("{} build with features {features}", if cfg!(debug_assertions) { "debug" } else { "release" }),
+            build: format!("{} build, features {features}", if cfg!(debug_assertions) { "debug" } else { "release" }),
             kb: kb_description(),
             num_titles: titles().len(),
             num_types: types().len(),
