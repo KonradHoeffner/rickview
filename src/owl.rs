@@ -33,16 +33,16 @@ fn load_index() -> Option<OwlIndex> {
     if !config().owl || config().large {
         return None;
     }
-    let configured = config().ontology_file.as_deref().or(config().kb_file.as_deref());
+    let configured = config().kb_file.as_deref();
     let (source, extension) = match configured {
         Some(path) if Path::new(path).is_dir() => {
-            info!("OWL axioms are not loaded from directories; set ontology_file to a single ontology document.");
+            info!("OWL axioms are not shown for directories, only for a single ontology document.");
             return None;
         }
         Some(path) => {
             let extension = Path::new(path).extension().and_then(std::ffi::OsStr::to_str).unwrap_or("guess").to_ascii_lowercase();
             if InputFormat::from_str(&extension).is_err() {
-                info!("Cannot infer an OWL/RDF format from '{path}'; set ontology_file to a .ttl, .rdf, .owl, .ofn or .omn file.");
+                info!("OWL axioms are not shown for '{path}', only for a .ttl, .nt, .rdf, .owl, .ofn, .omn, .owx or .obo document.");
                 return None;
             }
             (Some(path), extension)

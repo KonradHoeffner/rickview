@@ -94,15 +94,12 @@ This is optional and off by default, because it adds the [horned-owl](https://cr
 
     cargo build --features owl
 
-The OWL source is `ontology_file` if set, otherwise the knowledge base itself when it is a single
+The OWL source is the knowledge base itself, which must be a single
 Turtle, N-Triples, RDF/XML, OWL, OWL/XML (`.owx`), functional-style (`.ofn`), Manchester (`.omn`) or OBO file.
-For HDT knowledge bases or directories, set `ontology_file` explicitly, for example:
+Axioms are not shown for HDT knowledge bases or directories because they cannot be parsed as OWL.
 
-    ontology_file = "data/ontology.ttl"
-
-OWL is disabled for large knowledge bases (`large = true`) and when the source is an HDT file without
-an `ontology_file`. Parse errors are logged and only disable the ontology section; they never stop
-RickView from serving the RDF graph.
+OWL is disabled for large knowledge bases (`large = true`). Parse errors are logged and only disable
+the ontology section; they never stop RickView from serving the RDF graph.
 The `owl` setting can disable OWL display entirely.
 
 Note that horned-owl is licensed under LGPL-3.0, while RickView itself is MIT licensed.

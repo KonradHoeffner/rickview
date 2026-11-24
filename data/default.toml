@@ -14,11 +14,8 @@ subtitle = "You have successfully installed RickView but not configured a knowle
 log_level = "info"
 show_inverse = true
 large = false
-# OWL axioms are shown when RickView is compiled with the "owl" feature.
+# OWL axioms are shown when RickView is compiled with the "owl" feature and kb_file is a single ontology document.
 owl = true
-# Optional separate ontology file, needed when kb_file is an HDT file or a directory.
-# Supported extensions: ttl, nt, rdf, owl, ofn, omn, owx and obo.
-# ontology_file = "data/ontology.ttl"
 [header]
 title = "test title"
 subtitle = "test subtitle"

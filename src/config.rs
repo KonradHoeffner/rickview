@@ -22,10 +22,6 @@ pub struct Config {
     /// Only has an effect when `RickView` is compiled with the `owl` feature.
     #[serde(default = "default_true")]
     pub owl: bool,
-    /// Optional ontology file used for OWL axioms. Defaults to `kb_file` when it is an RDF/OWL format.
-    /// Set this when the knowledge base is an HDT file or a directory.
-    #[serde(default)]
-    pub ontology_file: Option<String>,
     pub port: u16,
     pub github: Option<String>,
     pub prefix: Box<str>,
