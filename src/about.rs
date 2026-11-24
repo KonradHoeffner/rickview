@@ -10,6 +10,7 @@ use serde::Serialize;
 #[derive(Serialize, Debug)]
 pub struct About {
     pub cargo_pkg_version: &'static str,
+    /// HTML with the build profile and the enabled/disabled features.
     pub build: String,
     pub kb: String,
     pub num_titles: usize,
@@ -19,6 +20,9 @@ pub struct About {
     pub graph_size: Option<String>,
 }
 
+// features shown with their state, keep in sync with [features] in Cargo.toml (except "default")
+const FEATURES: [(&str, bool); 2] = [("rdfxml", cfg!(feature = "rdfxml")), ("hdt", cfg!(feature = "hdt"))];
+
 impl About {
     pub fn new() -> About {
         let graph_size = match graph() {
@@ -26,15 +30,17 @@ impl About {
             GraphEnum::HdtGraph(hdt_graph) => Some(ByteSize(hdt_graph.size_in_bytes() as u64).to_string()),
             GraphEnum::FastGraph(g) => Some(format!("~{} triples", g.triples().size_hint().0)),
         };
-        let features = [("rdfxml", cfg!(feature = "rdfxml")), ("hdt", cfg!(feature = "hdt"))]
+        let features = FEATURES
             .iter()
-            .filter_map(|(name, enabled)| enabled.then_some(*name))
+            .map(|(name, enabled)| {
+                let (class, symbol) = if *enabled { ("enabled", "✓") } else { ("disabled", "✗") };
+                format!(r#"<span class="{class}" title="{class}">{symbol} {name}</span>"#)
+            })
             .collect::<Vec<_>>()
             .join(" ");
-        let features = if features.is_empty() { "none" } else { &features };
         About {
             cargo_pkg_version: VERSION,
-            build: format!("{} build with features {}", if cfg!(debug_assertions) { "debug" } else { "release" }, features),
+            build: format!("{} build with features {features}", if cfg!(debug_assertions) { "debug" } else { "release" }),
             kb: kb_description(),
             num_titles: titles().len(),
             num_types: types().len(),

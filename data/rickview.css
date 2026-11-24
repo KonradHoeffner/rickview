@@ -205,6 +205,17 @@ footer #footer-left, footer #footer-left a {
   text-transform: uppercase;
 }
 
+.enabled {
+  color: #2e7d32;
+  white-space: nowrap;
+}
+
+.disabled {
+  color: #c62828;
+  white-space: nowrap;
+}
+
+
 #footer-right {
   float: right;
   position: relative;
