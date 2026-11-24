@@ -205,19 +205,6 @@ footer #footer-left, footer #footer-left a {
   text-transform: uppercase;
 }
 
-.link {
-  text-decoration: underline;
-}
-
-.enabled {
-  color: #2e7d32;
-}
-
-.disabled {
-  color: #c62828;
-}
-
-
 #footer-right {
   float: right;
   position: relative;

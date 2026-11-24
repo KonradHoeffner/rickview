@@ -1,5 +1,4 @@
 //! About page with stats about the package version and the loaded graph.
-use crate::config::config;
 use crate::rdf::{GraphEnum, graph, titles, types};
 use bytesize::ByteSize;
 use deepsize::DeepSizeOf;
@@ -12,7 +11,6 @@ pub struct About {
     pub cargo_pkg_version: &'static str,
     /// HTML with the build profile and the enabled/disabled features.
     pub build: String,
-    pub kb: String,
     pub num_titles: usize,
     pub num_types: usize,
     pub titles_size: String,
@@ -32,17 +30,16 @@ impl About {
         };
         let features = FEATURES
             .map(|(name, enabled)| {
-                let (class, symbol) = if enabled { ("enabled", "✓") } else { ("disabled", "✗") };
-                format!(r#"<span class="{class}" title="{class}">{symbol} {name}</span>"#)
+                let (state, symbol) = if enabled { ("enabled", "✓") } else { ("disabled", "✗") };
+                format!(r#"<span title="{state}">{symbol} {name}</span>"#)
             })
             .join(" ");
         About {
             cargo_pkg_version: VERSION,
             build: format!(
-                r#"{} build, <a href="https://docs.rs/crate/rickview/latest/features" class="link">features</a> {features}"#,
+                r#"{} build, <a href="https://docs.rs/crate/rickview/latest/features" class="uppercase">features</a> {features}"#,
                 if cfg!(debug_assertions) { "debug" } else { "release" }
             ),
-            kb: kb_description(),
             num_titles: titles().len(),
             num_types: types().len(),
             types_size: ByteSize(types().deep_size_of() as u64).to_string(),
@@ -50,17 +47,4 @@ impl About {
             graph_size,
         }
     }
-}
-
-fn kb_description() -> String {
-    let Some(path) = config().kb_file.as_deref() else { return "bundled example (TTL)".to_owned() };
-    let kind = if std::fs::metadata(path).is_ok_and(|m| m.is_dir()) {
-        "DIRECTORY".to_owned()
-    } else {
-        path.rsplit_once('.').map_or("UNKNOWN".to_owned(), |(_, extension)| extension.to_uppercase())
-    };
-    let mut escaped = String::new();
-    tinytemplate::escape(path, &mut escaped);
-    let path = if path.starts_with("http") { format!(r#"<a href="{escaped}" class="link">{escaped}</a>"#) } else { escaped };
-    format!("{path} ({kind})")
 }
