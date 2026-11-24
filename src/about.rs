@@ -9,6 +9,7 @@ use serde::Serialize;
 #[derive(Serialize, Debug)]
 pub struct About {
     pub cargo_pkg_version: &'static str,
+    pub build: String,
     pub num_titles: usize,
     pub num_types: usize,
     pub titles_size: String,
@@ -23,8 +24,15 @@ impl About {
             GraphEnum::HdtGraph(hdt_graph) => Some(ByteSize(hdt_graph.size_in_bytes() as u64).to_string()),
             GraphEnum::FastGraph(g) => Some(format!("~{} triples", g.triples().size_hint().0)),
         };
+        let features = [("rdfxml", cfg!(feature = "rdfxml")), ("hdt", cfg!(feature = "hdt"))]
+            .iter()
+            .filter_map(|(name, enabled)| enabled.then_some(*name))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let features = if features.is_empty() { "none" } else { &features };
         About {
             cargo_pkg_version: VERSION,
+            build: format!("{} build with features {}", if cfg!(debug_assertions) { "debug" } else { "release" }, features),
             num_titles: titles().len(),
             num_types: types().len(),
             types_size: ByteSize(types().deep_size_of() as u64).to_string(),
