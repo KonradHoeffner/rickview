@@ -8,17 +8,18 @@ use crate::rdf::{Piri, kb_reader};
 use crate::resource::OntologySection;
 use horned_owl::error::HornedError;
 use horned_owl::io::omn::writer::AsManchester;
-use horned_owl::io::{InputFormat, ParserConfiguration, ParserOutput, RDFParserConfiguration};
+use horned_owl::io::{ParserConfiguration, ParserOutput, RDFParserConfiguration};
 use horned_owl::model::*;
 use horned_owl::ontology::set::SetOntology;
 use log::{info, warn};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::{BufRead, Cursor};
 use std::path::Path;
-use std::str::FromStr;
 use std::sync::OnceLock;
 
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
+
+type Sections = BTreeMap<String, BTreeSet<String>>;
 
 struct OwlIndex {
     components: Vec<AnnotatedComponent<ArcStr>>,
@@ -34,23 +35,27 @@ fn load_index() -> Option<OwlIndex> {
         info!("OWL axioms are not shown for large knowledge bases.");
         return None;
     }
-    let configured = config().kb_file.as_deref();
-    let (source, extension) = match configured {
+    let source = config().kb_file.as_deref();
+    let format = match source {
         Some(path) if Path::new(path).is_dir() => {
             info!("OWL axioms are not shown for directories, only for a single ontology document.");
             return None;
         }
         Some(path) => {
-            let extension = Path::new(path).extension().and_then(std::ffi::OsStr::to_str).unwrap_or("guess").to_ascii_lowercase();
-            if InputFormat::from_str(&extension).is_err() {
-                info!("OWL axioms are not shown for '{path}', only for a .ttl, .nt, .rdf, .owl, .ofn, .omn, .owx or .obo document.");
-                return None;
+            let extension = Path::new(path).extension().and_then(std::ffi::OsStr::to_str).unwrap_or("rdf").to_ascii_lowercase();
+            match extension.as_str() {
+                "ttl" => oxrdfio::RdfFormat::Turtle,
+                "nt" => oxrdfio::RdfFormat::NTriples,
+                "rdf" | "owl" => oxrdfio::RdfFormat::RdfXml,
+                _ => {
+                    info!("OWL axioms are not shown for '{path}', only for .ttl, .nt, .rdf or .owl documents.");
+                    return None;
+                }
             }
-            (Some(path), extension)
         }
-        None => (None, "ttl".to_owned()),
+        None => oxrdfio::RdfFormat::Turtle,
     };
-    let ontology = match load_ontology(source, &extension) {
+    let ontology = match load_ontology(source, format) {
         Ok(ontology) => ontology,
         Err(error) => {
             warn!("Could not load OWL ontology from {}: {error}", source.unwrap_or("the example knowledge base"));
@@ -74,42 +79,15 @@ fn parser_config() -> ParserConfiguration<ArcStr> {
     config
 }
 
-fn load_ontology(source: Option<&str>, extension: &str) -> Result<SetOntology<ArcStr>, HornedError> {
-    if source.is_none() {
-        let mut reader = Cursor::new(EXAMPLE_KB);
-        return parse_rdf(&mut reader, Some(oxrdfio::RdfFormat::Turtle));
-    }
-    let source = source.expect("source is set");
-    let mut reader = kb_reader(source).map_err(|e| HornedError::CommandError(e.to_string()))?;
-    match extension {
-        "ofn" => {
-            let (ontology, _) = horned_owl::io::ofn::reader::read::<ArcStr, _, SetOntology<ArcStr>, _>(&mut reader, parser_config())?;
-            Ok(ontology)
-        }
-        "omn" => {
-            let (ontology, _) = horned_owl::io::omn::reader::read::<ArcStr, _, SetOntology<ArcStr>, _>(reader, parser_config())?;
-            Ok(ontology)
-        }
-        "owx" => {
-            let (ontology, _) = horned_owl::io::owx::reader::read::<ArcStr, _, SetOntology<ArcStr>, _>(&mut reader, parser_config())?;
-            Ok(ontology)
-        }
-        "obo" => {
-            let (ontology, _) = horned_owl::io::obo::reader::read::<ArcStr, _, SetOntology<ArcStr>, _>(&mut reader, parser_config())?;
-            Ok(ontology)
-        }
-        _ => {
-            let format = match InputFormat::from_str(extension) {
-                Ok(InputFormat::Rdf(format)) => format,
-                _ => None,
-            };
-            parse_rdf(&mut reader, format)
-        }
+fn load_ontology(source: Option<&str>, format: oxrdfio::RdfFormat) -> Result<SetOntology<ArcStr>, HornedError> {
+    match source {
+        None => parse_rdf(&mut Cursor::new(EXAMPLE_KB), format),
+        Some(source) => parse_rdf(&mut kb_reader(source).map_err(|e| HornedError::CommandError(e.to_string()))?, format),
     }
 }
 
-fn parse_rdf<R: BufRead>(reader: &mut R, format: Option<oxrdfio::RdfFormat>) -> Result<SetOntology<ArcStr>, HornedError> {
-    let config = RDFParserConfiguration { common: parser_config(), format };
+fn parse_rdf<R: BufRead>(reader: &mut R, format: oxrdfio::RdfFormat) -> Result<SetOntology<ArcStr>, HornedError> {
+    let config = RDFParserConfiguration { common: parser_config(), format: Some(format) };
     let (output, incomplete) = horned_owl::io::rdf::reader::read(reader, config)?;
     let (ontology, ..) = ParserOutput::<ArcStr, ArcAnnotatedComponent>::rdf((output, incomplete)).decompose();
     Ok(ontology)
@@ -117,19 +95,16 @@ fn parse_rdf<R: BufRead>(reader: &mut R, format: Option<oxrdfio::RdfFormat>) -> 
 
 /// All IRIs mentioned by a component, used to decide on which resource pages an axiom is shown.
 fn component_iris(component: &Component<ArcStr>) -> BTreeSet<String> {
-    let text = component.as_manchester().to_string();
-    let mut iris = BTreeSet::new();
-    let mut rest = text.as_str();
-    while let Some(start) = rest.find('<') {
-        rest = &rest[start + 1..];
-        let Some(end) = rest.find('>') else { break };
-        let iri = &rest[..end];
-        if iri.starts_with("http://") || iri.starts_with("https://") || iri.starts_with("urn:") {
-            iris.insert(iri.to_owned());
-        }
-        rest = &rest[end + 1..];
-    }
-    iris
+    component
+        .as_manchester()
+        .to_string()
+        .split('<')
+        .skip(1)
+        .filter_map(|part| part.split_once('>'))
+        .map(|(iri, _)| iri)
+        .filter(|iri| is_linkable(iri))
+        .map(str::to_owned)
+        .collect()
 }
 
 pub fn sections(iri: &str) -> Vec<OntologySection> {
@@ -140,31 +115,27 @@ pub fn sections(iri: &str) -> Vec<OntologySection> {
     ];
     let Some(index) = index() else { return Vec::new() };
     let Some(indices) = index.by_iri.get(iri) else { return Vec::new() };
-    let mut sections = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut sections = Sections::new();
     for i in indices {
         let component = &index.components[*i].component;
         let mut component_sections = BTreeMap::new();
         classify(component, iri, &mut component_sections);
         if component_sections.is_empty() && !is_ignored(component) {
-            push(&mut component_sections, "Referenced In", render_component(component));
+            push(&mut component_sections, "Referenced In", render(component));
         }
         for (label, entries) in component_sections {
             sections.entry(label).or_default().extend(entries);
         }
     }
-    let mut result = Vec::new();
-    for label in ORDER {
-        if let Some(entries) = sections.remove(*label) {
-            result.push(OntologySection { label: (*label).to_owned(), entries: entries.into_iter().collect() });
-        }
-    }
-    for (label, entries) in sections {
-        result.push(OntologySection { label, entries: entries.into_iter().collect() });
-    }
+    let mut result: Vec<_> = ORDER
+        .iter()
+        .filter_map(|label| sections.remove(*label).map(|entries| OntologySection { label: (*label).to_owned(), entries: entries.into_iter().collect() }))
+        .collect();
+    result.extend(sections.into_iter().map(|(label, entries)| OntologySection { label, entries: entries.into_iter().collect() }));
     result
 }
 
-fn push(sections: &mut BTreeMap<String, BTreeSet<String>>, label: &str, entry: String) {
+fn push(sections: &mut Sections, label: &str, entry: String) {
     if !entry.is_empty() {
         sections.entry(label.to_owned()).or_default().insert(entry);
     }
@@ -186,52 +157,55 @@ fn individual_iri(individual: &Individual<ArcStr>) -> Option<&str> {
     }
 }
 
+fn property_iri(property: &PropertyExpression<ArcStr>) -> Option<&str> {
+    match property {
+        PropertyExpression::ObjectPropertyExpression(ope) => ope_iri(ope),
+        PropertyExpression::DataProperty(dp) => Some(dp.0.as_ref()),
+        PropertyExpression::AnnotationProperty(ap) => Some(ap.0.as_ref()),
+    }
+}
+
+fn is_linkable(iri: &str) -> bool { iri.starts_with("http://") || iri.starts_with("https://") || iri.starts_with("urn:") }
+
 fn render_iri(iri: &str) -> String { Piri::from(iri).link() }
 
-fn render_ce(ce: &ClassExpression<ArcStr>) -> String {
-    if let ClassExpression::Class(class) = ce {
-        return render_iri(class.0.as_ref());
-    }
-    linkify(&ce.as_manchester().to_string())
-}
-
-fn render_dr(dr: &DataRange<ArcStr>) -> String {
-    if let DataRange::Datatype(datatype) = dr {
-        return render_iri(datatype.0.as_ref());
-    }
-    linkify(&dr.as_manchester().to_string())
-}
-
-fn render_individual(individual: &Individual<ArcStr>) -> String {
-    if let Individual::Named(individual) = individual {
-        return render_iri(individual.0.as_ref());
-    }
-    linkify(&individual.as_manchester().to_string())
-}
-
-fn render_ope(ope: &ObjectPropertyExpression<ArcStr>) -> String {
-    if let ObjectPropertyExpression::ObjectProperty(property) = ope {
-        return render_iri(property.0.as_ref());
-    }
-    linkify(&ope.as_manchester().to_string())
+fn render<T: AsManchester<ArcStr>>(value: &T) -> String
+where for<'a> horned_owl::io::omn::Manchester<'a, T, ArcStr>: std::fmt::Display {
+    linkify(&value.as_manchester().to_string())
 }
 
 fn render_property(property: &PropertyExpression<ArcStr>) -> String {
     match property {
-        PropertyExpression::ObjectPropertyExpression(ope) => render_ope(ope),
-        PropertyExpression::DataProperty(dp) => render_iri(dp.0.as_ref()),
-        PropertyExpression::AnnotationProperty(ap) => render_iri(ap.0.as_ref()),
+        PropertyExpression::ObjectPropertyExpression(ope) => render(ope),
+        PropertyExpression::DataProperty(dp) => render(&dp.0),
+        PropertyExpression::AnnotationProperty(ap) => render(&ap.0),
     }
 }
 
 fn render_sub_property(sub: &SubObjectPropertyExpression<ArcStr>) -> String {
     match sub {
-        SubObjectPropertyExpression::ObjectPropertyExpression(ope) => render_ope(ope),
-        SubObjectPropertyExpression::ObjectPropertyChain(chain) => chain.iter().map(render_ope).collect::<Vec<_>>().join(" o "),
+        SubObjectPropertyExpression::ObjectPropertyExpression(ope) => render(ope),
+        SubObjectPropertyExpression::ObjectPropertyChain(chain) => chain.iter().map(render).collect::<Vec<_>>().join(" o "),
     }
 }
 
-fn render_component(component: &Component<ArcStr>) -> String { linkify(&component.as_manchester().to_string()) }
+/// Push `value` under `label` when `condition` is the resource IRI.
+fn relate<T: AsManchester<ArcStr>>(condition: Option<&str>, value: &T, iri: &str, label: &str, sections: &mut Sections)
+where for<'a> horned_owl::io::omn::Manchester<'a, T, ArcStr>: std::fmt::Display {
+    if condition == Some(iri) {
+        push(sections, label, render(value));
+    }
+}
+
+/// Push all members other than the resource IRI under `label`, e.g. equivalent classes.
+fn relations<T: AsManchester<ArcStr>>(items: &[T], iri: &str, iri_of: impl Fn(&T) -> Option<&str>, label: &str, sections: &mut Sections)
+where for<'a> horned_owl::io::omn::Manchester<'a, T, ArcStr>: std::fmt::Display {
+    if items.iter().any(|item| iri_of(item) == Some(iri)) {
+        for item in items.iter().filter(|item| iri_of(item) != Some(iri)) {
+            push(sections, label, render(item));
+        }
+    }
+}
 
 /// Components that are already visible as ordinary RDF triples and therefore get no OWL section.
 fn is_ignored(component: &Component<ArcStr>) -> bool {
@@ -258,196 +232,86 @@ fn is_ignored(component: &Component<ArcStr>) -> bool {
     )
 }
 
-#[allow(clippy::too_many_lines)]
-fn classify(component: &Component<ArcStr>, iri: &str, sections: &mut BTreeMap<String, BTreeSet<String>>) {
+fn classify(component: &Component<ArcStr>, iri: &str, sections: &mut Sections) {
+    let characteristic = match component {
+        Component::FunctionalObjectProperty(ope) if ope_iri(&ope.0) == Some(iri) => Some("Functional"),
+        Component::FunctionalDataProperty(dp) if dp.0.as_ref() == iri => Some("Functional"),
+        Component::InverseFunctionalObjectProperty(ope) if ope_iri(&ope.0) == Some(iri) => Some("Inverse Functional"),
+        Component::ReflexiveObjectProperty(ope) if ope_iri(&ope.0) == Some(iri) => Some("Reflexive"),
+        Component::IrreflexiveObjectProperty(ope) if ope_iri(&ope.0) == Some(iri) => Some("Irreflexive"),
+        Component::SymmetricObjectProperty(ope) if ope_iri(&ope.0) == Some(iri) => Some("Symmetric"),
+        Component::AsymmetricObjectProperty(ope) if ope_iri(&ope.0) == Some(iri) => Some("Asymmetric"),
+        Component::TransitiveObjectProperty(ope) if ope_iri(&ope.0) == Some(iri) => Some("Transitive"),
+        _ => None,
+    };
+    if let Some(characteristic) = characteristic {
+        push(sections, "Characteristics", characteristic.to_owned());
+        return;
+    }
     match component {
         Component::SubClassOf(SubClassOf { sup, sub }) => {
-            if named_iri(sub) == Some(iri) {
-                push(sections, "Sub Class Of", render_ce(sup));
-            } else if named_iri(sup) == Some(iri) {
-                push(sections, "Super Class Of", render_ce(sub));
-            }
+            relate(named_iri(sub), sup, iri, "Sub Class Of", sections);
+            relate(named_iri(sup), sub, iri, "Super Class Of", sections);
         }
-        Component::EquivalentClasses(classes) => {
-            if classes.0.iter().any(|ce| named_iri(ce) == Some(iri)) {
-                for ce in classes.0.iter().filter(|ce| named_iri(ce) != Some(iri)) {
-                    push(sections, "Equivalent To", render_ce(ce));
-                }
-            }
-        }
-        Component::DisjointClasses(classes) => {
-            if classes.0.iter().any(|ce| named_iri(ce) == Some(iri)) {
-                for ce in classes.0.iter().filter(|ce| named_iri(ce) != Some(iri)) {
-                    push(sections, "Disjoint With", render_ce(ce));
-                }
-            }
-        }
+        Component::EquivalentClasses(classes) => relations(&classes.0, iri, named_iri, "Equivalent To", sections),
+        Component::DisjointClasses(classes) => relations(&classes.0, iri, named_iri, "Disjoint With", sections),
         Component::DisjointUnion(DisjointUnion(class, classes)) => {
             if class.0.as_ref() == iri {
-                push(sections, "Disjoint Union Of", classes.iter().map(render_ce).collect::<Vec<_>>().join(" or "));
+                push(sections, "Disjoint Union Of", classes.iter().map(render).collect::<Vec<_>>().join(" or "));
             }
         }
         Component::ClassAssertion(ClassAssertion { ce, i }) => {
-            if individual_iri(i) == Some(iri) {
-                push(sections, "Types", render_ce(ce));
-            } else if named_iri(ce) == Some(iri) {
-                push(sections, "Instances", render_individual(i));
-            }
+            relate(individual_iri(i), ce, iri, "Types", sections);
+            relate(named_iri(ce), i, iri, "Instances", sections);
         }
         Component::ObjectPropertyDomain(ObjectPropertyDomain { ope, ce }) => {
-            if ope_iri(ope) == Some(iri) {
-                push(sections, "Domain", render_ce(ce));
-            } else if named_iri(ce) == Some(iri) {
-                push(sections, "In Domain Of", render_ope(ope));
-            }
+            relate(ope_iri(ope), ce, iri, "Domain", sections);
+            relate(named_iri(ce), ope, iri, "In Domain Of", sections);
         }
         Component::ObjectPropertyRange(ObjectPropertyRange { ope, ce }) => {
-            if ope_iri(ope) == Some(iri) {
-                push(sections, "Range", render_ce(ce));
-            } else if named_iri(ce) == Some(iri) {
-                push(sections, "In Range Of", render_ope(ope));
-            }
-        }
-        Component::FunctionalObjectProperty(ope) => {
-            if ope_iri(&ope.0) == Some(iri) {
-                push(sections, "Characteristics", "Functional".to_owned());
-            }
-        }
-        Component::InverseFunctionalObjectProperty(ope) => {
-            if ope_iri(&ope.0) == Some(iri) {
-                push(sections, "Characteristics", "Inverse Functional".to_owned());
-            }
-        }
-        Component::ReflexiveObjectProperty(ope) => {
-            if ope_iri(&ope.0) == Some(iri) {
-                push(sections, "Characteristics", "Reflexive".to_owned());
-            }
-        }
-        Component::IrreflexiveObjectProperty(ope) => {
-            if ope_iri(&ope.0) == Some(iri) {
-                push(sections, "Characteristics", "Irreflexive".to_owned());
-            }
-        }
-        Component::SymmetricObjectProperty(ope) => {
-            if ope_iri(&ope.0) == Some(iri) {
-                push(sections, "Characteristics", "Symmetric".to_owned());
-            }
-        }
-        Component::AsymmetricObjectProperty(ope) => {
-            if ope_iri(&ope.0) == Some(iri) {
-                push(sections, "Characteristics", "Asymmetric".to_owned());
-            }
-        }
-        Component::TransitiveObjectProperty(ope) => {
-            if ope_iri(&ope.0) == Some(iri) {
-                push(sections, "Characteristics", "Transitive".to_owned());
-            }
+            relate(ope_iri(ope), ce, iri, "Range", sections);
+            relate(named_iri(ce), ope, iri, "In Range Of", sections);
         }
         Component::SubObjectPropertyOf(SubObjectPropertyOf { sup, sub }) => {
-            if let SubObjectPropertyExpression::ObjectPropertyExpression(sub) = sub
-                && ope_iri(sub) == Some(iri)
-            {
-                push(sections, "Sub Property Of", render_ope(sup));
-            }
+            let sub_iri = match sub {
+                SubObjectPropertyExpression::ObjectPropertyExpression(ope) => ope_iri(ope),
+                SubObjectPropertyExpression::ObjectPropertyChain(_) => None,
+            };
+            relate(sub_iri, sup, iri, "Sub Property Of", sections);
             if ope_iri(sup) == Some(iri) {
                 push(sections, "Super Property Of", render_sub_property(sub));
             }
         }
-        Component::EquivalentObjectProperties(properties) => {
-            if properties.0.iter().any(|ope| ope_iri(ope) == Some(iri)) {
-                for ope in properties.0.iter().filter(|ope| ope_iri(ope) != Some(iri)) {
-                    push(sections, "Equivalent To", render_ope(ope));
-                }
-            }
-        }
-        Component::DisjointObjectProperties(properties) => {
-            if properties.0.iter().any(|ope| ope_iri(ope) == Some(iri)) {
-                for ope in properties.0.iter().filter(|ope| ope_iri(ope) != Some(iri)) {
-                    push(sections, "Disjoint With", render_ope(ope));
-                }
-            }
-        }
+        Component::EquivalentObjectProperties(properties) => relations(&properties.0, iri, ope_iri, "Equivalent To", sections),
+        Component::DisjointObjectProperties(properties) => relations(&properties.0, iri, ope_iri, "Disjoint With", sections),
         Component::InverseObjectProperties(InverseObjectProperties(first, second)) => {
-            if first.0.as_ref() == iri {
-                push(sections, "Inverse Of", render_iri(second.0.as_ref()));
-            }
-            if second.0.as_ref() == iri {
-                push(sections, "Inverse Of", render_iri(first.0.as_ref()));
-            }
+            relate(Some(first.0.as_ref()), second, iri, "Inverse Of", sections);
+            relate(Some(second.0.as_ref()), first, iri, "Inverse Of", sections);
         }
         Component::SubDataPropertyOf(SubDataPropertyOf { sup, sub }) => {
-            if sub.0.as_ref() == iri {
-                push(sections, "Sub Property Of", render_iri(sup.0.as_ref()));
-            }
-            if sup.0.as_ref() == iri {
-                push(sections, "Super Property Of", render_iri(sub.0.as_ref()));
-            }
+            relate(Some(sub.0.as_ref()), sup, iri, "Sub Property Of", sections);
+            relate(Some(sup.0.as_ref()), sub, iri, "Super Property Of", sections);
         }
-        Component::EquivalentDataProperties(properties) => {
-            if properties.0.iter().any(|property| property.0.as_ref() == iri) {
-                for property in properties.0.iter().filter(|property| property.0.as_ref() != iri) {
-                    push(sections, "Equivalent To", render_iri(property.0.as_ref()));
-                }
-            }
-        }
-        Component::DisjointDataProperties(properties) => {
-            if properties.0.iter().any(|property| property.0.as_ref() == iri) {
-                for property in properties.0.iter().filter(|property| property.0.as_ref() != iri) {
-                    push(sections, "Disjoint With", render_iri(property.0.as_ref()));
-                }
-            }
-        }
+        Component::EquivalentDataProperties(properties) => relations(&properties.0, iri, |property| Some(property.0.as_ref()), "Equivalent To", sections),
+        Component::DisjointDataProperties(properties) => relations(&properties.0, iri, |property| Some(property.0.as_ref()), "Disjoint With", sections),
         Component::DataPropertyDomain(DataPropertyDomain { dp, ce }) => {
-            if dp.0.as_ref() == iri {
-                push(sections, "Domain", render_ce(ce));
-            } else if named_iri(ce) == Some(iri) {
-                push(sections, "In Domain Of", render_iri(dp.0.as_ref()));
-            }
+            relate(Some(dp.0.as_ref()), ce, iri, "Domain", sections);
+            relate(named_iri(ce), dp, iri, "In Domain Of", sections);
         }
-        Component::DataPropertyRange(DataPropertyRange { dp, dr }) => {
-            if dp.0.as_ref() == iri {
-                push(sections, "Range", render_dr(dr));
-            }
-        }
-        Component::FunctionalDataProperty(dp) => {
-            if dp.0.as_ref() == iri {
-                push(sections, "Characteristics", "Functional".to_owned());
-            }
-        }
-        Component::DatatypeDefinition(DatatypeDefinition { kind, range }) => {
-            if kind.0.as_ref() == iri {
-                push(sections, "Equivalent To", render_dr(range));
-            }
-        }
+        Component::DataPropertyRange(DataPropertyRange { dp, dr }) => relate(Some(dp.0.as_ref()), dr, iri, "Range", sections),
+        Component::DatatypeDefinition(DatatypeDefinition { kind, range }) => relate(Some(kind.0.as_ref()), range, iri, "Equivalent To", sections),
         Component::HasKey(HasKey { ce, vpe }) => {
             if named_iri(ce) == Some(iri) {
                 push(sections, "Has Key", vpe.iter().map(render_property).collect::<Vec<_>>().join(", "));
             }
-            if vpe.iter().any(|property| match property {
-                PropertyExpression::ObjectPropertyExpression(ope) => ope_iri(ope) == Some(iri),
-                PropertyExpression::DataProperty(dp) => dp.0.as_ref() == iri,
-                PropertyExpression::AnnotationProperty(ap) => ap.0.as_ref() == iri,
-            }) {
-                push(sections, "Key For", render_ce(ce));
+            if vpe.iter().any(|property| property_iri(property) == Some(iri)) {
+                push(sections, "Key For", render(ce));
             }
         }
-        Component::SameIndividual(individuals) => {
-            if individuals.0.iter().any(|individual| individual_iri(individual) == Some(iri)) {
-                for individual in individuals.0.iter().filter(|individual| individual_iri(individual) != Some(iri)) {
-                    push(sections, "Same As", render_individual(individual));
-                }
-            }
-        }
-        Component::DifferentIndividuals(individuals) => {
-            if individuals.0.iter().any(|individual| individual_iri(individual) == Some(iri)) {
-                for individual in individuals.0.iter().filter(|individual| individual_iri(individual) != Some(iri)) {
-                    push(sections, "Different From", render_individual(individual));
-                }
-            }
-        }
-        Component::Rule { .. } => push(sections, "Rules", render_component(component)),
-        // Annotation assertions, declarations, imports, ontology metadata and plain property
-        // assertions are already visible as normal RDF triples.
+        Component::SameIndividual(individuals) => relations(&individuals.0, iri, individual_iri, "Same As", sections),
+        Component::DifferentIndividuals(individuals) => relations(&individuals.0, iri, individual_iri, "Different From", sections),
+        Component::Rule { .. } => push(sections, "Rules", render(component)),
+        // Annotation assertions, declarations, imports, ontology metadata and plain property assertions are already visible as normal RDF triples.
         _ => {}
     }
 }
@@ -467,7 +331,7 @@ fn linkify(text: &str) -> String {
             continue;
         };
         let iri = &after[..end];
-        if iri.starts_with("http://") || iri.starts_with("https://") || iri.starts_with("urn:") {
+        if is_linkable(iri) {
             result.push_str(&render_iri(iri));
             rest = &after[end + 1..];
         } else {
@@ -485,7 +349,7 @@ mod tests {
 
     fn example_ontology() -> SetOntology<ArcStr> {
         let mut reader = Cursor::new(EXAMPLE_KB);
-        parse_rdf(&mut reader, Some(oxrdfio::RdfFormat::Turtle)).expect("the example knowledge base should parse")
+        parse_rdf(&mut reader, oxrdfio::RdfFormat::Turtle).expect("the example knowledge base should parse")
     }
 
     #[test]

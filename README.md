@@ -90,7 +90,7 @@ The recognized RDF serialization formats and extensions to load a knowledge base
 ## OWL Axioms
 RickView can display OWL axioms about a resource in [OWL 2 Manchester syntax](https://www.w3.org/TR/owl2-manchester-syntax/).
 This is off by default, because it adds the [horned-owl](https://crates.io/crates/horned-owl) dependency, and can be enabled with `cargo build --features owl`.
-Axioms are shown when the knowledge base is a single ontology document (Turtle, N-Triples, RDF/XML, OWL, OWL/XML, functional-style, Manchester or OBO), but not for HDT knowledge bases, directories or `large = true`.
+Axioms are shown when the knowledge base is a single ontology document (Turtle, N-Triples or RDF/XML), but not for HDT knowledge bases, directories or `large = true`.
 Parse errors and missing support only disable the ontology section, never the RDF graph itself.
 
 ## Logging
