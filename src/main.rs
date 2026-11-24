@@ -262,6 +262,9 @@ async fn about_page() -> impl Responder {
     }
 }
 
+#[get("/config.json")]
+async fn config_json() -> impl Responder { HttpResponse::Ok().json(config()) }
+
 #[head("{_anypath:.*}")]
 async fn head() -> HttpResponse { HttpResponse::MethodNotAllowed().body("RickView does not support HEAD requests.") }
 
@@ -285,7 +288,7 @@ async fn main() -> std::io::Result<()> {
             .service(roboto300)
             .service(favicon)
             .service(head)
-            .service(scope(&config().base).service(about_page).service(rdf_resource).service(redirect))
+            .service(scope(&config().base).service(about_page).service(config_json).service(rdf_resource).service(redirect))
     })
     .bind(("0.0.0.0", config().port))?
     .run()
