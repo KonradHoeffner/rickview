@@ -37,13 +37,44 @@ impl About {
             cargo_pkg_version: VERSION,
             build: format!("{} build with features {}", if cfg!(debug_assertions) { "debug" } else { "release" }, features),
             kb: kb_description(),
-            config: serde_json::to_string_pretty(config()).unwrap_or_default(),
+            config: {
+                let mut html = String::new();
+                json_html(&serde_json::to_value(config()).unwrap_or_default(), &mut html);
+                html
+            },
             num_titles: titles().len(),
             num_types: types().len(),
             types_size: ByteSize(types().deep_size_of() as u64).to_string(),
             titles_size: ByteSize(titles().deep_size_of() as u64).to_string(),
             graph_size,
         }
+    }
+}
+
+fn json_html(value: &serde_json::Value, out: &mut String) {
+    match value {
+        serde_json::Value::Object(map) => {
+            out.push_str("<dl>");
+            for (key, value) in map {
+                out.push_str("<dt>");
+                tinytemplate::escape(key, out);
+                out.push_str("</dt><dd>");
+                json_html(value, out);
+                out.push_str("</dd>");
+            }
+            out.push_str("</dl>");
+        }
+        serde_json::Value::Array(items) => {
+            out.push_str("<ul>");
+            for item in items {
+                out.push_str("<li>");
+                json_html(item, out);
+                out.push_str("</li>");
+            }
+            out.push_str("</ul>");
+        }
+        serde_json::Value::String(s) => tinytemplate::escape(s, out),
+        other => out.push_str(&other.to_string()),
     }
 }
 
