@@ -88,21 +88,10 @@ Compile and run with `cargo run` and then open <http://localhost:8080> in your b
 The recognized RDF serialization formats and extensions to load a knowledge base are Turtle (`.ttl`), N-Triples (`.nt`), RDF/XML (`.rdf`), HDT (`.hdt`) as created by [hdt-cpp](https://github.com/rdfhdt/hdt-cpp) and zstd compressed HDT (`.hdt.zst`).
 
 ## OWL Axioms
-RickView can display OWL axioms about a resource in
-[OWL 2 Manchester syntax](https://www.w3.org/TR/owl2-manchester-syntax/).
-This is optional and off by default, because it adds the [horned-owl](https://crates.io/crates/horned-owl) dependency:
-
-    cargo build --features owl
-
-The OWL source is the knowledge base itself, which must be a single
-Turtle, N-Triples, RDF/XML, OWL, OWL/XML (`.owx`), functional-style (`.ofn`), Manchester (`.omn`) or OBO file.
-Axioms are not shown for HDT knowledge bases or directories because they cannot be parsed as OWL.
-
-OWL is disabled for large knowledge bases (`large = true`). Parse errors are logged and only disable
-the ontology section; they never stop RickView from serving the RDF graph.
-
-Note that horned-owl is licensed under LGPL-3.0, while RickView itself is MIT licensed.
-If you distribute a binary that includes the `owl` feature, check the LGPL-3.0 requirements.
+RickView can display OWL axioms about a resource in [OWL 2 Manchester syntax](https://www.w3.org/TR/owl2-manchester-syntax/).
+This is off by default, because it adds the [horned-owl](https://crates.io/crates/horned-owl) dependency, and can be enabled with `cargo build --features owl`.
+Axioms are shown when the knowledge base is a single ontology document (Turtle, N-Triples, RDF/XML, OWL, OWL/XML, functional-style, Manchester or OBO), but not for HDT knowledge bases, directories or `large = true`.
+Parse errors and missing support only disable the ontology section, never the RDF graph itself.
 
 ## Logging
 The default log level is "info" for RickView and "error" for libraries.
