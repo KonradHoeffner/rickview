@@ -127,11 +127,10 @@ pub fn sections(iri: &str) -> Vec<OntologySection> {
             sections.entry(label).or_default().extend(entries);
         }
     }
-    let mut result: Vec<_> = ORDER
-        .iter()
-        .filter_map(|label| sections.remove(*label).map(|entries| OntologySection { label: (*label).to_owned(), entries: entries.into_iter().collect() }))
-        .collect();
-    result.extend(sections.into_iter().map(|(label, entries)| OntologySection { label, entries: entries.into_iter().collect() }));
+    let section =
+        |label: &str, entries: BTreeSet<String>| OntologySection { label: format!("{label} ({})", entries.len()), entries: entries.into_iter().collect() };
+    let mut result: Vec<_> = ORDER.iter().filter_map(|label| sections.remove(*label).map(|entries| section(label, entries))).collect();
+    result.extend(sections.into_iter().map(|(label, entries)| section(&label, entries)));
     result
 }
 
