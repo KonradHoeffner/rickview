@@ -14,6 +14,8 @@ mod about;
 mod classes;
 /// The main module uses Actix Web to serve resources as HTML and other formats.
 mod config;
+#[cfg(feature = "owl")]
+mod owl;
 mod rdf;
 mod resource;
 

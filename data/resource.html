@@ -33,6 +33,25 @@
 					</table>
 				</div>
 				<aside class="empty"></aside>
+				{{- if resource.ontology }}
+				<div id="ontology">
+					<div class="ontology-header">
+						<span>OWL axioms (Manchester syntax)</span>
+					</div>
+					<table>
+						{{- for section in resource.ontology }}
+						<tr>
+							<td class="td1">{ section.label }</td>
+							<td class="td2">
+								{{- for entry in section.entries }}
+								<span class="c2">{ entry | unescaped }</span>
+								{{- endfor }}
+							</td>
+						</tr>
+						{{- endfor }}
+					</table>
+				</div>
+				{{- endif }}
 				<div id="directs">
 					<table>
 						{{- for entry in resource.directs }}

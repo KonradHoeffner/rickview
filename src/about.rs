@@ -20,7 +20,7 @@ pub struct About {
 }
 
 // features shown with their state, keep in sync with [features] in Cargo.toml (except "default")
-const FEATURES: [(&str, bool); 2] = [("rdfxml", cfg!(feature = "rdfxml")), ("hdt", cfg!(feature = "hdt"))];
+const FEATURES: [(&str, bool); 3] = [("rdfxml", cfg!(feature = "rdfxml")), ("hdt", cfg!(feature = "hdt")), ("owl", cfg!(feature = "owl"))];
 const PROFILE: &str = if cfg!(debug_assertions) { "debug" } else { "release" };
 const FEATURES_DOCS: &str = "https://docs.rs/crate/rickview/latest/features";
 
