@@ -73,12 +73,6 @@ fn load_index() -> Option<OwlIndex> {
     Some(OwlIndex { components, by_iri })
 }
 
-fn parser_config() -> ParserConfiguration<ArcStr> {
-    let mut config = ParserConfiguration::new(Build::new_arc());
-    config.lax = true;
-    config
-}
-
 fn load_ontology(source: Option<&str>, format: oxrdfio::RdfFormat) -> Result<SetOntology<ArcStr>, HornedError> {
     match source {
         None => parse_rdf(&mut Cursor::new(EXAMPLE_KB), format),
@@ -87,7 +81,9 @@ fn load_ontology(source: Option<&str>, format: oxrdfio::RdfFormat) -> Result<Set
 }
 
 fn parse_rdf<R: BufRead>(reader: &mut R, format: oxrdfio::RdfFormat) -> Result<SetOntology<ArcStr>, HornedError> {
-    let config = RDFParserConfiguration { common: parser_config(), format: Some(format) };
+    let mut common = ParserConfiguration::new(Build::new_arc());
+    common.lax = true;
+    let config = RDFParserConfiguration { common, format: Some(format) };
     let (output, incomplete) = horned_owl::io::rdf::reader::read(reader, config)?;
     let (ontology, ..) = ParserOutput::<ArcStr, ArcAnnotatedComponent>::rdf((output, incomplete)).decompose();
     Ok(ontology)
@@ -166,8 +162,6 @@ fn property_iri(property: &PropertyExpression<ArcStr>) -> Option<&str> {
 
 fn is_linkable(iri: &str) -> bool { iri.starts_with("http://") || iri.starts_with("https://") || iri.starts_with("urn:") }
 
-fn render_iri(iri: &str) -> String { Piri::from(iri).link() }
-
 fn render<T: AsManchester<ArcStr>>(value: &T) -> String
 where for<'a> horned_owl::io::omn::Manchester<'a, T, ArcStr>: std::fmt::Display {
     linkify(&value.as_manchester().to_string())
@@ -178,13 +172,6 @@ fn render_property(property: &PropertyExpression<ArcStr>) -> String {
         PropertyExpression::ObjectPropertyExpression(ope) => render(ope),
         PropertyExpression::DataProperty(dp) => render(&dp.0),
         PropertyExpression::AnnotationProperty(ap) => render(&ap.0),
-    }
-}
-
-fn render_sub_property(sub: &SubObjectPropertyExpression<ArcStr>) -> String {
-    match sub {
-        SubObjectPropertyExpression::ObjectPropertyExpression(ope) => render(ope),
-        SubObjectPropertyExpression::ObjectPropertyChain(chain) => chain.iter().map(render).collect::<Vec<_>>().join(" o "),
     }
 }
 
@@ -278,7 +265,14 @@ fn classify(component: &Component<ArcStr>, iri: &str, sections: &mut Sections) {
             };
             relate(sub_iri, sup, iri, "Sub Property Of", sections);
             if ope_iri(sup) == Some(iri) {
-                push(sections, "Super Property Of", render_sub_property(sub));
+                push(
+                    sections,
+                    "Super Property Of",
+                    match sub {
+                        SubObjectPropertyExpression::ObjectPropertyExpression(ope) => render(ope),
+                        SubObjectPropertyExpression::ObjectPropertyChain(chain) => chain.iter().map(render).collect::<Vec<_>>().join(" o "),
+                    },
+                );
             }
         }
         Component::EquivalentObjectProperties(properties) => relations(&properties.0, iri, ope_iri, "Equivalent To", sections),
@@ -331,7 +325,7 @@ fn linkify(text: &str) -> String {
         };
         let iri = &after[..end];
         if is_linkable(iri) {
-            result.push_str(&render_iri(iri));
+            result.push_str(&Piri::from(iri).link());
             rest = &after[end + 1..];
         } else {
             result.push_str("&lt;");
