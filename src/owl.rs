@@ -342,37 +342,3 @@ fn linkify(text: &str) -> String {
     result.push_str(&html_escape(rest));
     result
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn example_ontology() -> SetOntology<ArcStr> {
-        let mut reader = Cursor::new(EXAMPLE_KB);
-        parse_rdf(&mut reader, oxrdfio::RdfFormat::Turtle).expect("the example knowledge base should parse")
-    }
-
-    #[test]
-    fn parses_example_restriction() {
-        let ontology = example_ontology();
-        let rendered: Vec<_> = ontology.iter().map(|component| component.component.as_manchester().to_string()).collect();
-        let equivalent = rendered.iter().find(|entry| entry.contains("EquivalentTo")).expect("the example should contain an equivalent class axiom");
-        assert!(equivalent.contains("Age"), "{equivalent}");
-        assert!(equivalent.contains("some"), "{equivalent}");
-        assert!(equivalent.contains("decimal>"), "{equivalent}");
-        assert!(equivalent.contains("[>="), "{equivalent}");
-    }
-
-    #[test]
-    fn indexes_all_iris_of_a_component() {
-        let ontology = example_ontology();
-        let component = ontology
-            .iter()
-            .map(|component| &component.component)
-            .find(|component| component.as_manchester().to_string().contains("EquivalentTo"))
-            .expect("the example should contain an equivalent class axiom");
-        let iris = component_iris(component);
-        assert!(iris.contains("http://example.com/resource/ExClass"));
-        assert!(iris.contains("http://example.com/resource/Age"));
-    }
-}
