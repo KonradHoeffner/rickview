@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RickView WASM</title>
+  <link rel="icon" href="favicon.ico">
+  <link rel="stylesheet" href="rickview.css">
+  <link rel="stylesheet" href="roboto.css">
+  <style>
+    #toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      background: #111;
+      color: #eee;
+      font: 13px "Roboto", sans-serif;
+    }
+    #toolbar input[type="text"] { width: 22em; max-width: 32vw; }
+    #toolbar input[type="text"], #toolbar input[type="file"] { color: #eee; }
+    #toolbar button { cursor: pointer; }
+    #status { color: #9c9; }
+    #landing { max-width: 46em; margin: 4em auto; padding: 0 1.5em; color: #eee; font: 16px/1.6 "Roboto", sans-serif; }
+    #landing h1 { font-weight: 300; font-size: 2.2em; margin-bottom: .5em; }
+    #landing code { background: #333; padding: 2px 4px; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <label>HDT <input id="file" type="file" accept=".hdt,.zst"></label>
+    <label>URL <input id="url" type="text" placeholder="https://example.org/kb.hdt"></label>
+    <button id="load-url">Load URL</button>
+    <button id="demo">Load demo</button>
+    <label>Namespace <input id="namespace" type="text" value="http://example.com/resource/"></label>
+    <label>Prefix <input id="prefix" type="text" value="ex" size="5"></label>
+    <label>Title <input id="title" type="text" value="RickView WASM"></label>
+    <button id="nt" disabled>NT</button>
+    <button id="ttl" disabled>TTL</button>
+    <button id="reload" title="Load another file">Reload</button>
+    <span id="status"></span>
+  </div>
+  <div id="content">
+    <div id="landing">
+      <h1>RickView WASM</h1>
+      <p>Open a local <code>.hdt</code> or <code>.hdt.zst</code> file, or fetch one by URL. The file is parsed and queried entirely in your browser; nothing is uploaded.</p>
+      <p>Set the namespace to the prefix of the resource IRIs in the file, for example <code>http://dbpedia.org/resource/</code> for DBpedia. Then browse the resources in the class tree, or open a resource directly by adding its suffix to the URL after <code>#/</code>.</p>
+      <p>Only HDT is supported in this build. OWL and RDF/XML input are server-only features.</p>
+    </div>
+  </div>
+  <script type="module">
+    import init, { configure, load_hdt, render, render_about } from './pkg/rickview_wasm.js';
+
+    const $ = id => document.getElementById(id);
+    const content = $('content');
+    let configured = false;
+    let loaded = false;
+    let currentSuffix = '';
+
+    await init();
+
+    const tomlString = value => JSON.stringify(value);
+
+    function status(message) { $('status').textContent = message; }
+
+    function configureFor(name, size) {
+      if (configured) return;
+      const large = size > 20 * 1024 * 1024;
+      const toml = [
+        'base = "#"',
+        `namespace = ${tomlString($('namespace').value.trim())}`,
+        `prefix = ${tomlString($('prefix').value.trim() || 'res')}`,
+        `title = ${tomlString($('title').value.trim() || 'RickView WASM')}`,
+        `kb_file = ${tomlString(name)}`,
+        'examples = []',
+        `large = ${large}`,
+      ].join('\n') + '\n';
+      configure(toml);
+      configured = true;
+    }
+
+    function lockInputs() {
+      for (const id of ['file', 'url', 'load-url', 'demo', 'namespace', 'prefix', 'title']) $(id).disabled = true;
+      $('nt').disabled = false;
+      $('ttl').disabled = false;
+    }
+
+    async function loadBytes(name, buffer) {
+      if (loaded) return status('Reload the page to open another file.');
+      try {
+        status(`Loading ${name}…`);
+        configureFor(name, buffer.byteLength);
+        load_hdt(name, new Uint8Array(buffer));
+        loaded = true;
+        lockInputs();
+        if (!location.hash || location.hash === '#') location.hash = '#/';
+        renderCurrent();
+        status(`Loaded ${name} (${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB)`);
+      } catch (error) {
+        status(String(error));
+        console.error(error);
+      }
+    }
+
+    async function loadUrl(url) {
+      if (!url) return status('Enter an HDT URL first.');
+      try {
+        status(`Fetching ${url}…`);
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        const name = url.split('/').pop() || 'knowledge.hdt';
+        await loadBytes(name, await response.arrayBuffer());
+      } catch (error) {
+        status(`Fetch failed: ${error.message}`);
+      }
+    }
+
+    function parseHash() {
+      let hash = location.hash.replace(/^#/, '');
+      if (hash.startsWith('/')) hash = hash.slice(1);
+      return decodeURIComponent(hash);
+    }
+
+    function show(output) {
+      if (output.contentType === 'text/html') content.innerHTML = output.fragment;
+      else content.textContent = output.fragment;
+      window.scrollTo(0, 0);
+    }
+
+    function renderCurrent() {
+      if (!loaded) return;
+      const suffix = parseHash();
+      currentSuffix = suffix;
+      if (suffix === 'about') return show(render_about());
+      if (suffix === 'config.json') return status('config.json is only available in the server version.');
+      show(render(suffix === '' ? '' : suffix, 'html'));
+    }
+
+    function download(format) {
+      if (!currentSuffix) return status('Open a resource before downloading a serialization.');
+      const output = render(currentSuffix, format);
+      const name = (currentSuffix.split('/').pop() || 'resource') + (format === 'nt' ? '.nt' : '.ttl');
+      const blob = new Blob([output.fragment], { type: output.contentType });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = name;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+
+    $('file').addEventListener('change', async event => {
+      const file = event.target.files[0];
+      if (file) await loadBytes(file.name, await file.arrayBuffer());
+    });
+    $('load-url').addEventListener('click', () => loadUrl($('url').value.trim()));
+    $('demo').addEventListener('click', () => {
+      $('namespace').value = 'http://www.snik.eu/ontology/meta/';
+      $('prefix').value = 'meta';
+      $('title').value = 'SNIK meta ontology';
+      loadUrl('https://raw.githubusercontent.com/KonradHoeffner/hdt/main/tests/resources/snikmeta.hdt');
+    });
+    $('nt').addEventListener('click', () => download('nt'));
+    $('ttl').addEventListener('click', () => download('ttl'));
+    $('reload').addEventListener('click', () => location.reload());
+    window.addEventListener('hashchange', renderCurrent);
+    content.addEventListener('click', event => {
+      const link = event.target.closest('a');
+      if (!link) return;
+      const href = link.getAttribute('href') || '';
+      if (!href.startsWith('?output=')) return;
+      event.preventDefault();
+      const mime = decodeURIComponent(href.slice('?output='.length));
+      if (mime === 'application/n-triples') download('nt');
+      else if (mime === 'application/turtle') download('ttl');
+      else status('RDF/XML is not available in the WASM build.');
+    });
+
+    const params = new URLSearchParams(location.search);
+    const demo = params.get('kb');
+    if (demo) {
+      if (params.get('ns')) $('namespace').value = params.get('ns');
+      if (params.get('prefix')) $('prefix').value = params.get('prefix');
+      $('url').value = demo;
+      loadUrl(demo);
+    }
+  </script>
+</body>
+</html>

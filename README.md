@@ -69,6 +69,11 @@ Alternatively, you can compile it for your own platform with `cargo install rick
 Or you can clone [the repository](https://github.com/konradhoeffner/rickview) and then `cargo build`.
 This requires you to install [Rust including Cargo](https://www.rust-lang.org/tools/install).
 
+## Client-side WebAssembly Viewer
+The separate `wasm/` crate builds a client-only viewer that reuses the rendering core and parses HDT or HDT.zst files in the browser.
+It supports hash routing (`#/Resource`) and N-Triples/Turtle downloads, but not OWL, RDF/XML input, or content negotiation for external clients.
+See [`wasm/README.md`](wasm/README.md) for build and usage instructions.
+
 ## Configure
 Default configuration is stored in `data/default.toml`, which you can override with a custom `data/config.toml` or environment variables.
 Configuration keys are in lower\_snake\_case, while environment variables are prefixed with RICKVIEW\_ and are in SCREAMING\_SNAKE\_CASE.

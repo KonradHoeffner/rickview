@@ -5,3 +5,11 @@ data/*.ttl
 !data/example.ttl
 data/*.hdt
 !data/example.hdt
+
+# client-side viewer build artifacts
+/wasm/pkg
+/wasm/www/pkg
+/wasm/www/rickview.css
+/wasm/www/roboto.css
+/wasm/www/favicon.ico
+/wasm/www/fonts

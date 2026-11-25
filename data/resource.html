@@ -1,5 +1,3 @@
-{{ call header with config}}
-	<body>
 		<article>
 			<header>
 				<hgroup>
@@ -145,8 +143,8 @@
 					{{ if config.owl }}<span title="OWL axioms from horned-owl are shown">OWL mode</span>{{ endif }}
 				</p>
 				<p><a href="{config.base}/" class="uppercase">home</a></p>
-				<p><a href="about" class="uppercase">about</a></p>
-				<p><a href="{config.base}/#class-tree" class="uppercase">class tree</a></p>
+				<p><a href="{config.base}/about" class="uppercase">about</a></p>
+				<p><a href="{config.base}/" class="uppercase">class tree</a></p>
 				<p>{resource.duration}</p>
 			</div>
 			<div id="footer-right">
@@ -170,5 +168,3 @@
 				</ul>
 			</div>
 		</footer>
-	</body>
-</html>
