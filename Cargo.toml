@@ -1,6 +1,6 @@
 [package]
 name = "rickview"
-version = "0.8.0"
+version = "0.8.1"
 edition = "2024"
 license = "MIT"
 keywords = ["rdf", "semantic-web", "linked-data"]
@@ -36,7 +36,7 @@ oxrdf = { version = "0.3", optional = true }
 oxrdfio = { version = "0.2", optional = true }
 
 [features]
-default = ["rdfxml", "hdt"]
+default = ["rdfxml", "hdt", "owl"]
 rdfxml = ["dep:oxrdfxml", "dep:oxrdf"]
 hdt = ["dep:hdt"]
 owl = ["dep:horned-owl", "dep:oxrdfio"]
