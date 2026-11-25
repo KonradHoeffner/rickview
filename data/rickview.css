@@ -229,8 +229,11 @@ footer {
   padding: 24px;
 }
 
-footer #footer-left, footer #footer-left a {
+footer #footer-left {
   float: left;
+}
+
+footer #footer-left, footer #footer-left a {
   display: block;
   font-size: 11px;
   letter-spacing: .7;
