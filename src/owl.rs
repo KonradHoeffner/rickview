@@ -31,16 +31,12 @@ static INDEX: OnceLock<Option<OwlIndex>> = OnceLock::new();
 fn index() -> Option<&'static OwlIndex> { INDEX.get_or_init(load_index).as_ref() }
 
 fn load_index() -> Option<OwlIndex> {
-    if config().large {
-        info!("OWL axioms are not shown for large knowledge bases.");
+    if !config().owl {
+        info!("OWL axioms are not shown for this knowledge base.");
         return None;
     }
     let source = config().kb_file.as_deref();
     let format = match source {
-        Some(path) if Path::new(path).is_dir() => {
-            info!("OWL axioms are not shown for directories, only for a single ontology document.");
-            return None;
-        }
         Some(path) => {
             let extension = Path::new(path).extension().and_then(std::ffi::OsStr::to_str).unwrap_or("rdf").to_ascii_lowercase();
             match extension.as_str() {
@@ -105,9 +101,9 @@ fn component_iris(component: &Component<ArcStr>) -> BTreeSet<String> {
 
 pub fn sections(iri: &str) -> Vec<OntologySection> {
     const ORDER: &[&str] = &[
-        "Types", "Sub Class Of", "Super Class Of", "Equivalent To", "Disjoint With", "Disjoint Union Of", "Domain", "Range", "In Domain Of",
-        "In Range Of", "Characteristics", "Sub Property Of", "Super Property Of", "Inverse Of", "Has Key", "Key For", "Same As", "Different From",
-        "Instances", "Rules", "Referenced In",
+        "Types", "SubClass Of", "Equivalent To", "Disjoint With", "Disjoint Union Of", "Domain", "Range", "In Domain Of", "In Range Of",
+        "Characteristics", "Sub Property Of", "Super Property Of", "Inverse Of", "Has Key", "Key For", "Same As", "Different From", "Instances", "Rules",
+        "Referenced In",
     ];
     let Some(index) = index() else { return Vec::new() };
     let Some(indices) = index.by_iri.get(iri) else { return Vec::new() };
@@ -116,7 +112,9 @@ pub fn sections(iri: &str) -> Vec<OntologySection> {
         let component = &index.components[*i].component;
         let mut component_sections = BTreeMap::new();
         classify(component, iri, &mut component_sections);
-        if component_sections.is_empty() && !is_ignored(component) {
+        // Subclass axioms are already visible in the inverse relations of the superclass.
+        let inverse_subclass = matches!(component, Component::SubClassOf(SubClassOf { sup, .. }) if named_iri(sup) == Some(iri));
+        if component_sections.is_empty() && !is_ignored(component) && !inverse_subclass {
             push(&mut component_sections, "Referenced In", render(component));
         }
         for (label, entries) in component_sections {
@@ -220,10 +218,7 @@ fn classify(component: &Component<ArcStr>, iri: &str, sections: &mut Sections) {
         return;
     }
     match component {
-        Component::SubClassOf(SubClassOf { sup, sub }) => {
-            relate(named_iri(sub), sup, iri, "Sub Class Of", sections);
-            relate(named_iri(sup), sub, iri, "Super Class Of", sections);
-        }
+        Component::SubClassOf(SubClassOf { sup, sub }) => relate(named_iri(sub), sup, iri, "SubClass Of", sections),
         Component::EquivalentClasses(classes) => relations(&classes.0, iri, named_iri, "Equivalent To", sections),
         Component::DisjointClasses(classes) => relations(&classes.0, iri, named_iri, "Disjoint With", sections),
         Component::DisjointUnion(DisjointUnion(class, classes)) => {
@@ -310,7 +305,7 @@ fn linkify(text: &str) -> String {
         };
         let iri = &after[..end];
         if is_linkable(iri) {
-            result.push_str(&Piri::from(iri).link());
+            result.push_str(&Piri::from(iri).link().replace("<br>", " "));
             rest = &after[end + 1..];
         } else {
             result.push_str("&lt;");

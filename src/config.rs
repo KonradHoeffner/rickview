@@ -43,6 +43,9 @@ pub struct Config {
     pub css: Option<String>,
     /// disable memory and CPU intensive preprocessing on large knowledge bases
     pub large: bool,
+    /// Whether OWL axioms are shown: requires the `owl` feature, a non-large knowledge base and a single file or URL in a supported RDF format.
+    #[serde(default)]
+    pub owl: bool,
 }
 
 mod iri_serde {
@@ -116,6 +119,21 @@ impl Config {
             }
             Err(e) => error!("Cannot open data/body.html: {e:?}"),
         }
+
+        config.owl = cfg!(feature = "owl")
+            && !config.large
+            && match config.kb_file.as_deref() {
+                None => true,
+                Some(path) => {
+                    let file = std::path::Path::new(path);
+                    (file.is_file() || path.contains("://"))
+                        && !file.is_dir()
+                        && matches!(
+                            file.extension().and_then(std::ffi::OsStr::to_str).map(str::to_ascii_lowercase).as_deref(),
+                            Some("ttl" | "nt" | "rdf" | "owl")
+                        )
+                }
+            };
 
         Ok(config)
     }

@@ -36,7 +36,7 @@
 				{{- if resource.ontology }}
 				<div id="ontology">
 					<div class="ontology-header">
-						<span>OWL axioms (Manchester syntax)</span>
+						<span>OWL axioms</span>
 					</div>
 					<table>
 						{{- for section in resource.ontology }}
@@ -53,6 +53,15 @@
 				</div>
 				{{- endif }}
 				<div id="directs">
+					{{- if resource.list }}
+					<h3>list</h3>
+					<ol class="rdf-list">
+						{{- for item in resource.list }}
+						<li>{ item | unescaped }</li>
+						{{- endfor }}
+					</ol>
+					{{- endif }}
+					{{- if resource.directs }}
 					<table>
 						{{- for entry in resource.directs }}
 						<tr>
@@ -68,6 +77,27 @@
 						</tr>
 						{{- endfor }}
 					</table>
+					{{- endif }}
+					{{- if resource.duplicates }}
+					<details>
+						<summary>triples also shown as axioms above</summary>
+						<table>
+							{{- for entry in resource.duplicates }}
+							<tr>
+								<td class="td1">
+									<label class="c1">{ entry.0 | unescaped }</label>
+								</td>
+								<td class="td2">
+									{{- for value in entry.1 }} {{ if not @first }}
+									{{- endif }}
+									<span class="c2">{ value | unescaped }</span>
+									{{- endfor }}
+								</td>
+							</tr>
+							{{- endfor }}
+						</table>
+					</details>
+					{{- endif }}
 					{{ if classes }}
 					<h3 id="class-tree">Class tree</h3>
 					{ classes | unescaped }
@@ -75,6 +105,18 @@
 				</div>
 			</header>
 			<aside class="empty"></aside>
+			{{- if resource.referencing }}
+			<div id="referencing">
+				<h3>axioms referencing this resource</h3>
+				<table>
+					{{- for entry in resource.referencing }}
+					<tr>
+						<td class="td2"><span class="c2">{ entry | unescaped }</span></td>
+					</tr>
+					{{- endfor }}
+				</table>
+			</div>
+			{{- endif }}
 			{{- if resource.inverses }}
 			<div id="inverses">
 				<h3>inverse relations</h3>
@@ -100,6 +142,7 @@
 			<div id="footer-left">
 				<p>
 					<a href="https://github.com/konradhoeffner/rickview" class="uppercase" target="_blank" title="based on RickView">RickView {config.cargo_pkg_version}</a>
+					{{ if config.owl }}<span title="OWL axioms from horned-owl are shown">OWL mode</span>{{ endif }}
 				</p>
 				<p><a href="{config.base}/" class="uppercase">home</a></p>
 				<p><a href="about" class="uppercase">about</a></p>
