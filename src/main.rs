@@ -137,6 +137,16 @@ struct Params {
     output: Option<String>,
 }
 
+fn is_empty(res: &Resource) -> bool {
+    res.descriptions.is_empty()
+        && res.directs.is_empty()
+        && res.duplicates.is_empty()
+        && res.list.is_empty()
+        && res.ontology.is_empty()
+        && res.referencing.is_empty()
+        && res.inverses.is_empty()
+}
+
 #[route("/{suffix:.*}", method = "GET", method = "HEAD")]
 /// Serve an RDF resource either as HTML or one of various serializations depending on the accept header.
 async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
@@ -197,12 +207,12 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
     let iri = config().namespace.resolve(IriRef::new_unchecked(suffix));
     let mut res = rdf::resource(iri.as_ref());
     // no triples found
-    if res.directs.is_empty() && res.inverses.is_empty() {
+    if is_empty(&res) {
         if suffix.is_empty() {
             // handle knowledge graphs with meta information in URI equal to the namespace with trailing slash removed
             let iri_noslash = Iri::new_unchecked(iri.as_str().trim_end_matches('/'));
             res = rdf::resource(iri_noslash);
-            if res.directs.is_empty() && res.inverses.is_empty() && accept == Html
+            if is_empty(&res) && accept == Html
             // index page is only shown as HTML and only if resource URI equal to namespace with or without slash does not exist
             {
                 return index();
