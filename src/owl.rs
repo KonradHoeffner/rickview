@@ -107,7 +107,7 @@ pub fn sections(iri: &str) -> Vec<OntologySection> {
     const ORDER: &[&str] = &[
         "Types", "Sub Class Of", "Super Class Of", "Equivalent To", "Disjoint With", "Disjoint Union Of", "Domain", "Range", "In Domain Of",
         "In Range Of", "Characteristics", "Sub Property Of", "Super Property Of", "Inverse Of", "Has Key", "Key For", "Same As", "Different From",
-        "Instances", "Rules", "Referenced In",
+        "Instances", "Referenced In",
     ];
     let Some(index) = index() else { return Vec::new() };
     let Some(indices) = index.by_iri.get(iri) else { return Vec::new() };
@@ -288,7 +288,6 @@ fn classify(component: &Component<ArcStr>, iri: &str, sections: &mut Sections) {
         }
         Component::SameIndividual(individuals) => relations(&individuals.0, iri, individual_iri, "Same As", sections),
         Component::DifferentIndividuals(individuals) => relations(&individuals.0, iri, individual_iri, "Different From", sections),
-        Component::Rule { .. } => push(sections, "Rules", render(component)),
         // Annotation assertions, declarations, imports, ontology metadata and plain property assertions are already visible as normal RDF triples.
         _ => {}
     }
