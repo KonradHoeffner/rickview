@@ -26,7 +26,7 @@ use actix_web::body::MessageBody;
 use actix_web::http::header::{self, ETag, EntityTag};
 use actix_web::middleware::Compress;
 use actix_web::web::scope;
-use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, get, head, web};
+use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, route, web};
 use const_fnv1a_hash::{fnv1a_hash_32, fnv1a_hash_str_32};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
@@ -100,17 +100,17 @@ where &'static T: MessageBody {
 }
 
 // For maximum robustness, serve CSS, font and icon from any path. Collision with RDF resource URIs unlikely.
-#[get("{_anypath:.*/|}rickview.css")]
+#[route("{_anypath:.*/|}rickview.css", method = "GET", method = "HEAD")]
 async fn rickview_css(r: HttpRequest) -> impl Responder { hash_etag(&r, RICKVIEW_CSS, &RICKVIEW_CSS_SHASH, &RICKVIEW_CSS_SHASH_QUOTED, "text/css") }
 
-#[get("{_anypath:.*/|}roboto.css")]
+#[route("{_anypath:.*/|}roboto.css", method = "GET", method = "HEAD")]
 async fn roboto_css(r: HttpRequest) -> impl Responder { hash_etag(&r, ROBOTO_CSS, &ROBOTO_CSS_SHASH, &ROBOTO_CSS_SHASH_QUOTED, "text/css") }
 
 // cached automatically by browser
-#[get("{_anypath:.*/|}roboto300.woff2")]
+#[route("{_anypath:.*/|}roboto300.woff2", method = "GET", method = "HEAD")]
 async fn roboto300() -> impl Responder { HttpResponse::Ok().content_type("font/woff2").body(ROBOTO300) }
 
-#[get("{_anypath:.*/|}favicon.ico")]
+#[route("{_anypath:.*/|}favicon.ico", method = "GET", method = "HEAD")]
 async fn favicon(r: HttpRequest) -> impl Responder { hash_etag(&r, &FAVICON[..], &FAVICON_SHASH, &FAVICON_SHASH_QUOTED, "image/x-icon") }
 
 fn error_response(source: &str, error: impl std::fmt::Debug) -> HttpResponse {
@@ -138,7 +138,7 @@ struct Params {
     output: Option<String>,
 }
 
-#[get("/{suffix:.*}")]
+#[route("/{suffix:.*}", method = "GET", method = "HEAD")]
 /// Serve an RDF resource either as HTML or one of various serializations depending on the accept header.
 async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Query<Params>) -> impl Responder {
     const MIME_HTML: &str = "text/html";
@@ -255,7 +255,7 @@ fn index() -> HttpResponse {
     }
 }
 
-#[get("/about")]
+#[route("/about", method = "GET", method = "HEAD")]
 async fn about_page() -> impl Responder {
     let context = Context { config: config(), about: Some(About::new()), classes: String::new(), resource: None };
     match template().render("about", &context) {
@@ -264,13 +264,10 @@ async fn about_page() -> impl Responder {
     }
 }
 
-#[get("/config.json")]
+#[route("/config.json", method = "GET", method = "HEAD")]
 async fn config_json() -> impl Responder { HttpResponse::Ok().json(config()) }
 
-#[head("{_anypath:.*}")]
-async fn head() -> HttpResponse { HttpResponse::MethodNotAllowed().body("RickView does not support HEAD requests.") }
-
-#[get("")]
+#[route("", method = "GET", method = "HEAD")]
 /// redirect /base to correct index page /base/
 /// For example, a user may erroneously open <http://mydomain.org/ontology> but mean <http://mydomain.org/ontology/>, which should be the base resource if it exists as the latter is inside the namespace.
 async fn redirect() -> impl Responder { HttpResponse::TemporaryRedirect().append_header(("location", config().base.clone() + "/")).finish() }
@@ -289,7 +286,6 @@ async fn main() -> std::io::Result<()> {
             .service(roboto_css)
             .service(roboto300)
             .service(favicon)
-            .service(head)
             .service(scope(&config().base).service(about_page).service(config_json).service(rdf_resource).service(redirect))
     })
     .bind(("0.0.0.0", config().port))?
