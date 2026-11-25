@@ -24,7 +24,7 @@ use crate::resource::Resource;
 use about::About;
 use actix_web::body::MessageBody;
 use actix_web::http::header::{self, ETag, EntityTag};
-use actix_web::middleware::Compress;
+use actix_web::middleware::{Compress, DefaultHeaders};
 use actix_web::web::scope;
 use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, route, web};
 use const_fnv1a_hash::{fnv1a_hash_32, fnv1a_hash_str_32};
@@ -281,6 +281,7 @@ async fn main() -> std::io::Result<()> {
     info!("RickView {} serving {} at http://localhost:{}{}/", config::VERSION, config().namespace.as_str(), config().port, config().base);
     HttpServer::new(move || {
         App::new()
+            .wrap(DefaultHeaders::new().add((header::VARY, "accept")))
             .wrap(Compress::default())
             .service(rickview_css)
             .service(roboto_css)
