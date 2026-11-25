@@ -1,5 +1,3 @@
-{{ call header with config}}
-  <body>
     <article>
       <header>
         <hgroup>
@@ -10,7 +8,7 @@
           {{ if config.examples }} Examples:
           <ul>
             {{ for c in config.examples }}
-            <li><a href="{c}">{c}</a></li>
+            <li><a href="{config.base}/{c}">{c}</a></li>
             {{ endfor }}
           </ul>
           {{ endif }}
@@ -31,4 +29,3 @@
         </div>
       </header>
     </article>
-{{ call footer with config}}

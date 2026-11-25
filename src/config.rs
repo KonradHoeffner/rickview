@@ -1,9 +1,14 @@
-use config::{ConfigError, Environment, File, FileFormat};
+#[cfg(feature = "server")]
+use config::Environment;
+use config::{ConfigError, File, FileFormat};
+#[cfg(feature = "server")]
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
 use sophia::iri::Iri;
 use std::collections::{HashMap, HashSet};
+#[cfg(feature = "server")]
 use std::io::{BufReader, Read};
+#[cfg(feature = "server")]
 use std::str::FromStr;
 use std::sync::OnceLock;
 
@@ -68,6 +73,19 @@ static DEFAULT: &str = std::include_str!("../data/default.toml");
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 impl Config {
+    /// Build a configuration for the client-side viewer from the default values and a TOML string.
+    pub fn from_toml(toml: &str) -> Result<Self, ConfigError> {
+        let mut config: Config = config::Config::builder()
+            .add_source(File::from_str(DEFAULT, FileFormat::Toml))
+            .add_source(File::from_str(toml, FileFormat::Toml))
+            .set_override("cargo_pkg_version", VERSION)?
+            .build()?
+            .try_deserialize()?;
+        config.owl = false;
+        Ok(Self::normalize(config))
+    }
+
+    #[cfg(feature = "server")]
     pub fn new() -> Result<Self, ConfigError> {
         // configuration precedence: env var > config key > default value
         // namespaces cannot be configured with env vars
@@ -85,12 +103,7 @@ impl Config {
             .set_override("cargo_pkg_version", VERSION)?
             .build()?
             .try_deserialize()?;
-        if !config.base.is_empty() && !config.base.starts_with('/') {
-            eprintln!("Warning: Non-empty base path '{}' does not start with a leading '/'.", config.base);
-        }
-        if config.base.ends_with('/') {
-            config.base.pop();
-        }
+        config = Self::normalize(config);
         // initialize logging here because we want it as early as possible but we need the log level
         let mut binding = env_logger::Builder::new();
         let builder = match std::env::var("RUST_LOG") {
@@ -137,7 +150,25 @@ impl Config {
 
         Ok(config)
     }
+
+    fn normalize(mut config: Self) -> Self {
+        if !config.base.is_empty() && !config.base.starts_with('/') && config.base != "#" {
+            eprintln!("Warning: Non-empty base path '{}' does not start with a leading '/'.", config.base);
+        }
+        if config.base.ends_with('/') {
+            config.base.pop();
+        }
+        config
+    }
 }
 
 static CONFIG: OnceLock<Config> = OnceLock::new();
+
+/// Initialize the configuration of the client-side viewer. Must be called before rendering.
+pub fn set(config: Config) -> Result<(), Config> { CONFIG.set(config) }
+
+#[cfg(feature = "server")]
 pub fn config() -> &'static Config { CONFIG.get_or_init(|| Config::new().expect("Error reading configuration.")) }
+
+#[cfg(not(feature = "server"))]
+pub fn config() -> &'static Config { CONFIG.get().expect("Configuration not initialized; call config::set first.") }

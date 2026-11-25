@@ -52,3 +52,18 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: check on stable Rust
         run: cargo check
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install stable Rust with wasm target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: latest
+      - name: Build client-side viewer
+        run: ./wasm/build.sh

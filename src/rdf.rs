@@ -9,7 +9,9 @@ use log::*;
 use multimap::MultiMap;
 #[cfg(feature = "rdfxml")]
 use oxrdfxml::RdfXmlParser;
-use sophia::api::graph::{Graph, MutableGraph};
+use sophia::api::graph::Graph;
+#[cfg(feature = "server")]
+use sophia::api::graph::MutableGraph;
 use sophia::api::prefix::{Prefix, PrefixMap};
 use sophia::api::prelude::Triple;
 use sophia::api::serializer::{Stringifier, TripleSerializer};
@@ -18,6 +20,7 @@ use sophia::api::term::matcher::{Any, TermMatcher};
 use sophia::api::term::{FromTerm, SimpleTerm, Term};
 use sophia::inmem::graph::FastGraph;
 use sophia::iri::{Iri, IriRef};
+#[cfg(feature = "server")]
 use sophia::turtle::parser::{nt, turtle};
 use sophia::turtle::serializer::nt::NTriplesSerializer;
 use sophia::turtle::serializer::turtle::{TurtleConfig, TurtleSerializer};
@@ -25,14 +28,20 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::convert::Infallible;
 use std::error::Error;
 use std::fmt;
+#[cfg(feature = "server")]
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Cursor};
+#[cfg(feature = "server")]
 use std::path::Path;
 use std::sync::OnceLock;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
 #[cfg(feature = "hdt")]
 use zstd::stream::read::Decoder;
 
+#[cfg(feature = "server")]
 static EXAMPLE_KB: &str = std::include_str!("../data/example.ttl");
 static CAP: usize = 100; // maximum number of values shown per property
 static SKOLEM_START: &str = ".well-known/genid/";
@@ -119,6 +128,7 @@ impl GraphEnum {
     }
 }
 
+#[cfg(feature = "server")]
 pub fn kb_reader(filename: &str) -> anyhow::Result<BufReader<impl std::io::Read>> {
     Ok(BufReader::new(if filename.starts_with("http") {
         Box::new(ureq::get(filename).call()?.into_body().into_reader()) as Box<dyn std::io::Read>
@@ -128,7 +138,7 @@ pub fn kb_reader(filename: &str) -> anyhow::Result<BufReader<impl std::io::Read>
 }
 
 /// Convert an RDF/XML triple into terms that `FastGraph` can store.
-#[cfg(feature = "rdfxml")]
+#[cfg(all(feature = "server", feature = "rdfxml"))]
 fn load_rdfxml(g: &mut FastGraph, reader: impl std::io::Read) -> anyhow::Result<usize> {
     use oxrdf::{NamedOrBlankNode, Term as OxTerm};
     use sophia::api::MownStr;
@@ -174,6 +184,7 @@ fn to_ox_term(term: &SimpleTerm<'_>) -> anyhow::Result<oxrdf::Term> {
     })
 }
 
+#[cfg(feature = "server")]
 fn load_dir(g: &mut FastGraph, filename: &str) -> anyhow::Result<usize> {
     info!("Loading all .ttl and .nt files from directory {filename}");
     std::fs::read_dir(filename)
@@ -201,6 +212,7 @@ fn load_dir(g: &mut FastGraph, filename: &str) -> anyhow::Result<usize> {
         .sum()
 }
 
+#[cfg(feature = "server")]
 fn load_graph() -> anyhow::Result<GraphEnum> {
     //let load = || -> anyhow::Result<(FastGraph, usize)> {
     let mut g = FastGraph::new();
@@ -248,6 +260,7 @@ fn load_graph() -> anyhow::Result<GraphEnum> {
 }
 
 /// Load RDF graph from the RDF Turtle file specified in the config.
+#[cfg(feature = "server")]
 pub fn graph() -> &'static GraphEnum {
     //let (g, num_triples) = load()
     GRAPH.get_or_init(|| {
@@ -256,6 +269,23 @@ pub fn graph() -> &'static GraphEnum {
             std::process::exit(1);
         })
     })
+}
+
+/// Return the graph that was initialized with [`load_hdt`].
+#[cfg(not(feature = "server"))]
+pub fn graph() -> &'static GraphEnum { GRAPH.get().expect("Graph not initialized; call rdf::load_hdt first.") }
+
+/// Initialize the graph of the client-side viewer from HDT bytes.
+#[cfg(feature = "hdt")]
+pub fn load_hdt(filename: &str, bytes: Vec<u8>) -> anyhow::Result<()> {
+    let hdt = if filename.ends_with(".zst") {
+        let decoder = Decoder::new(Cursor::new(bytes)).context("Failed to create zstd decoder")?;
+        Hdt::read(BufReader::new(decoder)).context("Failed to load HDT")?
+    } else {
+        Hdt::read(Cursor::new(bytes)).context("Failed to load HDT")?
+    };
+    GRAPH.set(GraphEnum::HdtGraph(hdt)).map_err(|_| anyhow::anyhow!("Graph already loaded"))?;
+    Ok(())
 }
 
 /// (prefix,iri) pairs from the config

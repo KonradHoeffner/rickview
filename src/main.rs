@@ -9,36 +9,21 @@
 //! Besides HTML, the RDF serialization formats RDF/XML, Turtle and N-Triples are also available using content negotiation.
 //! Default configuration is stored in `data/default.toml`, which can be overriden in `data/config.toml` or environment variables.
 //! Configuration keys are in `lower_snake_case`, while environment variables are prefixed with RICKVIEW\_ and are `in SCREAMING_SNAKE_CASE`.
-mod about;
-mod classes;
-/// The main module uses Actix Web to serve resources as HTML and other formats.
-mod config;
-#[cfg(feature = "owl")]
-mod owl;
-mod rdf;
-mod resource;
-
-use crate::config::{Config, config};
-use crate::resource::Resource;
-use about::About;
 use actix_web::body::MessageBody;
+use actix_web::http::StatusCode;
 use actix_web::http::header::{self, ETag, EntityTag};
 use actix_web::middleware::{Compress, DefaultHeaders};
 use actix_web::web::scope;
 use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, route, web};
 use const_fnv1a_hash::{fnv1a_hash_32, fnv1a_hash_str_32};
-use log::{debug, error, info, warn};
-use serde::{Deserialize, Serialize};
-use sophia::iri::{Iri, IriRef};
-use std::error::Error;
+use log::{info, warn};
+use rickview::config::{self, config};
+use rickview::render::{self, Format};
+use serde::Deserialize;
 use std::sync::LazyLock;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use tinytemplate::TinyTemplate;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-static HEADER: &str = std::include_str!("../data/header.html");
-static FOOTER: &str = std::include_str!("../data/footer.html");
-static RESOURCE: &str = std::include_str!("../data/resource.html");
 static FAVICON: &[u8; 318] = std::include_bytes!("../data/favicon.ico");
 // extremely low risk of collision, worst case is out of date favicon or CSS
 static FAVICON_HASH: u32 = fnv1a_hash_32(FAVICON, None);
@@ -47,8 +32,6 @@ static RICKVIEW_CSS_HASH: u32 = fnv1a_hash_str_32(RICKVIEW_CSS);
 static ROBOTO_CSS: &str = std::include_str!("../data/roboto.css");
 static ROBOTO_CSS_HASH: u32 = fnv1a_hash_str_32(ROBOTO_CSS);
 static ROBOTO300: &[u8] = std::include_bytes!("../fonts/roboto300.woff2");
-static INDEX: &str = std::include_str!("../data/index.html");
-static ABOUT: &str = std::include_str!("../data/about.html");
 static RUN_ID: AtomicU32 = AtomicU32::new(0);
 
 // 8 chars hexadecimal, not worth it to add base64 dependency to save 2 chars
@@ -58,33 +41,6 @@ static RICKVIEW_CSS_SHASH: LazyLock<String> = LazyLock::new(|| format!("{RICKVIE
 static RICKVIEW_CSS_SHASH_QUOTED: LazyLock<String> = LazyLock::new(|| format!("\"{}\"", *RICKVIEW_CSS_SHASH));
 static ROBOTO_CSS_SHASH: LazyLock<String> = LazyLock::new(|| format!("{ROBOTO_CSS_HASH:x}"));
 static ROBOTO_CSS_SHASH_QUOTED: LazyLock<String> = LazyLock::new(|| format!("\"{}\"", *ROBOTO_CSS_SHASH));
-
-#[derive(Serialize)]
-struct Context {
-    config: &'static Config,
-    about: Option<About>,
-    resource: Option<Resource>,
-    classes: String,
-}
-
-fn template() -> TinyTemplate<'static> {
-    let mut tt = TinyTemplate::new();
-    tt.add_template("header", HEADER).expect("Could not parse header template");
-    tt.add_template("footer", FOOTER).expect("Could not parse footer template");
-    tt.add_template("resource", RESOURCE).expect("Could not parse resource page template");
-    tt.add_template("index", INDEX).expect("Could not parse index page template");
-    tt.add_template("about", ABOUT).expect("Could not parse about page template");
-    tt.add_formatter("uri_to_suffix", |json, output| {
-        let s = json.as_str().unwrap_or_else(|| panic!("JSON value is not a string: {json}"));
-        let mut s = s.rsplit_once('/').unwrap_or_else(|| panic!("no '/' in URI '{s}'")).1;
-        if s.contains('#') {
-            s = s.rsplit_once('#').unwrap().1;
-        }
-        output.push_str(s);
-        Ok(())
-    });
-    tt
-}
 
 fn hash_etag<T: ?Sized>(r: &HttpRequest, body: &'static T, shash: &str, quoted: &str, ct: &str) -> impl Responder + use<T>
 where &'static T: MessageBody {
@@ -112,19 +68,6 @@ async fn roboto300() -> impl Responder { HttpResponse::Ok().content_type("font/w
 #[route("{_anypath:.*/|}favicon.ico", method = "GET", method = "HEAD")]
 async fn favicon(r: HttpRequest) -> impl Responder { hash_etag(&r, &FAVICON[..], &FAVICON_SHASH, &FAVICON_SHASH_QUOTED, "image/x-icon") }
 
-fn error_response(source: &str, error: impl std::fmt::Debug) -> HttpResponse {
-    let message = format!("Could not render {source}: {error:?}");
-    error!("{message}");
-    HttpResponse::InternalServerError().body(message)
-}
-
-fn res_result(resource: &str, content_type: &str, result: Result<String, Box<dyn Error>>) -> HttpResponse {
-    match result {
-        Ok(s) => HttpResponse::Ok().content_type(content_type).body(s),
-        Err(e) => error_response(&format!("resource {resource}"), e),
-    }
-}
-
 // Pseudo GET parameters with empty value so that asset responders still match and caching works.
 fn add_hashes(body: &str) -> String {
     body.replacen("rickview.css", &format!("rickview.css?{}", *RICKVIEW_CSS_SHASH), 1)
@@ -137,14 +80,16 @@ struct Params {
     output: Option<String>,
 }
 
-fn is_empty(res: &Resource) -> bool {
-    res.descriptions.is_empty()
-        && res.directs.is_empty()
-        && res.duplicates.is_empty()
-        && res.list.is_empty()
-        && res.ontology.is_empty()
-        && res.referencing.is_empty()
-        && res.inverses.is_empty()
+fn html_response(output: render::RenderOutput, etag: Option<&str>) -> HttpResponse {
+    let status = StatusCode::from_u16(output.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    let body = if output.content_type == "text/html" { add_hashes(&output.body) } else { output.body };
+    let mut response = HttpResponse::build(status).content_type(output.content_type).body(body);
+    if let Some(tag) = etag
+        && let Ok(value) = header::HeaderValue::from_str(&format!("\"{tag}\""))
+    {
+        response.headers_mut().append(header::ETAG, value);
+    }
+    response
 }
 
 #[route("/{suffix:.*}", method = "GET", method = "HEAD")]
@@ -164,114 +109,38 @@ async fn rdf_resource(r: HttpRequest, suffix: web::Path<String>, params: web::Qu
     {
         return HttpResponse::NotModified().finish();
     }
-    let etag = ETag(EntityTag::new_strong(id));
     let output = params.output.as_deref();
-    let t = Instant::now();
     let prefixed = config().prefix.to_string() + ":" + suffix;
 
-    #[allow(clippy::items_after_statements)]
-    #[derive(PartialEq)]
-    enum Accept {
-        Nt,
-        Ttl,
-        Html,
-        #[cfg(feature = "rdfxml")]
-        Xml,
-    }
-    use Accept::*;
-
-    let accept: Accept = output
+    let accept: Format = output
         .and_then(|o| match o {
-            MIME_NT => Some(Nt),
-            MIME_TTL => Some(Ttl),
+            MIME_NT => Some(Format::Nt),
+            MIME_TTL => Some(Format::Ttl),
             #[cfg(feature = "rdfxml")]
-            MIME_XML => Some(Xml),
-            MIME_HTML => Some(Html),
+            MIME_XML => Some(Format::Xml),
+            MIME_HTML => Some(Format::Html),
             _ => None,
         })
         .unwrap_or_else(|| {
             let a = r.head().headers().get("Accept").and_then(|a| a.to_str().ok());
             match a {
-                Some(ah) if ah.contains(MIME_NT) => Nt,
-                Some(ah) if ah.contains(MIME_TTL) => Ttl,
+                Some(ah) if ah.contains(MIME_NT) => Format::Nt,
+                Some(ah) if ah.contains(MIME_TTL) => Format::Ttl,
                 #[cfg(feature = "rdfxml")]
-                Some(ah) if ah.contains(MIME_XML) => Xml,
-                Some(ah) if ah.contains(MIME_HTML) => Html,
+                Some(ah) if ah.contains(MIME_XML) => Format::Xml,
+                Some(ah) if ah.contains(MIME_HTML) => Format::Html,
                 _ => {
                     warn!("{prefixed} accept header {a:?} and 'output' param missing or not recognized, default to RDF Turtle");
-                    Ttl
+                    Format::Ttl
                 }
             }
         });
 
-    let iri = config().namespace.resolve(IriRef::new_unchecked(suffix));
-    let mut res = rdf::resource(iri.as_ref());
-    // no triples found
-    if is_empty(&res) {
-        if suffix.is_empty() {
-            // handle knowledge graphs with meta information in URI equal to the namespace with trailing slash removed
-            let iri_noslash = Iri::new_unchecked(iri.as_str().trim_end_matches('/'));
-            res = rdf::resource(iri_noslash);
-            if is_empty(&res) && accept == Html
-            // index page is only shown as HTML and only if resource URI equal to namespace with or without slash does not exist
-            {
-                return index();
-            }
-        } else {
-            let warning = format!("No triples found for {suffix}. Did you configure the namespace correctly?");
-            warn!("{warning}");
-            if accept == Html {
-                res.descriptions.push(("Warning".to_owned(), vec![warning.clone()]));
-                // HTML is accepted and there are no errors, create a pseudo element in the empty resource to return 404 with HTML
-                return match template().render("resource", &Context { config: config(), resource: Some(res), about: None, classes: String::new() }) {
-                    Ok(html) => HttpResponse::NotFound().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html)),
-                    Err(e) => HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(format!("{warning}\n\n{e}")),
-                };
-            }
-            // return 404 with plain text
-            return HttpResponse::NotFound().content_type("text/plain").append_header(etag).body(warning);
-        }
-    }
-
-    match accept {
-        Nt => res_result(&prefixed, MIME_NT, rdf::serialize_nt(iri.as_ref())),
-        Ttl => res_result(&prefixed, MIME_TTL, rdf::serialize_turtle(iri.as_ref())),
-        #[cfg(feature = "rdfxml")]
-        Xml => res_result(&prefixed, MIME_XML, rdf::serialize_rdfxml(iri.as_ref())),
-        Html => {
-            let classes = if is_root(iri.as_str()) { crate::classes::class_tree() } else { String::new() };
-            let context = Context { config: config(), about: None, classes, resource: Some(res) };
-            match template().render("resource", &context) {
-                Ok(html) => {
-                    debug!("{} HTML {:?}", prefixed, t.elapsed());
-                    HttpResponse::Ok().content_type("text/html; charset-utf-8").append_header(etag).body(add_hashes(&html))
-                }
-                Err(err) => error_response(&format!("resource {prefixed}"), err),
-            }
-        }
-    }
-}
-
-/// Whether `iri` is the knowledge base root, with or without trailing slash.
-fn is_root(iri: &str) -> bool { iri.trim_end_matches('/') == config().namespace.as_str().trim_end_matches('/') }
-
-/// does not get shown when there is a resource whose URI equals the namespace, with or without slash
-fn index() -> HttpResponse {
-    let context = Context { config: config(), about: None, classes: crate::classes::class_tree(), resource: None };
-    match template().render("index", &context) {
-        Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
-        Err(e) => error_response("index page", e),
-    }
+    html_response(render::render_resource(suffix, accept), Some(&id))
 }
 
 #[route("/about", method = "GET", method = "HEAD")]
-async fn about_page() -> impl Responder {
-    let context = Context { config: config(), about: Some(About::new()), classes: String::new(), resource: None };
-    match template().render("about", &context) {
-        Ok(body) => HttpResponse::Ok().content_type("text/html").body(add_hashes(&body)),
-        Err(e) => error_response("about page", e),
-    }
-}
+async fn about_page() -> impl Responder { html_response(render::render_about(), None) }
 
 #[route("/config.json", method = "GET", method = "HEAD")]
 async fn config_json() -> impl Responder { HttpResponse::Ok().json(config()) }

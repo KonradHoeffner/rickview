@@ -1,5 +1,3 @@
-{{ call header with config}}
-  <body>
     <article>
       <header>
         <hgroup>
@@ -14,9 +12,8 @@
            <li>type index {about.num_types} entries with size {about.types_size}</li>
            <li>graph size {about.graph_size}</li>
            <li>{about.build|unescaped}</li>
-           <li><a href="config.json" class="uppercase">config.json</a></li>
+           <li><a href="{config.base}/config.json" class="uppercase">config.json</a></li>
           </ul>
         </div>
       </header>
     </article>
-{{ call footer with config}}

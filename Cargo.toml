@@ -11,21 +11,30 @@ readme = "README.md"
 repository = "https://github.com/KonradHoeffner/rickview"
 rust-version = "1.89"
 
+[workspace]
+members = ["wasm"]
+default-members = ["."]
+resolver = "3"
+
+[lib]
+name = "rickview"
+path = "src/lib.rs"
+
+[[bin]]
+name = "rickview"
+path = "src/main.rs"
+required-features = ["server"]
+
 [dependencies]
 sophia = "0.10"
-actix-web = "4"
 multimap = "0.10"
 tinytemplate = "1"
 serde = { version = "1", features = ["derive"] }
 config = { version = "0.15", default-features = false, features = ["toml"] }
 log = "0.4"
-env_logger = { version = "0.11", default-features = false, features = ["auto-color"] }
 hdt = { version = "0.8", optional = true }
 deepsize = { version = "0.2", default-features = false, features = ["std"] }
 bytesize = "2"
-zstd = { version = "0.14", features = ["zstdmt"] }
-ureq = "3"
-const-fnv1a-hash = "1"
 serde_json = "1"
 anyhow = "1.0.104"
 horned-owl = { version = "5", optional = true, default-features = false }
@@ -35,11 +44,23 @@ oxrdfxml = { version = "0.2", optional = true }
 oxrdf = { version = "0.3", optional = true }
 oxrdfio = { version = "0.2", optional = true }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+actix-web = { version = "4", optional = true }
+env_logger = { version = "0.11", default-features = false, features = ["auto-color"], optional = true }
+ureq = { version = "3", optional = true }
+zstd = { version = "0.14", features = ["zstdmt"], optional = true }
+const-fnv1a-hash = "1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-time = "1"
+zstd = { version = "0.14", default-features = false, optional = true }
+
 [features]
-default = ["rdfxml", "hdt"]
+default = ["server", "rdfxml", "hdt"]
+server = ["dep:actix-web", "dep:ureq", "dep:env_logger"]
 rdfxml = ["dep:oxrdfxml", "dep:oxrdf"]
-hdt = ["dep:hdt"]
-owl = ["dep:horned-owl", "dep:oxrdfio"]
+hdt = ["dep:hdt", "dep:zstd"]
+owl = ["dep:horned-owl", "dep:oxrdfio", "server"]
 
 [profile.release]
 # see https://fasterthanli.me/articles/why-is-my-rust-build-so-slow
