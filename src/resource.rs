@@ -19,8 +19,14 @@ pub struct Resource {
     pub descriptions: Vec<(String, Vec<String>)>,
     /// HTML representations of properties and objects of triples where this resource is a subject.
     pub directs: Vec<(String, Vec<String>)>,
+    /// HTML representations of direct triples that are already shown as OWL axioms above.
+    pub duplicates: Vec<(String, Vec<String>)>,
+    /// HTML representations of the items of this RDF list, empty if the resource is not a list.
+    pub list: Vec<String>,
     /// OWL axioms about this resource, grouped by kind.
     pub ontology: Vec<OntologySection>,
+    /// Axioms about other resources that reference this resource.
+    pub referencing: Vec<String>,
     /// HTML representations of subjects and properties of triples where this resource is an object.
     pub inverses: Vec<(String, Vec<String>)>,
     pub duration: String,

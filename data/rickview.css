@@ -72,7 +72,7 @@ h3 {
   font-size: 11px;
 }
 
-div#directs, div#inverses, div#ontology {
+div#directs, div#inverses, div#ontology, div#referencing {
   padding: 24px;
   color: #212121;
   line-height: 20px;
@@ -84,12 +84,33 @@ div#directs {
   background: #fff;
 }
 
-div#inverses {
+div#inverses, div#referencing {
   background: #d4d4d4;
 }
 
 div#ontology {
-  background: #fff;
+  background: #f2f2f2;
+  border-bottom: 1px solid #bdbdbd;
+}
+
+div#directs summary {
+  cursor: pointer;
+  color: #616161;
+  font-size: 13px;
+  margin-bottom: 0.5em;
+}
+
+div#directs details {
+  margin-top: 1em;
+}
+
+ol.rdf-list {
+  margin: 0.5em 0 1em 2em;
+  list-style: decimal;
+}
+
+ol.rdf-list > li {
+  padding: 0.25em 0;
 }
 
 div#ontology .ontology-header {
@@ -109,11 +130,11 @@ div#abstract a {
   color: #ffffff;
 }
 
-div#directs a, div#inverses a, div#ontology a {
+div#directs a, div#inverses a, div#ontology a, div#referencing a {
   color: #212121;
 }
 
-div#directs a:hover, div#inverses a:hover, div#ontology a:hover {
+div#directs a:hover, div#inverses a:hover, div#ontology a:hover, div#referencing a:hover {
   text-decoration: underline;
 }
 
@@ -172,7 +193,7 @@ div#directs tr td.td2, div#ontology tr td.td2 {
  border-bottom: 1px solid #dbdbdb;
 }
 
-div#inverses tr td.td2 {
+div#inverses tr td.td2, div#referencing tr td.td2 {
  border-bottom: 1px solid #b6b6b6;
 }
 

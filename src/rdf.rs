@@ -388,6 +388,20 @@ fn deskolemize<'a>(iri: &'a Iri<&str>) -> SimpleTerm<'a> {
 const RDF_FIRST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
 const RDF_REST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
 const RDF_NIL: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
+const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+const RDFS_SUBCLASS_OF: &str = "http://www.w3.org/2000/01/rdf-schema#subClassOf";
+const RDFS_SUBPROPERTY_OF: &str = "http://www.w3.org/2000/01/rdf-schema#subPropertyOf";
+const RDFS_DOMAIN: &str = "http://www.w3.org/2000/01/rdf-schema#domain";
+const RDFS_RANGE: &str = "http://www.w3.org/2000/01/rdf-schema#range";
+const OWL_EQUIVALENT_CLASS: &str = "http://www.w3.org/2002/07/owl#equivalentClass";
+const OWL_EQUIVALENT_PROPERTY: &str = "http://www.w3.org/2002/07/owl#equivalentProperty";
+const OWL_DISJOINT_WITH: &str = "http://www.w3.org/2002/07/owl#disjointWith";
+const OWL_PROPERTY_DISJOINT_WITH: &str = "http://www.w3.org/2002/07/owl#propertyDisjointWith";
+const OWL_DISJOINT_UNION_OF: &str = "http://www.w3.org/2002/07/owl#disjointUnionOf";
+const OWL_INVERSE_OF: &str = "http://www.w3.org/2002/07/owl#inverseOf";
+const OWL_HAS_KEY: &str = "http://www.w3.org/2002/07/owl#hasKey";
+const OWL_SAME_AS: &str = "http://www.w3.org/2002/07/owl#sameAs";
+const OWL_DIFFERENT_FROM: &str = "http://www.w3.org/2002/07/owl#differentFrom";
 const OWL_ON_PROPERTY: &str = "http://www.w3.org/2002/07/owl#onProperty";
 const OWL_ON_DATATYPE: &str = "http://www.w3.org/2002/07/owl#onDatatype";
 const OWL_WITH_RESTRICTIONS: &str = "http://www.w3.org/2002/07/owl#withRestrictions";
@@ -403,6 +417,10 @@ const OWL_MAX_QUALIFIED_CARDINALITY: &str = "http://www.w3.org/2002/07/owl#maxQu
 const OWL_EXACT_QUALIFIED_CARDINALITY: &str = "http://www.w3.org/2002/07/owl#qualifiedCardinality";
 const OWL_ON_CLASS: &str = "http://www.w3.org/2002/07/owl#onClass";
 const OWL_ON_DATA_RANGE: &str = "http://www.w3.org/2002/07/owl#onDataRange";
+const OWL_AXIOM: &str = "http://www.w3.org/2002/07/owl#Axiom";
+const OWL_ANNOTATED_SOURCE: &str = "http://www.w3.org/2002/07/owl#annotatedSource";
+const OWL_ANNOTATED_PROPERTY: &str = "http://www.w3.org/2002/07/owl#annotatedProperty";
+const OWL_ANNOTATED_TARGET: &str = "http://www.w3.org/2002/07/owl#annotatedTarget";
 const OWL_INTERSECTION_OF: &str = "http://www.w3.org/2002/07/owl#intersectionOf";
 const OWL_UNION_OF: &str = "http://www.w3.org/2002/07/owl#unionOf";
 const OWL_COMPLEMENT_OF: &str = "http://www.w3.org/2002/07/owl#complementOf";
@@ -423,6 +441,40 @@ fn direct_terms(source: &SimpleTerm<'_>) -> BTreeMap<String, Vec<SimpleTerm<'sta
     map
 }
 
+fn is_owl_axiom(props: &BTreeMap<String, Vec<SimpleTerm<'static>>>) -> bool {
+    props.get(RDF_TYPE).is_some_and(|types| types.iter().any(|t| matches!(t.as_simple(), SimpleTerm::Iri(iri) if iri.as_str() == OWL_AXIOM)))
+}
+
+fn annotation_value(term: &SimpleTerm<'_>) -> String {
+    match term.as_simple() {
+        SimpleTerm::Iri(iri) => Piri::from(iri.as_ref()).short(),
+        _ => literal_value(term).map_or_else(|| term_html_inner(term, 0), |value| html_escape(&value)),
+    }
+}
+
+/// Render an `owl:Axiom` as the annotated statement plus its annotations, for example `anno:source anno:SO0053 (anno:kind occurence)`.
+fn axiom_html(props: &BTreeMap<String, Vec<SimpleTerm<'static>>>, depth: usize) -> Option<String> {
+    if !is_owl_axiom(props) {
+        return None;
+    }
+    let property = first_term(props, OWL_ANNOTATED_PROPERTY)?;
+    let target = first_term(props, OWL_ANNOTATED_TARGET)?;
+    let property_html = term_html_inner(property, depth + 1).replace("<br>", " ");
+    let target_html = term_html_inner(target, depth + 1).replace("<br>", " ");
+    let mut html = format!("{property_html} {target_html}");
+    let annotations = props
+        .iter()
+        .filter(|(prop, _)| !matches!(prop.as_str(), RDF_TYPE | OWL_ANNOTATED_SOURCE | OWL_ANNOTATED_PROPERTY | OWL_ANNOTATED_TARGET))
+        .flat_map(|(prop, values)| values.iter().map(move |value| format!("{} {}", Piri::from(prop.as_str()).short(), annotation_value(value))))
+        .collect::<Vec<_>>();
+    if !annotations.is_empty() {
+        html.push_str(" (");
+        html.push_str(&annotations.join(", "));
+        html.push(')');
+    }
+    Some(html)
+}
+
 fn term_html(term: &SimpleTerm<'_>, depth: usize) -> String {
     match term.as_simple() {
         SimpleTerm::LiteralLanguage(lit, tag, _) => format!("{} @{}", html_escape(lit.as_ref()), tag.as_str()),
@@ -431,10 +483,13 @@ fn term_html(term: &SimpleTerm<'_>, depth: usize) -> String {
         }
         SimpleTerm::Iri(iri) => Piri::from(iri.as_ref()).link(),
         SimpleTerm::BlankNode(blank) => {
+            let sub_html = blank_html(term, depth + 1);
+            if !sub_html.trim_start().starts_with("<table>") {
+                return sub_html;
+            }
             let id = blank.as_str();
             let r = IriRef::new_unchecked(SKOLEM_START.to_owned() + id);
             let iri = config().namespace.resolve(r);
-            let sub_html = blank_html(term, depth + 1);
             format!("&#8618;<a href='{}'> Blank Node {id}</a> {sub_html}", Piri::new(iri.as_ref()).root_relative())
         }
         _ => format!("{term:?}"),
@@ -488,6 +543,32 @@ fn list_items(node: &SimpleTerm<'_>) -> Vec<SimpleTerm<'static>> {
     items
 }
 
+/// Predicates whose statements are already shown as OWL axioms, by section label.
+fn duplicated_predicates(ontology: &[OntologySection]) -> BTreeSet<&'static str> {
+    ontology
+        .iter()
+        .flat_map(|section| {
+            let label = section.label.split_once(" (").map_or(section.label.as_str(), |(label, _)| label);
+            let predicates: &'static [&'static str] = match label {
+                "Types" | "Characteristics" => &[RDF_TYPE],
+                "SubClass Of" => &[RDFS_SUBCLASS_OF],
+                "Equivalent To" => &[OWL_EQUIVALENT_CLASS, OWL_EQUIVALENT_PROPERTY],
+                "Disjoint With" => &[OWL_DISJOINT_WITH, OWL_PROPERTY_DISJOINT_WITH],
+                "Disjoint Union Of" => &[OWL_DISJOINT_UNION_OF],
+                "Domain" => &[RDFS_DOMAIN],
+                "Range" => &[RDFS_RANGE],
+                "Sub Property Of" => &[RDFS_SUBPROPERTY_OF],
+                "Inverse Of" => &[OWL_INVERSE_OF],
+                "Has Key" => &[OWL_HAS_KEY],
+                "Same As" => &[OWL_SAME_AS],
+                "Different From" => &[OWL_DIFFERENT_FROM],
+                _ => &[],
+            };
+            predicates.iter().copied()
+        })
+        .collect()
+}
+
 /// Render a term and report whether it needs parentheses when used as an operand.
 fn operand_html(term: &SimpleTerm<'_>, depth: usize) -> (String, bool) {
     let html = term_html_inner(term, depth);
@@ -538,6 +619,9 @@ fn blank_html(node: &SimpleTerm<'_>, depth: usize) -> String {
         return "...".to_owned();
     }
     let props = direct_terms(node);
+    if let Some(html) = axiom_html(&props, depth) {
+        return html;
+    }
 
     // OWL restriction, for example `has_value some decimal[>= 18, < 34]`.
     if let Some(on_property) = first_term(&props, OWL_ON_PROPERTY) {
@@ -730,9 +814,27 @@ pub fn resource(subject: Iri<&str>) -> Resource {
     let source = deskolemize(&subject);
     let mut all_directs = properties(&PropertyType::Direct, &source, 0);
     let descriptions = convert(config().description_properties.iter().filter_map(|p| all_directs.remove_entry(p)).collect());
-    let directs = convert(all_directs);
+    let list: Vec<String> =
+        if all_directs.contains_key(RDF_FIRST) { list_items(&source).iter().map(|item| term_html_inner(item, 0)).collect() } else { Vec::new() };
+    if !list.is_empty() {
+        all_directs.remove(RDF_FIRST);
+        all_directs.remove(RDF_REST);
+    }
     let title = titles().get(&piri.full).unwrap_or(&suffix).clone().replace(SKOLEM_START, "Blank Node ");
-    let ontology = ontology_sections(&piri.full);
+    let mut ontology = ontology_sections(&piri.full);
+    let referencing = ontology
+        .iter()
+        .position(|section| section.label.starts_with("Referenced In"))
+        .map(|i| ontology.remove(i).entries.into_iter().map(|entry| entry.replace("<br>", " ")).collect())
+        .unwrap_or_default();
+    let mut duplicates = BTreeMap::new();
+    for predicate in duplicated_predicates(&ontology) {
+        if let Some(property) = all_directs.remove(predicate) {
+            duplicates.insert(predicate.to_owned(), property);
+        }
+    }
+    let directs = convert(all_directs);
+    let duplicates = convert(duplicates);
     let main_type = types().get(&suffix).cloned();
     let inverses = if config().show_inverse { convert(properties(&PropertyType::Inverse, &source, 0)) } else { Vec::new() };
     Resource {
@@ -744,7 +846,10 @@ pub fn resource(subject: Iri<&str>) -> Resource {
         main_type,
         descriptions,
         directs,
+        duplicates,
+        list,
         ontology,
+        referencing,
         inverses,
         depiction: depiction_iri(subject),
     }
