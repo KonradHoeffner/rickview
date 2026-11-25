@@ -99,17 +99,19 @@ where &'static T: MessageBody {
     HttpResponse::Ok().content_type(ct).append_header((header::CACHE_CONTROL, "public, max-age=31536000, immutable")).append_header(tag).body(body)
 }
 
-// For maximum robustness, serve CSS, font and icon from any path. Collision with RDF resource URIs unlikely.
+/// For maximum robustness, serve the CSS, font and icon from any path. Collision with RDF resource URIs unlikely.
 #[route("{_anypath:.*/|}rickview.css", method = "GET", method = "HEAD")]
 async fn rickview_css(r: HttpRequest) -> impl Responder { hash_etag(&r, RICKVIEW_CSS, &RICKVIEW_CSS_SHASH, &RICKVIEW_CSS_SHASH_QUOTED, "text/css") }
 
+/// Serve the Roboto stylesheet from any path.
 #[route("{_anypath:.*/|}roboto.css", method = "GET", method = "HEAD")]
 async fn roboto_css(r: HttpRequest) -> impl Responder { hash_etag(&r, ROBOTO_CSS, &ROBOTO_CSS_SHASH, &ROBOTO_CSS_SHASH_QUOTED, "text/css") }
 
-// cached automatically by browser
+/// Serve the Roboto 300 font from any path, cached automatically by the browser.
 #[route("{_anypath:.*/|}roboto300.woff2", method = "GET", method = "HEAD")]
 async fn roboto300() -> impl Responder { HttpResponse::Ok().content_type("font/woff2").body(ROBOTO300) }
 
+/// Serve the favicon from any path.
 #[route("{_anypath:.*/|}favicon.ico", method = "GET", method = "HEAD")]
 async fn favicon(r: HttpRequest) -> impl Responder { hash_etag(&r, &FAVICON[..], &FAVICON_SHASH, &FAVICON_SHASH_QUOTED, "image/x-icon") }
 
@@ -255,6 +257,7 @@ fn index() -> HttpResponse {
     }
 }
 
+/// Serve the about page.
 #[route("/about", method = "GET", method = "HEAD")]
 async fn about_page() -> impl Responder {
     let context = Context { config: config(), about: Some(About::new()), classes: String::new(), resource: None };
@@ -264,6 +267,7 @@ async fn about_page() -> impl Responder {
     }
 }
 
+/// Serve the configuration as JSON.
 #[route("/config.json", method = "GET", method = "HEAD")]
 async fn config_json() -> impl Responder { HttpResponse::Ok().json(config()) }
 
