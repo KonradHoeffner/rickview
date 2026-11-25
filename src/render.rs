@@ -146,7 +146,7 @@ pub fn render_resource(suffix: &str, format: Format) -> RenderOutput {
             Err(e) => error_output(&format!("resource {prefixed}"), e),
         },
         Format::Html => {
-            let classes = if is_root(iri.as_str()) { crate::classes::class_tree() } else { String::new() };
+            let classes = if is_root(iri.as_str()) && !config().large { crate::classes::class_tree() } else { String::new() };
             let context = Context { config: config(), about: None, resource: Some(res), classes };
             html_output("resource", &context)
         }
@@ -155,7 +155,8 @@ pub fn render_resource(suffix: &str, format: Format) -> RenderOutput {
 
 /// Render the index page, including the class tree.
 pub fn render_index() -> RenderOutput {
-    let context = Context { config: config(), about: None, classes: crate::classes::class_tree(), resource: None };
+    let classes = if config().large { String::new() } else { crate::classes::class_tree() };
+    let context = Context { config: config(), about: None, classes, resource: None };
     html_output("index", &context)
 }
 
