@@ -233,6 +233,12 @@ footer #footer-left {
   float: left;
 }
 
+footer #footer-left p:first-child {
+  display: flex;
+  gap: .5em;
+  align-items: baseline;
+}
+
 footer #footer-left, footer #footer-left a {
   display: block;
   font-size: 11px;
