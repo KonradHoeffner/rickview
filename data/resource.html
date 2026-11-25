@@ -105,6 +105,18 @@
 				</div>
 			</header>
 			<aside class="empty"></aside>
+			{{- if resource.referencing }}
+			<div id="referencing">
+				<h3>axioms referencing this resource</h3>
+				<table>
+					{{- for entry in resource.referencing }}
+					<tr>
+						<td class="td2"><span class="c2">{ entry | unescaped }</span></td>
+					</tr>
+					{{- endfor }}
+				</table>
+			</div>
+			{{- endif }}
 			{{- if resource.inverses }}
 			<div id="inverses">
 				<h3>inverse relations</h3>
@@ -120,18 +132,6 @@
 							<span class="c2">{ value | unescaped }</span>
 							{{- endfor }}
 						</td>
-					</tr>
-					{{- endfor }}
-				</table>
-			</div>
-			{{- endif }}
-			{{- if resource.referencing }}
-			<div id="referencing">
-				<h3>axioms referencing this resource</h3>
-				<table>
-					{{- for entry in resource.referencing }}
-					<tr>
-						<td class="td2"><span class="c2">{ entry | unescaped }</span></td>
 					</tr>
 					{{- endfor }}
 				</table>
